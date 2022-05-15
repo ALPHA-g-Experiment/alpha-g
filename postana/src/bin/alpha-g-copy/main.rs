@@ -43,19 +43,19 @@ fn main() {
     };
 
     // Name of all the files we want to copy
-    let file_names: Vec<String> = args
+    let file_patterns: Vec<String> = args
         .run_numbers
         .iter()
-        .map(|n| file_name(*n, args.extension))
+        .map(|n| file_pattern(*n, args.extension))
         .collect();
 
     // Format the remote path such that we can send a single scp command
     // That way people will be only asked their password once
     let mut remote = user + "@" + &args.source.to_string() + ":" + &midas_data_path(args.source);
-    if file_names.len() == 1 {
-        remote += &file_names[0];
+    if file_patterns.len() == 1 {
+        remote += &file_patterns[0];
     } else {
-        remote = remote + "{" + &file_names.join(",") + "}";
+        remote = remote + "{" + &file_patterns.join(",") + "}";
     }
 
     let output_path = match args.output_path {
@@ -74,20 +74,20 @@ fn main() {
     if args.decompress && status.success() {
         // Arguments not passed through a shell.
         // Need to glob ourselves
+        let file_names = local_files(&output_path, &file_patterns);
+
         match args.extension.unwrap() {
             Extension::Lz4 => {
-                /*
                 Command::new("lz4")
                     .current_dir(output_path)
                     .arg("-d") // Decompress
                     .arg("-m") //Multiple input files
                     .arg("--rm") // Delete input files when done
-                    .arg(&file_names.join(" "))
+                    .args(file_names)
                     .stdout(Stdio::inherit())
                     .stderr(Stdio::inherit())
                     .status()
                     .expect("failed to run lz4");
-                    */
             }
         }
     }
@@ -138,7 +138,7 @@ fn format_run_number(run_number: u32) -> String {
 /// ```
 /// where `XXXXX` is the run number. Files can have a further extension (e.g.
 /// `.lz4`) if they are compressed.
-fn file_name(run_number: u32, ext: Option<Extension>) -> String {
+fn file_pattern(run_number: u32, ext: Option<Extension>) -> String {
     let ext = match ext {
         None => String::new(),
         Some(extension) => extension.to_string(),
@@ -164,4 +164,23 @@ fn get_from_stdin(prompt: &str) -> String {
         .expect("failed to read user");
 
     String::from(result.trim())
+}
+
+/// Find all files in a path that match a set of patterns
+fn local_files(path: &str, patterns: &[String]) -> Vec<String> {
+    let patterns: Vec<String> = patterns.iter().map(|s| String::from(path) + s).collect();
+
+    let mut local_files = Vec::new();
+
+    for pattern in patterns {
+        for entry in glob(&pattern).expect("failed to read glob pattern") {
+            local_files.push(String::from(entry.unwrap().to_str().unwrap()));
+        }
+    }
+
+    for file in local_files.iter_mut() {
+        *file = (*file.trim_start_matches(&path).to_owned()).to_string();
+    }
+
+    local_files
 }
