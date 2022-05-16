@@ -37,7 +37,7 @@ struct Args {
     decompress: bool,
 }
 
-/// Compression of files in the remote host
+/// Extension i.e. compression of MIDAS files
 #[derive(Clone, Copy, Debug, ArgEnum)]
 pub enum Extension {
     Lz4,
@@ -123,7 +123,7 @@ fn local_files(path: &Path, patterns: &[String]) -> Vec<OsString> {
         .collect()
 }
 
-/// Parse --output-path flag as valid directory
+/// Parse `--output-path` flag as valid directory
 fn is_directory(s: &str) -> Result<PathBuf, String> {
     let path: PathBuf = s.into();
     if path.is_dir() {
