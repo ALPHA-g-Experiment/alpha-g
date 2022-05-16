@@ -1,13 +1,18 @@
-//! Wrapper for `scp` to make a local copy of the MIDAS files from specific
-//! runs of the ALPHA-g experiment.
+//! Make local copies of the MIDAS files from specific runs of the ALPHA-g
+//! experiment.
 
+use crate::host::Host;
 use clap::{ArgEnum, Parser};
 use glob::glob;
 use std::{
-    fmt, io,
-    io::Write,
-    process::{Command, Stdio},
+    ffi::OsString,
+    fmt,
+    path::{Path, PathBuf},
+    process::Command,
 };
+
+/// Hosts for ALPHA-g MIDAS files
+mod host;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -15,100 +20,26 @@ struct Args {
     /// Run numbers for which you want to copy all MIDAS files locally
     #[clap(required = true)]
     run_numbers: Vec<u32>,
+    /// User at remote host
+    #[clap(short, long)]
+    user: String,
     /// Host from which the files will be copied
     #[clap(arg_enum, short, long)]
     source: Host,
     /// Path where the MIDAS files will be copied into
-    #[clap(short, long)]
-    output_path: Option<String>,
+    #[clap(short, long, default_value="./", parse(try_from_str=is_directory))]
+    output_path: PathBuf,
     /// Extension i.e. compression of remote files
     #[clap(arg_enum, short, long)]
     extension: Option<Extension>,
     /// Decompress the copied MIDAS file (requires --extension)
     #[clap(short, long, requires("extension"))]
     decompress: bool,
-    /// User at remote host
-    #[clap(short, long)]
-    user: Option<String>,
-}
-
-/// Run `scp` and (if applicable) the appropriate decompression of the copied
-/// files
-fn main() {
-    let args = Args::parse();
-
-    let user = match args.user {
-        Some(value) => value,
-        None => get_from_stdin("Insert your username: "),
-    };
-
-    // Name of all the files we want to copy
-    let file_patterns: Vec<String> = args
-        .run_numbers
-        .iter()
-        .map(|n| file_pattern(*n, args.extension))
-        .collect();
-
-    // Format the remote path such that we can send a single scp command
-    // That way people will be only asked their password once
-    let mut remote = user + "@" + &args.source.to_string() + ":" + &midas_data_path(args.source);
-    if file_patterns.len() == 1 {
-        remote += &file_patterns[0];
-    } else {
-        remote = remote + "{" + &file_patterns.join(",") + "}";
-    }
-
-    let output_path = match args.output_path {
-        None => String::from("./"),
-        Some(path) => path,
-    };
-
-    let status = Command::new("scp")
-        .arg(remote)
-        .arg(&output_path)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .expect("failed to run scp");
-
-    if args.decompress && status.success() {
-        // Arguments not passed through a shell.
-        // Need to glob ourselves
-        let file_names = local_files(&output_path, &file_patterns);
-
-        match args.extension.unwrap() {
-            Extension::Lz4 => {
-                Command::new("lz4")
-                    .current_dir(output_path)
-                    .arg("-d") // Decompress
-                    .arg("-m") //Multiple input files
-                    .arg("--rm") // Delete input files when done
-                    .args(file_names)
-                    .stdout(Stdio::inherit())
-                    .stderr(Stdio::inherit())
-                    .status()
-                    .expect("failed to run lz4");
-            }
-        }
-    }
-}
-
-/// Host from which the files will be copied
-#[derive(Clone, Copy, Debug, ArgEnum)]
-enum Host {
-    Lxplus,
-}
-impl fmt::Display for Host {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Host::Lxplus => write!(f, "lxplus.cern.ch"),
-        }
-    }
 }
 
 /// Compression of files in the remote host
 #[derive(Clone, Copy, Debug, ArgEnum)]
-enum Extension {
+pub enum Extension {
     Lz4,
 }
 impl fmt::Display for Extension {
@@ -119,68 +50,85 @@ impl fmt::Display for Extension {
     }
 }
 
-/// Add `0`s to the beginning of the run number until it is at least 5
-/// characters long.
-fn format_run_number(run_number: u32) -> String {
-    let mut run_number = run_number.to_string();
-    while run_number.len() < 5 {
-        run_number = "0".to_owned() + &run_number;
+/// Copy and (if applicable) run the appropriate decompression of the MIDAS
+/// files
+fn main() {
+    let args = Args::parse();
+
+    // Pattern of all files we want to copy (just filename, no paths)
+    let patterns: Vec<String> = args
+        .run_numbers
+        .into_iter()
+        .map(|n| {
+            args.source.filename_pattern(n)
+                + &args.extension.map_or(String::new(), |e| e.to_string())
+        })
+        .collect();
+
+    // Format the remote path such that we can send a single scp command
+    // That way people will be only asked their password once
+    let mut remote = args.user
+        + "@"
+        + &args.source.to_string()
+        + ":"
+        + args.source.data_path().to_str().unwrap();
+    if patterns.len() == 1 {
+        remote += &patterns[0];
+    } else {
+        remote = remote + "{" + &patterns.join(",") + "}";
     }
-    run_number
-}
 
-/// Get ALPHA-g file name given run number and extension.
-///
-/// All the files from a given run follow the format:
-///
-/// ```text
-/// runXXXXXsub*.mid
-/// ```
-/// where `XXXXX` is the run number. Files can have a further extension (e.g.
-/// `.lz4`) if they are compressed.
-fn file_pattern(run_number: u32, ext: Option<Extension>) -> String {
-    let ext = match ext {
-        None => String::new(),
-        Some(extension) => extension.to_string(),
-    };
-    String::from("run") + &format_run_number(run_number) + "sub*.mid" + &ext
-}
+    Command::new("scp")
+        .arg(remote)
+        .arg(&args.output_path)
+        .status()
+        .expect("failed to run scp");
 
-/// Path to MIDAS files in a given host
-fn midas_data_path(source: Host) -> String {
-    match source {
-        Host::Lxplus => String::from("/eos/experiment/ALPHAg/midasdata_old/"),
+    // Don't check status. Decompress whatever was successful
+    if args.decompress {
+        // Arguments not passed through a shell. Need to glob ourselves.
+        // This is just the filenames (no path to them).
+        // Need to run the decompression from the output_path
+        let file_names = local_files(&args.output_path, &patterns);
+
+        match args.extension.unwrap() {
+            Extension::Lz4 => {
+                Command::new("lz4")
+                    .current_dir(args.output_path)
+                    .arg("-d") // Decompress
+                    .arg("-m") //Multiple input files
+                    .arg("--rm") // Delete input files when done
+                    .args(file_names)
+                    .status()
+                    .expect("failed to run lz4");
+            }
+        }
     }
-}
-
-/// Get line from standard input
-fn get_from_stdin(prompt: &str) -> String {
-    print!("{prompt}");
-    io::stdout().flush().unwrap();
-
-    let mut result = String::new();
-    io::stdin()
-        .read_line(&mut result)
-        .expect("failed to read user");
-
-    String::from(result.trim())
 }
 
 /// Find all files in a path that match a set of patterns
-fn local_files(path: &str, patterns: &[String]) -> Vec<String> {
-    let patterns: Vec<String> = patterns.iter().map(|s| String::from(path) + s).collect();
+fn local_files(path: &Path, patterns: &[String]) -> Vec<OsString> {
+    let patterns: Vec<PathBuf> = patterns.iter().map(|s| path.join(s)).collect();
 
     let mut local_files = Vec::new();
-
     for pattern in patterns {
-        for entry in glob(&pattern).expect("failed to read glob pattern") {
-            local_files.push(String::from(entry.unwrap().to_str().unwrap()));
+        for entry in glob(pattern.to_str().unwrap()).unwrap() {
+            local_files.push(entry.unwrap());
         }
     }
 
-    for file in local_files.iter_mut() {
-        *file = (*file.trim_start_matches(&path).to_owned()).to_string();
-    }
-
     local_files
+        .into_iter()
+        .map(|p| p.file_name().unwrap().to_os_string())
+        .collect()
+}
+
+/// Parse --output-path flag as valid directory
+fn is_directory(s: &str) -> Result<PathBuf, String> {
+    let path: PathBuf = s.into();
+    if path.is_dir() {
+        Ok(path)
+    } else {
+        Err(String::from("path is not pointing at a directory on disk"))
+    }
 }
