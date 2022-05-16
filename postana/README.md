@@ -1,5 +1,7 @@
 # ALPHA-g-Postana
 
+[![Test Status](https://github.com/DJDuque/alpha-g/actions/workflows/rust.yml/badge.svg)](https://github.com/DJDuque/alpha-g/actions/workflows/rust.yml)
+
 Rust package with multiple binary crates. Each executable is a useful tool to 
 perform common post-processing/offline analysis on the data of the ALPHA-g 
 experiment at CERN.
