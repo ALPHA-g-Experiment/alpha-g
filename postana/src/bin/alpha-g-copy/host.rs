@@ -45,3 +45,6 @@ fn pattern_1(run_number: u32) -> String {
     }
     String::from("run") + &run_number + "sub*.mid"
 }
+
+#[cfg(test)]
+mod tests;

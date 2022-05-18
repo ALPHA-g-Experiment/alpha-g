@@ -132,3 +132,6 @@ fn is_directory(s: &str) -> Result<PathBuf, String> {
         Err(String::from("path is not pointing at a directory on disk"))
     }
 }
+
+#[cfg(test)]
+mod tests;
