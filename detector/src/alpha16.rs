@@ -297,7 +297,7 @@ pub enum TryAdcPacketFromSliceError {
     // not possible.
     NumberOfSamplesMismatch,
     /// The number of waveform bytes is not even; recall that each waveform
-    /// sample is [`i16`]. Or the number of waveform samples is shorted than the
+    /// sample is [`i16`]. Or the number of waveform samples is shorter than the
     /// minimum required to reproduce the suppression baseline.
     IncompleteWaveform,
 }
@@ -340,6 +340,36 @@ impl From<TryBoardIdFromMacAddressError> for TryAdcPacketFromSliceError {
     }
 }
 
+/// Version 3 of an ADC data packet.
+///
+/// An ADC packet represents the data collected from an individual channel in an
+/// Alpha16 board. The binary representation of an [`AdcV3Packet`] in a data
+/// bank is shown below. All multi-byte fields are big-endian:
+///
+/// <center>
+///
+/// |Byte(s)|Description|
+/// |:-:|:-:|
+/// |0|Fixed to 1|
+/// |1|Fixed to 3|
+/// |2-3|Accepted trigger|
+/// |4|Module ID|
+/// |5|Channel ID|
+/// |6-7|Requested samples|
+/// |8-11|Event timestamp (LSW)|
+/// |12-13|Fixed to 0|
+/// |14-19|MAC address|
+/// |20-23|Event timestamp (MSW)|
+/// |24-27|Trigger offset|
+/// |28-31|Build timestamp|
+/// |32-33|First waveform sample|
+/// |...|Waveform samples|
+/// |Last 4 bytes|Data suppression info|
+///
+/// </center>
+///
+/// Bytes `[12..size - 4]` are only included in the packet if the `keep_bit` is
+/// set after data suppression.
 #[derive(Clone, Debug)]
 pub struct AdcV3Packet {
     accepted_trigger: u16,
@@ -453,8 +483,14 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         let suppression_enabled = (footer >> 13) & 1 == 1;
 
         if slice.len() == 16 {
+            if !suppression_enabled {
+                return Err(Self::Error::NumberOfSamplesMismatch);
+            }
             if keep_bit {
                 return Err(Self::Error::KeepBitMismatch);
+            }
+            if keep_last != 0 {
+                return Err(Self::Error::BadKeepLast);
             }
             return Ok(AdcV3Packet {
                 accepted_trigger,
