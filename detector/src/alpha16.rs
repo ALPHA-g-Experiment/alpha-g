@@ -383,44 +383,258 @@ pub struct AdcV3Packet {
     waveform: Vec<i16>,
     // Only `keep_bit` and `baseline` can be deduced by logic from the other
     // fields. Both `keep_last` and `suppression_enabled` need to be stored.
-    keep_last: usize,
+    keep_last: Option<usize>,
     suppression_enabled: bool,
 }
 
 impl AdcV3Packet {
+    /// Return the packet type. Currently fixed to `1`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.packet_type(), 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn packet_type(&self) -> u8 {
         1
     }
+    /// Return the packet version. For [`AdcV3Packet`] it is fixed to `3`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.packet_version(), 3);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn packet_version(&self) -> u8 {
         3
     }
+    /// In the firmware logic, `accepted_trigger` is a 32-bits unsigned integer.
+    /// Return the 16 LSB as [`u16`].
+    ///
+    /// This is a counter that indicates the number of trigger signals received
+    /// from the TRG board. All packets from the same event must have the same
+    /// `accepted_trigger` counter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.accepted_trigger(), 4);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn accepted_trigger(&self) -> u16 {
         self.accepted_trigger
     }
+    /// Return the [`ModuleId`] of the Alpha16 board from which the packet was
+    /// generated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcV3Packet, ModuleId};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.module_id(), ModuleId::try_from(5)?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn module_id(&self) -> ModuleId {
         self.module_id
     }
+    /// Return the [`ChannelId`] in an Alpha16 board from which the packet was
+    /// generated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcV3Packet, ChannelId};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(matches!(packet.channel_id(), ChannelId::A16(_)));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn channel_id(&self) -> ChannelId {
         self.channel_id
     }
+    /// Return the number of requested waveform samples. The actual number of
+    /// samples in the packet should be obtained from [`waveform`]; due to data
+    /// suppression these two are most likely not equal.
+    ///
+    /// [`waveform`]: AdcV3Packet::waveform.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.requested_samples(), 699);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn requested_samples(&self) -> usize {
         self.requested_samples
     }
+    /// I do not know what this field means. It never matches the event
+    /// timestamp in the MIDAS event.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.event_timestamp(), 7);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn event_timestamp(&self) -> u64 {
         self.event_timestamp
     }
+    /// Return the [`BoardId`] of the Alpha16 board from which the packet was
+    /// generated. Return [`None`] if the `keep_bit` is not set in the data
+    /// suppression footer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(packet.board_id().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn board_id(&self) -> Option<BoardId> {
         self.board_id
     }
+    /// I do not understand what this field means exactly. I know that it
+    /// matches `adcXX_trig_delay - adcXX_trig_start` in the ODB (with `XX`
+    /// equal to `16` or `32`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(packet.trigger_offset().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn trigger_offset(&self) -> Option<i32> {
         self.trigger_offset
     }
+    /// Return the SOF file build timestamp; this acts as firmware version.
+    /// Return [`None`] if the `keep_bit` is not set in the data suppression
+    /// footer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(packet.build_timestamp().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn build_timestamp(&self) -> Option<u32> {
         self.build_timestamp
     }
+    /// Return the digitized waveform samples received by an ADC channel in an
+    /// Alpha16 board. Return an empty slice if the `keep_bit` is not set in the
+    /// data suppression footer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.waveform().len(), 0);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn waveform(&self) -> &[i16] {
         &self.waveform
     }
+    /// Return the waveform baseline used in data suppression. Return [`None`]
+    /// if there are no waveform samples i.e. the `keep_bit` is not set in the
+    /// data suppression footer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(packet.suppression_baseline().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn suppression_baseline(&self) -> Option<i16> {
         if self.waveform.is_empty() {
             None
@@ -438,9 +652,46 @@ impl AdcV3Packet {
             )
         }
     }
-    pub fn keep_last(&self) -> usize {
+    /// Return a counter of the last data word with a sample over the data
+    /// suppression threshold. The `keep_last` value is computed from the last
+    /// waveform `index` as `keep_last = (index + 1) / 2 + 1`. Hence the `index`
+    /// of the last waveform sample above the suppression threshold is either
+    /// `(keep_last - 1) * 2` or `(keep_last - 1) * 2 - 1`. Return [`None`] if
+    /// the `keep_bit` is not set in the data suppression footer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(packet.keep_last().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn keep_last(&self) -> Option<usize> {
         self.keep_last
     }
+    /// Return [`true`] if data suppression is enabled.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(packet.is_suppression_enabled());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn is_suppression_enabled(&self) -> bool {
         self.suppression_enabled
     }
@@ -502,7 +753,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
                 trigger_offset: None,
                 build_timestamp: None,
                 waveform: Vec::new(),
-                keep_last,
+                keep_last: None,
                 suppression_enabled,
             });
         }
@@ -532,13 +783,14 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         if !keep_bit {
             return Err(Self::Error::KeepBitMismatch);
         }
-        if suppression_enabled && waveform_bytes / 2 > requested_samples {
+        let waveform_samples = waveform_bytes / 2;
+        if suppression_enabled && waveform_samples > requested_samples {
             return Err(Self::Error::NumberOfSamplesMismatch);
         }
-        if !suppression_enabled && waveform_bytes / 2 != requested_samples {
+        if !suppression_enabled && waveform_samples != requested_samples {
             return Err(Self::Error::NumberOfSamplesMismatch);
         }
-        if waveform_bytes / 2 + 3 < 2 * keep_last {
+        if waveform_samples + 3 < 2 * keep_last {
             return Err(Self::Error::BadKeepLast);
         }
 
@@ -561,7 +813,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             trigger_offset: Some(trigger_offset),
             build_timestamp: Some(build_timestamp),
             waveform,
-            keep_last,
+            keep_last: Some(keep_last),
             suppression_enabled,
         })
     }
