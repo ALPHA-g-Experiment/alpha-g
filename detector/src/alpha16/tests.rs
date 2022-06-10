@@ -365,3 +365,230 @@ fn adc_v3_packet_incomplete_waveform() {
         Err(TryAdcPacketFromSliceError::IncompleteWaveform)
     ));
 }
+
+#[test]
+fn adc_v3_packet_type() {
+    assert_eq!(
+        AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+            .unwrap()
+            .packet_type(),
+        1
+    );
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .packet_type(),
+        1
+    );
+}
+
+#[test]
+fn adc_v3_packet_version() {
+    assert_eq!(
+        AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+            .unwrap()
+            .packet_version(),
+        3
+    );
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .packet_version(),
+        3
+    );
+}
+
+#[test]
+fn adc_v3_packet_accepted_trigger() {
+    assert_eq!(
+        AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+            .unwrap()
+            .accepted_trigger(),
+        1
+    );
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .accepted_trigger(),
+        1
+    );
+}
+
+#[test]
+fn adc_v3_packet_module_id() {
+    assert_eq!(
+        AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+            .unwrap()
+            .module_id(),
+        ModuleId::try_from(2).unwrap()
+    );
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .module_id(),
+        ModuleId::try_from(2).unwrap()
+    );
+}
+
+#[test]
+fn adc_v3_packet_channel_id() {
+    let channel = AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .channel_id();
+    match channel {
+        ChannelId::A16(value) => assert_eq!(value, Adc16ChannelId::try_from(3).unwrap()),
+        _ => panic!(),
+    }
+
+    let channel = AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+        .unwrap()
+        .channel_id();
+    match channel {
+        ChannelId::A16(value) => assert_eq!(value, Adc16ChannelId::try_from(3).unwrap()),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn adc_v3_packet_requested_samples() {
+    assert_eq!(
+        AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+            .unwrap()
+            .requested_samples(),
+        699
+    );
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .requested_samples(),
+        699
+    );
+}
+
+#[test]
+fn adc_v3_packet_event_timestamp() {
+    assert_eq!(
+        AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+            .unwrap()
+            .event_timestamp(),
+        4
+    );
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .event_timestamp(),
+        4
+    );
+}
+
+#[test]
+fn adc_v3_packet_board_id() {
+    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .board_id()
+        .is_none());
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .board_id(),
+        Some(BoardId::try_from([216, 128, 57, 104, 142, 82]).unwrap())
+    );
+}
+
+#[test]
+fn adc_v3_packet_trigger_offset() {
+    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .trigger_offset()
+        .is_none());
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .trigger_offset()
+            .unwrap(),
+        5
+    );
+}
+
+#[test]
+fn adc_v3_packet_build_timestamp() {
+    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .build_timestamp()
+        .is_none());
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .build_timestamp()
+            .unwrap(),
+        6
+    );
+}
+
+#[test]
+fn adc_v3_packet_waveform() {
+    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .waveform()
+        .is_empty());
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .waveform()
+            .len(),
+        64
+    );
+}
+
+#[test]
+fn adc_v3_packet_suppression_baseline() {
+    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .suppression_baseline()
+        .is_none());
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .suppression_baseline()
+            .unwrap(),
+        0
+    );
+}
+
+#[test]
+fn adc_v3_packet_keep_last() {
+    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .keep_last()
+        .is_none());
+    assert_eq!(
+        AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+            .unwrap()
+            .keep_last()
+            .unwrap(),
+        33
+    );
+}
+
+#[test]
+fn adc_v3_packet_is_suppression_enabled() {
+    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+        .unwrap()
+        .is_suppression_enabled());
+    assert!(AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
+        .unwrap()
+        .is_suppression_enabled());
+
+    let packet = AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..]).unwrap();
+    let requested_samples = packet.requested_samples();
+    let waveform_samples = packet.waveform.len();
+
+    let mut large_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
+    for _ in 0..requested_samples - waveform_samples {
+        large_packet.insert(32, 0);
+        large_packet.insert(32, 0);
+    }
+    assert!(AdcV3Packet::try_from(&large_packet[..])
+        .unwrap()
+        .is_suppression_enabled());
+}

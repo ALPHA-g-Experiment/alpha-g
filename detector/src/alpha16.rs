@@ -198,7 +198,7 @@ const ALPHA16BOARDS: [(&str, [u8; 6]); 8] = [
 /// [`BoardId`] and [`ModuleId`] depends on the run number e.g. we switch an old
 /// board for a new board. You can see the [`ModuleId`] as the slot in which a
 /// board is plugged, which always maps to the same BV and TPC channels.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BoardId {
     name: &'static str,
     mac_address: [u8; 6],
@@ -715,6 +715,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         let accepted_trigger = slice[2..4].try_into().unwrap();
         let accepted_trigger = u16::from_be_bytes(accepted_trigger);
         let module_id = ModuleId::try_from(slice[4])?;
+        // A value of [0-15] is BV, and a value of [128-159] is rTPC
         let channel_id = slice[5];
         let channel_id = if channel_id < 128 {
             ChannelId::A16(channel_id.try_into()?)
@@ -777,6 +778,8 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         let build_timestamp = u32::from_be_bytes(build_timestamp);
 
         let waveform_bytes = slice.len() - 36;
+        // We need 64 waveform samples i.e. 128 bytes to reconstruct and check
+        // that the baseline is correct.
         if waveform_bytes % 2 != 0 || waveform_bytes < 128 {
             return Err(Self::Error::IncompleteWaveform);
         }
@@ -790,6 +793,18 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         if !suppression_enabled && waveform_samples != requested_samples {
             return Err(Self::Error::NumberOfSamplesMismatch);
         }
+        // The keep_bit is computed from the last waveform index over the
+        // threshold as: keep_last = (index + 1) / 2 + 1.
+        // Then the index of the last sample over the threshold is:
+        // (keep_last - 1) * 2
+        // or
+        // (keep_last - 1) * 2 - 1
+        // It can be any of the above (due to integer division rounding). Then,
+        // this implies that the number of waveform samples has to be at least
+        // (keep_last - 1) * 2 - 1 or bigger. We rearrange the inequality to
+        // avoid unsigned integer underflow.
+        // This also removes the trivially wrong keep_last = {0,1} from which
+        // you cant reconstruct the index without risking underflow.
         if waveform_samples + 3 < 2 * keep_last {
             return Err(Self::Error::BadKeepLast);
         }
