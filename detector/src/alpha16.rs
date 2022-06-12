@@ -263,9 +263,9 @@ impl BoardId {
 pub enum TryAdcPacketFromSliceError {
     /// The input slice is not long enough to contain a complete packet.
     IncompleteSlice,
-    /// Unknown packet type. This value should currently be fixed to `1`.
+    /// Unknown packet type.
     UnknownType,
-    /// Unknown packet version. This value should currently be fixed to `3`.
+    /// Unknown packet version.
     UnknownVersion,
     /// Integer representation of Module ID doesn't match any known
     /// [`ModuleId`].
@@ -279,27 +279,20 @@ pub enum TryAdcPacketFromSliceError {
     UnknownMac,
     /// Suppression baseline in the footer doesn't match waveform samples.
     BaselineMismatch,
-    /// The number of waveform samples is less than the number indicated by
-    /// `keep_last` in the footer.
+    /// The value of `keep_last` is inconsistent with the `keep_bit`, or its
+    /// value is less than the minimum required by the suppression baseline.
     // The `keep_more` and `threshold` values are not known here, so a more
     // specific error than this is not possible.
     BadKeepLast,
-    /// The `keep_bit` in the footer is set, but there are no waveform samples.
-    /// Or `keep_bit` is not set, but there are waveform samples.
+    /// The `keep_bit` in the footer is inconsistent with the packet size and
+    /// data suppression status.
     // The `threshold` is not known here, so a more specific error than this is
     // not possible.
     KeepBitMismatch,
-    /// Data suppression is not enabled, and the number of waveform samples
-    /// doesn't match the number of requested samples. Or data suppression is
-    /// enabled, and the number of waveform samples is greater than the number
-    /// of requested samples.
-    // The `keep_more` is not known here, so a more specific error than this is
-    // not possible.
-    NumberOfSamplesMismatch,
-    /// The number of waveform bytes is not even; recall that each waveform
-    /// sample is [`i16`]. Or the number of waveform samples is shorter than the
-    /// minimum required to reproduce the suppression baseline.
-    IncompleteWaveform,
+    /// The number of waveform samples is less/more than the minimum/maximum
+    /// required by the suppression baseline, `keep_last`, or requested number
+    /// of samples.
+    BadNumberOfSamples,
 }
 impl fmt::Display for TryAdcPacketFromSliceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -316,10 +309,7 @@ impl fmt::Display for TryAdcPacketFromSliceError {
             }
             TryAdcPacketFromSliceError::BadKeepLast => write!(f, "bad keep_last"),
             TryAdcPacketFromSliceError::KeepBitMismatch => write!(f, "keep_bit mismatch"),
-            TryAdcPacketFromSliceError::NumberOfSamplesMismatch => {
-                write!(f, "number of samples mismatch")
-            }
-            TryAdcPacketFromSliceError::IncompleteWaveform => write!(f, "incomplete waveform"),
+            TryAdcPacketFromSliceError::BadNumberOfSamples => write!(f, "bad waveform bytes"),
         }
     }
 }
@@ -381,14 +371,14 @@ pub struct AdcV3Packet {
     trigger_offset: Option<i32>,
     build_timestamp: Option<u32>,
     waveform: Vec<i16>,
-    // Only `keep_bit` and `baseline` can be deduced by logic from the other
-    // fields. Both `keep_last` and `suppression_enabled` need to be stored.
-    keep_last: Option<usize>,
+    suppression_baseline: i16,
+    last_above_threshold: Option<usize>,
+    keep_bit: bool,
     suppression_enabled: bool,
 }
 
 impl AdcV3Packet {
-    /// Return the packet type. Currently fixed to `1`.
+    /// Return the packet type.
     ///
     /// # Examples
     ///
@@ -534,8 +524,8 @@ impl AdcV3Packet {
         self.event_timestamp
     }
     /// Return the [`BoardId`] of the Alpha16 board from which the packet was
-    /// generated. Return [`None`] if the `keep_bit` is not set in the data
-    /// suppression footer.
+    /// generated. Return [`None`] if data suppression is enabled and the
+    /// `keep_bit` is not set.
     ///
     /// # Examples
     ///
@@ -556,7 +546,8 @@ impl AdcV3Packet {
     }
     /// I do not understand what this field means exactly. I know that it
     /// matches `adcXX_trig_delay - adcXX_trig_start` in the ODB (with `XX`
-    /// equal to `16` or `32`).
+    /// equal to `16` or `32`). Return [`None`] if data suppression is enabled
+    /// and the `keep_bit` is not set.
     ///
     /// # Examples
     ///
@@ -576,8 +567,8 @@ impl AdcV3Packet {
         self.trigger_offset
     }
     /// Return the SOF file build timestamp; this acts as firmware version.
-    /// Return [`None`] if the `keep_bit` is not set in the data suppression
-    /// footer.
+    /// Return [`None`] if data suppression if enabled and the `keep_bit` is not
+    /// set.
     ///
     /// # Examples
     ///
@@ -597,8 +588,8 @@ impl AdcV3Packet {
         self.build_timestamp
     }
     /// Return the digitized waveform samples received by an ADC channel in an
-    /// Alpha16 board. Return an empty slice if the `keep_bit` is not set in the
-    /// data suppression footer.
+    /// Alpha16 board. Return an empty slice if data suppression is enabled and
+    /// the `keep_bit` is not set.
     ///
     /// # Examples
     ///
@@ -610,16 +601,14 @@ impl AdcV3Packet {
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
     ///
-    /// assert_eq!(packet.waveform().len(), 0);
+    /// assert!(packet.waveform().is_empty());
     /// # Ok(())
     /// # }
     /// ```
     pub fn waveform(&self) -> &[i16] {
         &self.waveform
     }
-    /// Return the waveform baseline used in data suppression. Return [`None`]
-    /// if there are no waveform samples i.e. the `keep_bit` is not set in the
-    /// data suppression footer.
+    /// Return the data suppression waveform baseline.
     ///
     /// # Examples
     ///
@@ -631,33 +620,18 @@ impl AdcV3Packet {
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
     ///
-    /// assert!(packet.suppression_baseline().is_none());
+    /// assert_eq!(packet.suppression_baseline(), 0);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn suppression_baseline(&self) -> Option<i16> {
-        if self.waveform.is_empty() {
-            None
-        } else {
-            // Add over i32 because adding 64 i16s can overflow.
-            Some(
-                i16::try_from(
-                    self.waveform[..64]
-                        .iter()
-                        .map(|n| i32::from(*n))
-                        .sum::<i32>()
-                        / 64,
-                )
-                .unwrap(),
-            )
-        }
+    pub fn suppression_baseline(&self) -> i16 {
+        self.suppression_baseline
     }
-    /// Return a counter of the last data word with a sample over the data
-    /// suppression threshold. The `keep_last` value is computed from the last
-    /// waveform `index` as `keep_last = (index + 1) / 2 + 1`. Hence the `index`
-    /// of the last waveform sample above the suppression threshold is either
-    /// `(keep_last - 1) * 2` or `(keep_last - 1) * 2 - 1`. Return [`None`] if
-    /// the `keep_bit` is not set in the data suppression footer.
+    /// Return the index of the last [`waveform`] sample that is over the data
+    /// suppression threshold. Return [`None`] if no sample goes over the
+    /// threshold.
+    ///
+    /// [`waveform`]: AdcV3Packet::waveform.
     ///
     /// # Examples
     ///
@@ -669,12 +643,34 @@ impl AdcV3Packet {
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
     ///
-    /// assert!(packet.keep_last().is_none());
+    /// assert!(packet.last_above_threshold().is_none());
     /// # Ok(())
     /// # }
     /// ```
-    pub fn keep_last(&self) -> Option<usize> {
-        self.keep_last
+    pub fn last_above_threshold(&self) -> Option<usize> {
+        self.last_above_threshold
+    }
+    /// Return [`true`] if at least one [`waveform`] sample is over the data
+    /// suppression threshold.
+    ///
+    /// [`waveform`]: AdcV3Packet::waveform.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::AdcV3Packet;
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcV3Packet::try_from(&buffer[..])?;
+    ///
+    /// assert!(!packet.keep_bit());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn keep_bit(&self) -> bool {
+        self.keep_bit
     }
     /// Return [`true`] if data suppression is enabled.
     ///
@@ -696,6 +692,14 @@ impl AdcV3Packet {
         self.suppression_enabled
     }
 }
+
+// The minimum number of samples required to reconstruct the data suppression
+// baseline.
+const BASELINE_SAMPLES: usize = 64;
+// Minimum valid value of keep_last different to 0.
+// keep_last = (index + 2) / 2 + 1
+// And the minimum index is one after the baseline.
+const MIN_KEEP_LAST: usize = (BASELINE_SAMPLES + 2) / 2 + 1;
 
 impl TryFrom<&[u8]> for AdcV3Packet {
     type Error = TryAdcPacketFromSliceError;
@@ -726,8 +730,8 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         let requested_samples = u16::from_be_bytes(requested_samples).into();
         let lsw_event_timestamp = slice[8..12].try_into().unwrap();
 
-        let baseline = slice[slice.len() - 2..].try_into().unwrap();
-        let baseline = i16::from_be_bytes(baseline);
+        let suppression_baseline = slice[slice.len() - 2..].try_into().unwrap();
+        let suppression_baseline = i16::from_be_bytes(suppression_baseline);
         let footer = slice[slice.len() - 4..][..2].try_into().unwrap();
         let footer = u16::from_be_bytes(footer);
         let keep_last = usize::from(footer & 0xFFF);
@@ -736,7 +740,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
 
         if slice.len() == 16 {
             if !suppression_enabled {
-                return Err(Self::Error::NumberOfSamplesMismatch);
+                return Err(Self::Error::IncompleteSlice);
             }
             if keep_bit {
                 return Err(Self::Error::KeepBitMismatch);
@@ -754,7 +758,9 @@ impl TryFrom<&[u8]> for AdcV3Packet {
                 trigger_offset: None,
                 build_timestamp: None,
                 waveform: Vec::new(),
-                keep_last: None,
+                last_above_threshold: None,
+                suppression_baseline,
+                keep_bit,
                 suppression_enabled,
             });
         }
@@ -776,46 +782,63 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         let trigger_offset = i32::from_be_bytes(trigger_offset);
         let build_timestamp = slice[28..32].try_into().unwrap();
         let build_timestamp = u32::from_be_bytes(build_timestamp);
-
         let waveform_bytes = slice.len() - 36;
-        // We need 64 waveform samples i.e. 128 bytes to reconstruct and check
-        // that the baseline is correct.
-        if waveform_bytes % 2 != 0 || waveform_bytes < 128 {
-            return Err(Self::Error::IncompleteWaveform);
+        if waveform_bytes % 2 != 0 {
+            return Err(Self::Error::BadNumberOfSamples);
         }
-        if !keep_bit {
-            return Err(Self::Error::KeepBitMismatch);
-        }
-        let waveform_samples = waveform_bytes / 2;
-        if suppression_enabled && waveform_samples > requested_samples {
-            return Err(Self::Error::NumberOfSamplesMismatch);
-        }
-        if !suppression_enabled && waveform_samples != requested_samples {
-            return Err(Self::Error::NumberOfSamplesMismatch);
-        }
-        // The keep_bit is computed from the last waveform index over the
-        // threshold as: keep_last = (index + 1) / 2 + 1.
-        // Then the index of the last sample over the threshold is:
-        // (keep_last - 1) * 2
-        // or
-        // (keep_last - 1) * 2 - 1
-        // It can be any of the above (due to integer division rounding). Then,
-        // this implies that the number of waveform samples has to be at least
-        // (keep_last - 1) * 2 - 1 or bigger. We rearrange the inequality to
-        // avoid unsigned integer underflow.
-        // This also removes the trivially wrong keep_last = {0,1} from which
-        // you cant reconstruct the index without risking underflow.
-        if waveform_samples + 3 < 2 * keep_last {
-            return Err(Self::Error::BadKeepLast);
-        }
-
         let waveform: Vec<i16> = slice[32..][..waveform_bytes]
             .chunks_exact(2)
             .map(|b| i16::from_be_bytes(b.try_into().unwrap()))
             .collect();
 
-        if i32::from(baseline) != waveform[..64].iter().map(|n| i32::from(*n)).sum::<i32>() / 64 {
+        if waveform.len() < BASELINE_SAMPLES {
+            return Err(Self::Error::BadNumberOfSamples);
+        }
+        // Add over i32 to avoid overflow
+        let data_baseline = waveform[..BASELINE_SAMPLES]
+            .iter()
+            .map(|n| i32::from(*n))
+            .sum::<i32>()
+            / 64;
+        if i32::from(suppression_baseline) != data_baseline {
             return Err(Self::Error::BaselineMismatch);
+        }
+
+        let last_above_threshold;
+        if suppression_enabled {
+            if !keep_bit {
+                return Err(Self::Error::KeepBitMismatch);
+            }
+            if keep_last < MIN_KEEP_LAST {
+                return Err(Self::Error::BadKeepLast);
+            }
+            let last_index = (keep_last - 1) * 2 - 2;
+            if waveform.len() <= last_index {
+                return Err(Self::Error::BadNumberOfSamples);
+            }
+            last_above_threshold = Some(last_index);
+            if waveform.len() > requested_samples {
+                return Err(Self::Error::BadNumberOfSamples);
+            }
+        } else {
+            if keep_bit {
+                if keep_last < MIN_KEEP_LAST {
+                    return Err(Self::Error::BadKeepLast);
+                }
+                let last_index = (keep_last - 1) * 2 - 2;
+                if waveform.len() <= last_index {
+                    return Err(Self::Error::BadNumberOfSamples);
+                }
+                last_above_threshold = Some(last_index);
+            } else {
+                if keep_last != 0 {
+                    return Err(Self::Error::BadKeepLast);
+                }
+                last_above_threshold = None;
+            }
+            if waveform.len() != requested_samples {
+                return Err(Self::Error::BadNumberOfSamples);
+            }
         }
 
         Ok(AdcV3Packet {
@@ -828,7 +851,9 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             trigger_offset: Some(trigger_offset),
             build_timestamp: Some(build_timestamp),
             waveform,
-            keep_last: Some(keep_last),
+            last_above_threshold,
+            suppression_baseline,
+            keep_bit,
             suppression_enabled,
         })
     }
