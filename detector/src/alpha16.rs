@@ -631,6 +631,16 @@ impl AdcV3Packet {
     /// suppression threshold. Return [`None`] if no sample goes over the
     /// threshold.
     ///
+    /// # Note
+    ///
+    /// This `index` is computed from `keep_last` in the footer as
+    /// `index = (keep_last - 1) * 2 - 2`.
+    /// It is important to notice that (from integer division) the actual last
+    /// `index` could be either `index` or `index + 1`. Furthermore, the data
+    /// suppression algorithm (the one in the firmware that tracks `keep_last`)
+    /// doesn't see the last 6(?) waveform samples; hence the last index can
+    /// also be one of the last 6(?) samples. Use with caution.
+    ///
     /// [`waveform`]: AdcV3Packet::waveform.
     ///
     /// # Examples
