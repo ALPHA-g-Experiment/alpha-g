@@ -372,7 +372,7 @@ pub struct AdcV3Packet {
     build_timestamp: Option<u32>,
     waveform: Vec<i16>,
     suppression_baseline: i16,
-    last_above_threshold: Option<usize>,
+    keep_last: usize,
     keep_bit: bool,
     suppression_enabled: bool,
 }
@@ -567,7 +567,7 @@ impl AdcV3Packet {
         self.trigger_offset
     }
     /// Return the SOF file build timestamp; this acts as firmware version.
-    /// Return [`None`] if data suppression if enabled and the `keep_bit` is not
+    /// Return [`None`] if data suppression is enabled and the `keep_bit` is not
     /// set.
     ///
     /// # Examples
@@ -627,21 +627,17 @@ impl AdcV3Packet {
     pub fn suppression_baseline(&self) -> i16 {
         self.suppression_baseline
     }
-    /// Return the index of the last [`waveform`] sample that is over the data
-    /// suppression threshold. Return [`None`] if no sample goes over the
-    /// threshold.
+    /// This is a counter in the firmware side on how many data words are being
+    /// kept due to data suppression. If the `keep_bit` is not set, then
+    /// `keep_last` is equal to 0. This counter increases by the index of the
+    /// last waveform sample over threshold as `keep_last = (index + 2) / 2 + 1`.
     ///
-    /// # Note
-    ///
-    /// This `index` is computed from `keep_last` in the footer as
-    /// `index = (keep_last - 1) * 2 - 2`.
-    /// It is important to notice that (from integer division) the actual last
-    /// `index` could be either `index` or `index + 1`. Furthermore, the data
-    /// suppression algorithm (the one in the firmware that tracks `keep_last`)
-    /// doesn't see the last 6(?) waveform samples; hence the last index can
-    /// also be one of the last 6(?) samples. Use with caution.
-    ///
-    /// [`waveform`]: AdcV3Packet::waveform.
+    /// Recall that data suppression doesn't "see" the last 6(?) samples, hence
+    /// `keep_last` is not a reliable way to obtain the last waveform sample
+    /// over the data suppression threshold. This `keep_last` value is only
+    /// really useful in validating/checking the data suppression on the
+    /// firmware side. If you are using this for anything else, you are most
+    /// likely making a mistake.
     ///
     /// # Examples
     ///
@@ -653,12 +649,12 @@ impl AdcV3Packet {
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
     ///
-    /// assert!(packet.last_above_threshold().is_none());
+    /// assert_eq!(packet.keep_last(), 0);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn last_above_threshold(&self) -> Option<usize> {
-        self.last_above_threshold
+    pub fn keep_last(&self) -> usize {
+        self.keep_last
     }
     /// Return [`true`] if at least one [`waveform`] sample is over the data
     /// suppression threshold.
@@ -768,7 +764,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
                 trigger_offset: None,
                 build_timestamp: None,
                 waveform: Vec::new(),
-                last_above_threshold: None,
+                keep_last,
                 suppression_baseline,
                 keep_bit,
                 suppression_enabled,
@@ -814,7 +810,6 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             return Err(Self::Error::BaselineMismatch);
         }
 
-        let last_above_threshold;
         if suppression_enabled {
             if !keep_bit {
                 return Err(Self::Error::KeepBitMismatch);
@@ -826,7 +821,6 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             if waveform.len() <= last_index {
                 return Err(Self::Error::BadNumberOfSamples);
             }
-            last_above_threshold = Some(last_index);
             if waveform.len() > requested_samples {
                 return Err(Self::Error::BadNumberOfSamples);
             }
@@ -839,12 +833,8 @@ impl TryFrom<&[u8]> for AdcV3Packet {
                 if waveform.len() <= last_index {
                     return Err(Self::Error::BadNumberOfSamples);
                 }
-                last_above_threshold = Some(last_index);
-            } else {
-                if keep_last != 0 {
-                    return Err(Self::Error::BadKeepLast);
-                }
-                last_above_threshold = None;
+            } else if keep_last != 0 {
+                return Err(Self::Error::BadKeepLast);
             }
             if waveform.len() != requested_samples {
                 return Err(Self::Error::BadNumberOfSamples);
@@ -861,7 +851,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             trigger_offset: Some(trigger_offset),
             build_timestamp: Some(build_timestamp),
             waveform,
-            last_above_threshold,
+            keep_last,
             suppression_baseline,
             keep_bit,
             suppression_enabled,

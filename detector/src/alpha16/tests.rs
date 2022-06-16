@@ -653,16 +653,17 @@ fn adc_v3_packet_suppression_baseline() {
 
 #[test]
 fn adc_v3_packet_keep_last() {
-    assert!(AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
-        .unwrap()
-        .last_above_threshold()
-        .is_none());
+    assert_eq!(
+        AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..])
+            .unwrap()
+            .keep_last(),
+        0
+    );
     assert_eq!(
         AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..])
             .unwrap()
-            .last_above_threshold()
-            .unwrap(),
-        64
+            .keep_last(),
+        34
     );
 }
 
