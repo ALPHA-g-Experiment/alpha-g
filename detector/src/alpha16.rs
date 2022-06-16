@@ -859,5 +859,403 @@ impl TryFrom<&[u8]> for AdcV3Packet {
     }
 }
 
+/// ADC data packet.
+///
+/// This enum can currently contain only an [`AdcV3Packet`]. See its
+/// documentation for more details.
+#[derive(Clone, Debug)]
+pub enum AdcPacket {
+    /// Version 3 of an ADC packet.
+    V3(AdcV3Packet),
+}
+
+impl AdcPacket {
+    /// Return the packet type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.packet_type(), 1);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn packet_type(&self) -> u8 {
+        match self {
+            Self::V3(packet) => packet.packet_type(),
+        }
+    }
+    /// Return the packet version.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.packet_version(), 3);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn packet_version(&self) -> u8 {
+        match self {
+            Self::V3(packet) => packet.packet_version(),
+        }
+    }
+    /// In the firmware logic, `accepted_trigger` is a 32-bits unsigned integer.
+    /// Return the 16 LSB as [`u16`].
+    ///
+    /// This is a counter that indicates the number of trigger signals received
+    /// from the TRG board. All packets from the same event must have the same
+    /// `accepted_trigger` counter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.accepted_trigger(), 4);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn accepted_trigger(&self) -> u16 {
+        match self {
+            Self::V3(packet) => packet.accepted_trigger(),
+        }
+    }
+    /// Return the [`ModuleId`] of the Alpha16 board from which the packet was
+    /// generated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet, ModuleId};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.module_id(), ModuleId::try_from(5)?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn module_id(&self) -> ModuleId {
+        match self {
+            Self::V3(packet) => packet.module_id(),
+        }
+    }
+    /// Return the [`ChannelId`] in an Alpha16 board from which the packet was
+    /// generated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet, ChannelId};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert!(matches!(packet.channel_id(), ChannelId::A16(_)));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn channel_id(&self) -> ChannelId {
+        match self {
+            Self::V3(packet) => packet.channel_id(),
+        }
+    }
+    /// Return the number of requested waveform samples. The actual number of
+    /// samples in the packet should be obtained from [`waveform`]; due to data
+    /// suppression these two are most likely not equal.
+    ///
+    /// [`waveform`]: AdcV3Packet::waveform.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.requested_samples(), 699);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn requested_samples(&self) -> usize {
+        match self {
+            Self::V3(packet) => packet.requested_samples(),
+        }
+    }
+    /// I do not know what this field means. It never matches the event
+    /// timestamp in the MIDAS event.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.event_timestamp(), 7);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn event_timestamp(&self) -> u64 {
+        match self {
+            Self::V3(packet) => packet.event_timestamp(),
+        }
+    }
+    /// Return the [`BoardId`] of the Alpha16 board from which the packet was
+    /// generated. Return [`None`] if data suppression is enabled and the
+    /// `keep_bit` is not set in a version 3 packet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet, BoardId};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert!(packet.board_id().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> Option<BoardId> {
+        match self {
+            Self::V3(packet) => packet.board_id(),
+        }
+    }
+    /// I do not understand what this field means exactly. I know that it
+    /// matches `adcXX_trig_delay - adcXX_trig_start` in the ODB (with `XX`
+    /// equal to `16` or `32`). Return [`None`] if data suppression is enabled
+    /// and the `keep_bit` is not set in a version 3 packet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert!(packet.trigger_offset().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn trigger_offset(&self) -> Option<i32> {
+        match self {
+            Self::V3(packet) => packet.trigger_offset(),
+        }
+    }
+    /// Return the SOF file build timestamp; this acts as firmware version.
+    /// Return [`None`] if data suppression is enabled and the `keep_bit` is not
+    /// set in a version 3 packet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert!(packet.build_timestamp().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn build_timestamp(&self) -> Option<u32> {
+        match self {
+            Self::V3(packet) => packet.build_timestamp(),
+        }
+    }
+    /// Return the digitized waveform samples received by an ADC channel in an
+    /// Alpha16 board. Return an empty slice if data suppression is enabled and
+    /// the `keep_bit` is not set in a version 3 packet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert!(packet.waveform().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn waveform(&self) -> &[i16] {
+        match self {
+            Self::V3(packet) => packet.waveform(),
+        }
+    }
+    /// Return the data suppression waveform baseline. Return [`None`] if this
+    /// is a version 1 packet (these don't have any data suppression
+    /// implemented).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.suppression_baseline(), Some(0));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn suppression_baseline(&self) -> Option<i16> {
+        match self {
+            Self::V3(packet) => Some(packet.suppression_baseline()),
+        }
+    }
+    /// This is a counter in the firmware side on how many data words are being
+    /// kept due to data suppression. If the `keep_bit` is not set, then
+    /// `keep_last` is equal to 0. This counter increases by the index of the
+    /// last waveform sample over threshold as `keep_last = (index + 2) / 2 + 1`.
+    ///
+    /// Recall that data suppression doesn't "see" the last 6(?) samples, hence
+    /// `keep_last` is not a reliable way to obtain the last waveform sample
+    /// over the data suppression threshold. This `keep_last` value is only
+    /// really useful in validating/checking the data suppression on the
+    /// firmware side. If you are using this for anything else, you are most
+    /// likely making a mistake.
+    ///
+    ///  Return [`None`] if this is a version 1 packet (these don't have any
+    ///  data suppression implemented).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.keep_last(), Some(0));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn keep_last(&self) -> Option<usize> {
+        match self {
+            Self::V3(packet) => Some(packet.keep_last()),
+        }
+    }
+    /// Return [`true`] if at least one [`waveform`] sample is over the data
+    /// suppression threshold. Return [`None`] if this is a version 1 packet
+    /// (these don't have any data suppression implemented).
+    ///
+    /// [`waveform`]: AdcV3Packet::waveform.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.keep_bit(), Some(false));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn keep_bit(&self) -> Option<bool> {
+        match self {
+            Self::V3(packet) => Some(packet.keep_bit()),
+        }
+    }
+    /// Return [`true`] if data suppression is enabled. Return [`None`] if this
+    /// is a version 1 packet (these don't have any data suppression
+    /// implemented).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert_eq!(packet.is_suppression_enabled(), Some(true));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn is_suppression_enabled(&self) -> Option<bool> {
+        match self {
+            Self::V3(packet) => Some(packet.is_suppression_enabled()),
+        }
+    }
+    /// Return [`true`] if this adc packet is an [`AdcV3Packet`], and [`false`]
+    /// otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
+    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    ///
+    /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
+    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    ///
+    /// assert!(packet.is_v3());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn is_v3(&self) -> bool {
+        matches!(self, Self::V3(_))
+    }
+}
+
+impl TryFrom<&[u8]> for AdcPacket {
+    type Error = TryAdcPacketFromSliceError;
+
+    fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+        Ok(AdcPacket::V3(AdcV3Packet::try_from(slice)?))
+    }
+}
+
 #[cfg(test)]
 mod tests;
