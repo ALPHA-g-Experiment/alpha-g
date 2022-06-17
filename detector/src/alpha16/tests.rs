@@ -162,6 +162,14 @@ fn adc_v3_good() {
         good_packet[14..20].copy_from_slice(&pair.1[..]);
         assert!(AdcV3Packet::try_from(&good_packet[..]).is_ok());
     }
+
+    let mut large_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
+    large_packet[162] = 208;
+    for _ in 0..632 {
+        large_packet.insert(32, 0);
+        large_packet.insert(32, 0);
+    }
+    assert!(AdcV3Packet::try_from(&large_packet[..]).is_ok());
 }
 
 #[test]
@@ -681,7 +689,7 @@ fn adc_v3_packet_is_suppression_enabled() {
     let waveform_samples = packet.waveform.len();
 
     let mut large_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
-    for _ in 0..requested_samples - waveform_samples {
+    for _ in 0..requested_samples - 2 - waveform_samples {
         large_packet.insert(32, 0);
         large_packet.insert(32, 0);
     }

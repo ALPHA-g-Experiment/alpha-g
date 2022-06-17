@@ -821,7 +821,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             if waveform.len() <= last_index {
                 return Err(Self::Error::BadNumberOfSamples);
             }
-            if waveform.len() > requested_samples {
+            if waveform.len() > requested_samples - 2 {
                 return Err(Self::Error::BadNumberOfSamples);
             }
         } else {
@@ -836,7 +836,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             } else if keep_last != 0 {
                 return Err(Self::Error::BadKeepLast);
             }
-            if waveform.len() != requested_samples {
+            if waveform.len() != requested_samples - 2 {
                 return Err(Self::Error::BadNumberOfSamples);
             }
         }
