@@ -5,7 +5,7 @@ use cursive::Cursive;
 use detector::alpha16::AdcPacket;
 use memmap2::Mmap;
 use midasio::read::file::FileView;
-use pgfplots::axis::plot::Plot2D;
+use pgfplots::axis::{plot::Plot2D, *};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
@@ -51,6 +51,8 @@ struct Packet {
     // on the receiver end and display some more helpful information for e.g.
     // debugging bad packets.
     adc_packet: Vec<u8>,
+    // Name of the data bank that contains the adc_packet as data_slice
+    bank_name: String,
 }
 
 /// Iterate through all the Alpha16 data banks in the given files.
@@ -95,6 +97,7 @@ fn worker(sender: mpsc::SyncSender<Result<Packet, TryNextPacketError>>, file_nam
                 sender
                     .send(Ok(Packet {
                         adc_packet: data.to_owned(),
+                        bank_name: bank_view.name().to_owned(),
                     }))
                     .unwrap();
             }
@@ -103,6 +106,8 @@ fn worker(sender: mpsc::SyncSender<Result<Packet, TryNextPacketError>>, file_nam
     sender.send(Err(TryNextPacketError::AllConsumed)).unwrap();
 }
 
+/// Structure stored in Cursive object that needs to be accessed while modifying
+/// the layout.
 struct UserData {
     receiver: mpsc::Receiver<Result<Packet, TryNextPacketError>>,
     dir: TempDir,
@@ -121,7 +126,9 @@ fn main() {
 
     let mut siv = cursive::default();
     siv.set_user_data(user_data);
-
+    // Just update the plot with anything that would produce an empty plot.
+    // update_plot actually just re-creates it. So it gets created here for the
+    // first time.
     update_plot(&mut siv, &Err(TryNextPacketError::AllConsumed));
     let dir = &siv.user_data::<UserData>().unwrap().dir;
     opener::open(dir.path().join(JOBNAME.to_string() + ".pdf"))
@@ -151,6 +158,7 @@ fn main() {
     siv.run();
 }
 
+/// Update the Metadata text box with information about the last received packet
 fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
     let text = match next_result {
         Err(error) => {
@@ -164,6 +172,7 @@ fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextP
     s.call_on_name("metadata", |view: &mut TextView| view.set_content(text));
 }
 
+/// Obtain the metadata text from a given packet
 fn metadata(packet: &Packet) -> String {
     let packet_info = match AdcPacket::try_from(&packet.adc_packet[..]) {
         Err(error) => format!("Error: {error}"),
@@ -219,12 +228,22 @@ Suppression enabled: {}",
 
 const JOBNAME: &str = "figure";
 
+/// Re-create the plot based on an input Packet attempt. The "updating" is
+/// actually done by the PDF viewer; we just re-compile the file.
 fn update_plot(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
     let user_data = s.user_data::<UserData>().unwrap();
-    let mut plot = Plot2D::new();
+    let mut axis = Axis::new();
+    let mut signal = Plot2D::new();
     if let Ok(packet) = next_result {
-        if let Ok(packet) = AdcPacket::try_from(&packet.adc_packet[..]) {
-            plot.coordinates = packet
+        if let Ok(adc_packet) = AdcPacket::try_from(&packet.adc_packet[..]) {
+            axis.set_title(format!("{} Waveform", packet.bank_name));
+            axis.set_x_label(format!(
+                "Samples~[{} ns]",
+                1e9 / adc_packet.channel_id().sampling_rate()
+            ));
+            axis.set_y_label("Amplitude~[a.u.]");
+            axis.add_key(AxisKey::Custom("ymin=-32768, ymax=32767".to_string()));
+            signal.coordinates = adc_packet
                 .waveform()
                 .iter()
                 .enumerate()
@@ -232,7 +251,8 @@ fn update_plot(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>
                 .collect();
         }
     }
-    let argument = plot.standalone_string().replace('\n', "").replace('\t', "");
+    axis.plots.push(signal);
+    let argument = axis.standalone_string().replace('\n', "").replace('\t', "");
     Command::new("pdflatex")
         .current_dir(&user_data.dir)
         .stdout(Stdio::null())
