@@ -2,10 +2,14 @@ use clap::Parser;
 use cursive::view::Nameable;
 use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
-use detector::alpha16::AdcPacket;
+use detector::alpha16::{
+    AdcPacket,
+    ChannelId::{A16, A32},
+};
 use memmap2::Mmap;
 use midasio::read::file::FileView;
-use pgfplots::axis::{plot::Plot2D, *};
+use pgfplots::axis::{plot::*, *};
+use serde_json::Value;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
@@ -53,6 +57,15 @@ struct Packet {
     adc_packet: Vec<u8>,
     // Name of the data bank that contains the adc_packet as data_slice
     bank_name: String,
+    // These are all Option<T> because maybe the fields are not found in the ODB
+    // Suppression threshold of the BV channels
+    a16_suppression: Option<f64>,
+    // Suppression threshold of the rTPC channels
+    a32_suppression: Option<f64>,
+    // Trigger threshold of the BV channels
+    a16_trigger: Option<f64>,
+    // Trigger threshold of the rTPC channels
+    a32_trigger: Option<f64>,
 }
 
 /// Iterate through all the Alpha16 data banks in the given files.
@@ -87,23 +100,51 @@ fn worker(sender: mpsc::SyncSender<Result<Packet, TryNextPacketError>>, file_nam
                 continue;
             }
         };
+        // Get all the suppression and trigger ODB settings
+        let (a16_suppression, a16_trigger, a32_suppression, a32_trigger) = odb_settings(&file_view);
 
         for event_view in file_view.into_iter().filter(|e| e.id() == 1) {
             for bank_view in event_view
                 .into_iter()
                 .filter(|b| b.name().starts_with('B') || b.name().starts_with('C'))
             {
-                let data = bank_view.data_slice();
                 sender
                     .send(Ok(Packet {
-                        adc_packet: data.to_owned(),
+                        adc_packet: bank_view.data_slice().to_owned(),
                         bank_name: bank_view.name().to_owned(),
+                        a16_suppression,
+                        a32_suppression,
+                        a16_trigger,
+                        a32_trigger,
                     }))
                     .unwrap();
             }
         }
     }
     sender.send(Err(TryNextPacketError::AllConsumed)).unwrap();
+}
+
+/// Return the ADC trigger and data suppression thresholds from the ODB.
+// (a16_suppression, a16_trigger, a32_suppression, a32_trigger)
+fn odb_settings(file_view: &FileView) -> (Option<f64>, Option<f64>, Option<f64>, Option<f64>) {
+    let initial_odb = serde_json::from_slice::<Value>(file_view.initial_odb());
+    match initial_odb {
+        Ok(initial_odb) => (
+            initial_odb
+                .pointer("/Equipment/CTRL/Settings/ADC/adc16_sthreshold")
+                .and_then(|v| v.as_f64()),
+            initial_odb
+                .pointer("/Equipment/CTRL/Settings/ADC/adc16_threshold")
+                .and_then(|v| v.as_f64()),
+            initial_odb
+                .pointer("/Equipment/CTRL/Settings/ADC/adc32_sthreshold")
+                .and_then(|v| v.as_f64()),
+            initial_odb
+                .pointer("/Equipment/CTRL/Settings/ADC/adc32_threshold")
+                .and_then(|v| v.as_f64()),
+        ),
+        Err(_) => (None, None, None, None),
+    }
 }
 
 /// Structure stored in Cursive object that needs to be accessed while modifying
@@ -125,6 +166,7 @@ fn main() {
     };
 
     let mut siv = cursive::default();
+    siv.set_window_title("Alpha16 Packet Viewer");
     siv.set_user_data(user_data);
     // Just update the plot with anything that would produce an empty plot.
     // update_plot actually just re-creates it. So it gets created here for the
@@ -232,8 +274,8 @@ const JOBNAME: &str = "figure";
 /// actually done by the PDF viewer; we just re-compile the file.
 fn update_plot(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
     let user_data = s.user_data::<UserData>().unwrap();
+    let mut legend = Vec::new();
     let mut axis = Axis::new();
-    let mut signal = Plot2D::new();
     if let Ok(packet) = next_result {
         if let Ok(adc_packet) = AdcPacket::try_from(&packet.adc_packet[..]) {
             axis.set_title(format!("{} Waveform", packet.bank_name));
@@ -243,15 +285,67 @@ fn update_plot(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>
             ));
             axis.set_y_label("Amplitude~[a.u.]");
             axis.add_key(AxisKey::Custom("ymin=-32768, ymax=32767".to_string()));
-            signal.coordinates = adc_packet
-                .waveform()
-                .iter()
-                .enumerate()
-                .map(|c| (c.0 as f64, f64::from(*c.1)).into())
-                .collect();
+
+            let last_index = if adc_packet.waveform().is_empty() {
+                adc_packet.requested_samples()
+            } else {
+                adc_packet.waveform().len()
+            };
+            let (suppression_threshold, trigger_threshold) = match adc_packet.channel_id() {
+                A16(_) => (packet.a16_suppression, packet.a16_trigger),
+                A32(_) => (packet.a32_suppression, packet.a32_trigger),
+            };
+            if let Some(threshold) = suppression_threshold {
+                if let Some(baseline) = adc_packet.suppression_baseline() {
+                    let baseline: f64 = baseline.into();
+                    let mut suppression = Plot2D::new();
+                    suppression
+                        .coordinates
+                        .push((0.0, baseline + threshold).into());
+                    suppression
+                        .coordinates
+                        .push((0.0, baseline - threshold).into());
+                    suppression
+                        .coordinates
+                        .push((last_index as f64, baseline - threshold).into());
+                    suppression
+                        .coordinates
+                        .push((last_index as f64, baseline + threshold).into());
+                    suppression.add_key(PlotKey::Custom("fill=gray!20, draw=gray!20".to_string()));
+                    axis.plots.push(suppression);
+                    legend.push(String::from("Data suppression"));
+                }
+            }
+            if let Some(threshold) = trigger_threshold {
+                let mut trigger = Plot2D::new();
+                trigger.coordinates.push((0.0, threshold).into());
+                trigger
+                    .coordinates
+                    .push((last_index as f64, threshold).into());
+                trigger.add_key(PlotKey::Custom("dashed".to_string()));
+                axis.plots.push(trigger);
+                legend.push(String::from("Trigger threshold"));
+            }
+
+            if !adc_packet.waveform().is_empty() {
+                let mut signal = Plot2D::new();
+                signal.coordinates = adc_packet
+                    .waveform()
+                    .iter()
+                    .enumerate()
+                    .map(|c| (c.0 as f64, f64::from(*c.1)).into())
+                    .collect();
+                axis.plots.push(signal);
+                legend.push(String::from("Waveform"));
+            }
         }
     }
-    axis.plots.push(signal);
+    axis.add_key(AxisKey::Custom(format!(
+        "legend entries={{{}}}",
+        legend.join(",")
+    )));
+    axis.add_key(AxisKey::Custom("legend style={font=\\tiny}".to_string()));
+
     let argument = axis.standalone_string().replace('\n', "").replace('\t', "");
     Command::new("pdflatex")
         .current_dir(&user_data.dir)
