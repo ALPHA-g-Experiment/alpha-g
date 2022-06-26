@@ -1,6 +1,6 @@
 use clap::Parser;
-use cursive::view::Nameable;
-use cursive::views::{Dialog, TextView};
+use cursive::view::{Nameable, Resizable};
+use cursive::views::{Dialog, LinearLayout, RadioGroup, TextView};
 use cursive::Cursive;
 use detector::alpha16::{
     AdcPacket,
@@ -152,6 +152,22 @@ fn odb_settings(file_view: &FileView) -> (Option<f64>, Option<f64>, Option<f64>,
 struct UserData {
     receiver: mpsc::Receiver<Result<Packet, TryNextPacketError>>,
     dir: TempDir,
+    filter: Filter,
+}
+
+/// Conditions that the [`Packet`]s have to satisfy for each "next" call
+#[derive(Default, Clone, Copy, Debug)]
+struct Filter {
+    good_packet: Option<bool>,
+    detector: Option<Detector>,
+    keep_bit: Option<bool>,
+    over_trigger: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Detector {
+    Bv,
+    Tpc,
 }
 
 fn main() {
@@ -163,6 +179,7 @@ fn main() {
     let user_data = UserData {
         receiver,
         dir: tempdir().expect("Error: unable to create temporary directory"),
+        filter: Filter::default(),
     };
 
     let mut siv = cursive::default();
@@ -176,6 +193,74 @@ fn main() {
     opener::open(dir.path().join(JOBNAME.to_string() + ".pdf"))
         .expect("Error: unable to open temporary plot");
 
+    siv.menubar()
+        .add_leaf("Filters", |s| {
+            s.set_autohide_menu(true);
+            let mut good_group: RadioGroup<Option<bool>> = RadioGroup::new();
+            let mut keep_group: RadioGroup<Option<bool>> = RadioGroup::new();
+            let mut trigger_group: RadioGroup<Option<bool>> = RadioGroup::new();
+            let mut detector_group: RadioGroup<Option<Detector>> = RadioGroup::new();
+            s.add_layer(
+                Dialog::new()
+                    .title("Filters")
+                    .content(
+                        LinearLayout::vertical()
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(
+                                        TextView::new("Good packet: ")
+                                            .fixed_width(15)
+                                            .fixed_height(2),
+                                    )
+                                    .child(good_group.button(None, "Any").fixed_width(10))
+                                    .child(good_group.button(Some(true), "True").fixed_width(11))
+                                    .child(good_group.button(Some(false), "False")),
+                            )
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(
+                                        TextView::new("Detector: ").fixed_width(15).fixed_height(2),
+                                    )
+                                    .child(detector_group.button(None, "Any").fixed_width(10))
+                                    .child(
+                                        detector_group
+                                            .button(Some(Detector::Bv), "BV")
+                                            .fixed_width(11),
+                                    )
+                                    .child(detector_group.button(Some(Detector::Tpc), "TPC")),
+                            )
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(
+                                        TextView::new("Keep bit: ").fixed_width(15).fixed_height(2),
+                                    )
+                                    .child(keep_group.button(None, "Any").fixed_width(10))
+                                    .child(keep_group.button(Some(true), "True").fixed_width(11))
+                                    .child(keep_group.button(Some(false), "False")),
+                            )
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(TextView::new("Over trigger: ").fixed_width(15))
+                                    .child(trigger_group.button(None, "Any").fixed_width(10))
+                                    .child(trigger_group.button(Some(true), "True").fixed_width(11))
+                                    .child(trigger_group.button(Some(false), "False")),
+                            ),
+                    )
+                    .button("Done", move |s| {
+                        s.user_data::<UserData>().unwrap().filter = Filter {
+                            good_packet: *good_group.selection(),
+                            detector: *detector_group.selection(),
+                            keep_bit: *keep_group.selection(),
+                            over_trigger: *trigger_group.selection(),
+                        };
+                        s.pop_layer();
+                        s.set_autohide_menu(false);
+                    }),
+            );
+        })
+        .add_delimiter();
+    siv.set_autohide_menu(false);
+
     siv.add_layer(
         Dialog::around(
             TextView::new("Press <Next> to jump to the next Alpha16 packet.").with_name("metadata"),
@@ -183,29 +268,130 @@ fn main() {
         .title("Packet Metadata")
         .button("Quit", |s| s.quit())
         .button("Next", |s| {
-            let user_data = s.user_data::<UserData>().unwrap();
-
-            match user_data.receiver.recv() {
-                Ok(result) => {
-                    update_packet_metadata(s, &result);
-                    update_plot(s, &result);
+            let result = loop {
+                match s.user_data::<UserData>().unwrap().receiver.recv() {
+                    Ok(result) => {
+                        if passes_filters(s, &result) {
+                            break result;
+                        }
+                    }
+                    Err(_) => {
+                        // s.quit() does not work. I DON'T understand why.
+                        // I can only quit the application inside this loop
+                        // with a panic!()
+                        panic!("Error: receiver disconnected");
+                    }
                 }
-                Err(_) => {
-                    s.quit();
-                }
-            }
+            };
+            update_packet_metadata(s, &result);
+            update_plot(s, &result);
         }),
     );
 
     siv.run();
 }
 
+fn passes_filters(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) -> bool {
+    let user_data = s.user_data::<UserData>().unwrap();
+    let filter = user_data.filter;
+    match next_result {
+        Err(_) => true,
+        Ok(packet) => {
+            let adc_result = AdcPacket::try_from(&packet.adc_packet[..]);
+            if let Some(good_filter) = filter.good_packet {
+                if good_filter && adc_result.is_err() {
+                    return false;
+                }
+                if !good_filter && adc_result.is_ok() {
+                    return false;
+                }
+            }
+            if let Some(detector_filter) = filter.detector {
+                match detector_filter {
+                    Detector::Bv => {
+                        if !packet.bank_name.starts_with('B') {
+                            return false;
+                        }
+                    }
+                    Detector::Tpc => {
+                        if !packet.bank_name.starts_with('C') {
+                            return false;
+                        }
+                    }
+                }
+            }
+            if let Some(keep_filter) = filter.keep_bit {
+                match adc_result {
+                    Err(_) => {
+                        return false;
+                    }
+                    Ok(ref adc_packet) => match adc_packet.keep_bit() {
+                        None => {
+                            return false;
+                        }
+                        Some(keep_bit) => {
+                            if keep_filter && !keep_bit {
+                                return false;
+                            }
+                            if !keep_filter && keep_bit {
+                                return false;
+                            }
+                        }
+                    },
+                }
+            }
+            if let Some(trigger_filter) = filter.over_trigger {
+                match adc_result {
+                    Err(_) => {
+                        return false;
+                    }
+                    Ok(adc_packet) => {
+                        let trigger;
+                        let max_sample;
+                        if packet.bank_name.starts_with('B') {
+                            trigger = packet.a16_trigger;
+                            max_sample = adc_packet.waveform().iter().max();
+                        } else if packet.bank_name.starts_with('C') {
+                            trigger = packet.a32_trigger;
+                            max_sample = adc_packet.waveform().iter().min();
+                        } else {
+                            trigger = None;
+                            max_sample = None;
+                        }
+                        match (trigger, max_sample) {
+                            (Some(threshold), Some(value)) => {
+                                let triggers;
+                                if packet.bank_name.starts_with('B') {
+                                    triggers = f64::from(*value) >= threshold;
+                                } else if packet.bank_name.starts_with('C') {
+                                    triggers = f64::from(*value) <= threshold;
+                                } else {
+                                    triggers = false;
+                                }
+                                if trigger_filter && !triggers {
+                                    return false;
+                                }
+                                if !trigger_filter && triggers {
+                                    return false;
+                                }
+                            }
+                            _ => {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            true
+        }
+    }
+}
 /// Update the Metadata text box with information about the last received packet
 fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
     let text = match next_result {
         Err(error) => {
             let text = format!("Error: {error}");
-            s.add_layer(cursive::views::Dialog::info(text));
+            s.add_layer(Dialog::info(text));
             String::from("Press <Next> to jump to the next Alpha16 packet.")
         }
         Ok(packet) => metadata(packet),
