@@ -162,6 +162,8 @@ struct Filter {
     detector: Option<Detector>,
     keep_bit: Option<bool>,
     over_trigger: Option<bool>,
+    pos_overflow: Option<bool>,
+    neg_overflow: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -184,6 +186,7 @@ fn main() {
 
     let mut siv = cursive::default();
     siv.set_window_title("Alpha16 Packet Viewer");
+    siv.set_autohide_menu(false);
     siv.set_user_data(user_data);
     // Just update the plot with anything that would produce an empty plot.
     // update_plot actually just re-creates it. So it gets created here for the
@@ -200,6 +203,8 @@ fn main() {
             let mut keep_group: RadioGroup<Option<bool>> = RadioGroup::new();
             let mut trigger_group: RadioGroup<Option<bool>> = RadioGroup::new();
             let mut detector_group: RadioGroup<Option<Detector>> = RadioGroup::new();
+            let mut pos_overflow_group: RadioGroup<Option<bool>> = RadioGroup::new();
+            let mut neg_overflow_group: RadioGroup<Option<bool>> = RadioGroup::new();
             s.add_layer(
                 Dialog::new()
                     .title("Filters")
@@ -240,10 +245,40 @@ fn main() {
                             )
                             .child(
                                 LinearLayout::horizontal()
-                                    .child(TextView::new("Over trigger: ").fixed_width(15))
+                                    .child(
+                                        TextView::new("Over trigger: ")
+                                            .fixed_width(15)
+                                            .fixed_height(2),
+                                    )
                                     .child(trigger_group.button(None, "Any").fixed_width(10))
                                     .child(trigger_group.button(Some(true), "True").fixed_width(11))
                                     .child(trigger_group.button(Some(false), "False")),
+                            )
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(
+                                        TextView::new("Pos. overflow: ")
+                                            .fixed_width(15)
+                                            .fixed_height(2),
+                                    )
+                                    .child(pos_overflow_group.button(None, "Any").fixed_width(10))
+                                    .child(
+                                        pos_overflow_group
+                                            .button(Some(true), "True")
+                                            .fixed_width(11),
+                                    )
+                                    .child(pos_overflow_group.button(Some(false), "False")),
+                            )
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(TextView::new("Neg. overflow: ").fixed_width(15))
+                                    .child(neg_overflow_group.button(None, "Any").fixed_width(10))
+                                    .child(
+                                        neg_overflow_group
+                                            .button(Some(true), "True")
+                                            .fixed_width(11),
+                                    )
+                                    .child(neg_overflow_group.button(Some(false), "False")),
                             ),
                     )
                     .button("Done", move |s| {
@@ -252,6 +287,8 @@ fn main() {
                             detector: *detector_group.selection(),
                             keep_bit: *keep_group.selection(),
                             over_trigger: *trigger_group.selection(),
+                            pos_overflow: *pos_overflow_group.selection(),
+                            neg_overflow: *neg_overflow_group.selection(),
                         };
                         s.pop_layer();
                         s.set_autohide_menu(false);
@@ -259,7 +296,6 @@ fn main() {
             );
         })
         .add_delimiter();
-    siv.set_autohide_menu(false);
 
     siv.add_layer(
         Dialog::around(
@@ -345,7 +381,7 @@ fn passes_filters(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketErr
                     Err(_) => {
                         return false;
                     }
-                    Ok(adc_packet) => {
+                    Ok(ref adc_packet) => {
                         let trigger;
                         let max_sample;
                         if packet.bank_name.starts_with('B') {
@@ -378,6 +414,38 @@ fn passes_filters(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketErr
                             _ => {
                                 return false;
                             }
+                        }
+                    }
+                }
+            }
+            if let Some(overflow) = filter.pos_overflow {
+                match adc_result {
+                    Err(_) => {
+                        return false;
+                    }
+                    Ok(ref adc_packet) => {
+                        let max = adc_packet.waveform().iter().max();
+                        if overflow && (max != Some(&32764)) {
+                            return false;
+                        }
+                        if !overflow && (max == Some(&32764)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            if let Some(overflow) = filter.neg_overflow {
+                match adc_result {
+                    Err(_) => {
+                        return false;
+                    }
+                    Ok(adc_packet) => {
+                        let min = adc_packet.waveform().iter().min();
+                        if overflow && (min != Some(&i16::MIN)) {
+                            return false;
+                        }
+                        if !overflow && (min == Some(&i16::MIN)) {
+                            return false;
                         }
                     }
                 }
