@@ -1,6 +1,8 @@
+use crate::Extension;
 use clap::ArgEnum;
+use glob::Pattern;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Known hosts for ALPHA-g MIDAS files
 #[derive(Clone, Copy, Debug, ArgEnum)]
@@ -19,31 +21,22 @@ impl fmt::Display for Host {
 
 impl Host {
     /// Path to MIDAS files in a given host
-    // Make sure that the path finishes with "/"
-    pub fn data_path(&self) -> PathBuf {
+    pub fn path_to_data(&self) -> &Path {
         match self {
-            Host::Lxplus => PathBuf::from("/eos/experiment/ALPHAg/midasdata_old/"),
-            Host::Alpha03 => PathBuf::from("/daq/alpha_data0/acapra/alphag/midasdata/"),
+            Host::Lxplus => Path::new("/eos/experiment/ALPHAg/midasdata_old"),
+            Host::Alpha03 => Path::new("/daq/alpha_data0/acapra/alphag/midasdata"),
         }
     }
-
-    /// Given ALPHA-g run number; filename pattern for MIDAS files (without
-    /// compression)
-    pub fn filename_pattern(&self, run_number: u32) -> String {
+    /// Return the Unix shell style pattern of all files from a single run number.
+    /// This does not include the /path/to/data.
+    pub fn filename(&self, run_number: u32, extension: Option<Extension>) -> Pattern {
+        let extension = extension.map_or(String::new(), |e| e.to_string());
         match self {
-            Host::Lxplus | Host::Alpha03 => pattern_1(run_number),
+            Host::Lxplus | Host::Alpha03 => {
+                Pattern::new(&format!("run{run_number:05}sub*.mid{extension}")).unwrap()
+            }
         }
     }
-}
-
-// Pattern 1: runXXXXXsub*.mid
-// i.e. run number is at least 5 characters with prefix of 0s
-fn pattern_1(run_number: u32) -> String {
-    let mut run_number = run_number.to_string();
-    while run_number.len() < 5 {
-        run_number.insert(0, '0');
-    }
-    String::from("run") + &run_number + "sub*.mid"
 }
 
 #[cfg(test)]

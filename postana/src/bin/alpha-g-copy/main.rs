@@ -1,18 +1,19 @@
 //! Make local copies of the MIDAS files from specific runs of the ALPHA-g
 //! experiment.
 
+use crate::extension::{decompress_lz4, Extension};
 use crate::host::Host;
-use clap::{ArgEnum, Parser};
-use glob::glob;
-use std::{
-    ffi::OsString,
-    fmt,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use clap::Parser;
+use glob::{glob, Pattern};
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
+use std::{fs, path::PathBuf, process::Command};
 
-/// Hosts for ALPHA-g MIDAS files
+/// Hosts for ALPHA-g MIDAS files.
 mod host;
+
+/// Extensions for ALPHA-g MIDAS files.
+mod extension;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -37,90 +38,53 @@ struct Args {
     decompress: bool,
 }
 
-/// Extension i.e. compression of MIDAS files
-#[derive(Clone, Copy, Debug, ArgEnum)]
-pub enum Extension {
-    Lz4,
-}
-impl fmt::Display for Extension {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Extension::Lz4 => write!(f, ".lz4"),
-        }
-    }
-}
-
-/// Copy and (if applicable) run the appropriate decompression of the MIDAS
-/// files
+/// Copy and (if applicable) decompress the MIDAS files
 fn main() {
     let args = Args::parse();
 
-    // Pattern of all files we want to copy (just filename, no paths)
-    let patterns: Vec<String> = args
+    let filenames: Vec<Pattern> = args
         .run_numbers
         .into_iter()
-        .map(|n| {
-            args.source.filename_pattern(n)
-                + &args.extension.map_or(String::new(), |e| e.to_string())
-        })
+        .map(|n| args.source.filename(n, args.extension))
         .collect();
 
-    // Format the remote path such that we can send a single scp command
-    // That way people will be only asked their password once
-    let mut remote = args.user
-        + "@"
-        + &args.source.to_string()
-        + ":"
-        + args.source.data_path().to_str().unwrap();
-    if patterns.len() == 1 {
-        remote += &patterns[0];
-    } else {
-        remote = remote + "{" + &patterns.join(",") + "}";
-    }
+    let remote_filenames = filenames.iter().map(|f| {
+        let remote_path = args.source.path_to_data().join(f.to_string());
+        args.user.clone() + "@" + &args.source.to_string() + ":" + remote_path.to_str().unwrap()
+    });
 
-    Command::new("scp")
-        .arg(remote)
+    let status = Command::new("rsync")
+        .args(["--partial", "--progress", "--human-readable", "--compress"])
+        .args(remote_filenames)
         .arg(&args.output_path)
         .status()
-        .expect("failed to run scp");
+        .expect("failed to execute rsync");
 
-    // Don't check status. Decompress whatever was successful
-    if args.decompress {
-        // Arguments not passed through a shell. Need to glob ourselves.
-        // This is just the filenames (no path to them).
-        // Need to run the decompression from the output_path
-        let file_names = local_files(&args.output_path, &patterns);
+    if status.success() && args.decompress {
+        let spinner = ProgressBar::new_spinner();
+        spinner.println("Decompressing...");
+        spinner.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner} {wide_msg}")
+                .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "),
+        );
+        spinner.enable_steady_tick(100);
 
-        match args.extension.unwrap() {
-            Extension::Lz4 => {
-                Command::new("lz4")
-                    .current_dir(args.output_path)
-                    .arg("-d") // Decompress
-                    .arg("-m") //Multiple input files
-                    .arg("--rm") // Delete input files when done
-                    .args(file_names)
-                    .status()
-                    .expect("failed to run lz4");
+        let local_filenames = filenames
+            .iter()
+            .map(|f| args.output_path.join(f.to_string()));
+        for pattern in local_filenames {
+            for entry in glob(pattern.to_str().unwrap()).unwrap() {
+                let path = entry.unwrap();
+                spinner.set_message(format!("{}", path.display()));
+                match args.extension.unwrap() {
+                    Extension::Lz4 => decompress_lz4(&path, &path.with_extension("")).unwrap(),
+                }
+                fs::remove_file(path).unwrap();
             }
         }
+        spinner.finish_with_message("Done");
     }
-}
-
-/// Find all files in a path that match a set of patterns
-fn local_files(path: &Path, patterns: &[String]) -> Vec<OsString> {
-    let patterns: Vec<PathBuf> = patterns.iter().map(|s| path.join(s)).collect();
-
-    let mut local_files = Vec::new();
-    for pattern in patterns {
-        for entry in glob(pattern.to_str().unwrap()).unwrap() {
-            local_files.push(entry.unwrap());
-        }
-    }
-
-    local_files
-        .into_iter()
-        .map(|p| p.file_name().unwrap().to_os_string())
-        .collect()
 }
 
 /// Parse `--output-path` flag as valid directory

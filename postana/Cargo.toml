@@ -4,13 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-detector = { path = "../detector" }
 clap = { version = "3", features = ["derive"] }
-glob = "0.3"
-memmap2 = "0.5"
 cursive = "0.18"
-opener = "0.5"
-tempfile = "3"
+detector = { path = "../detector" }
+glob = "0.3"
+indicatif = "0.16"
+lz4 = "1"
+memmap2 = "0.5"
 midasio = "0.4"
+opener = "0.5"
 pgfplots = "0.4"
 serde_json = "1"
+tempfile = "3"
