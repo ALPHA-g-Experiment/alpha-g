@@ -877,10 +877,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.packet_type(), 1);
     /// # Ok(())
@@ -898,10 +898,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.packet_version(), 3);
     /// # Ok(())
@@ -924,10 +924,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.accepted_trigger(), 4);
     /// # Ok(())
@@ -946,10 +946,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet, ModuleId};
+    /// use detector::alpha16::{AdcPacket, ModuleId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.module_id(), ModuleId::try_from(5)?);
     /// # Ok(())
@@ -968,10 +968,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet, ChannelId};
+    /// use detector::alpha16::{AdcPacket, ChannelId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert!(matches!(packet.channel_id(), ChannelId::A16(_)));
     /// # Ok(())
@@ -993,10 +993,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.requested_samples(), 699);
     /// # Ok(())
@@ -1015,10 +1015,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.event_timestamp(), 7);
     /// # Ok(())
@@ -1038,10 +1038,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet, BoardId};
+    /// use detector::alpha16::{AdcPacket, BoardId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert!(packet.board_id().is_none());
     /// # Ok(())
@@ -1062,10 +1062,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert!(packet.trigger_offset().is_none());
     /// # Ok(())
@@ -1085,10 +1085,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert!(packet.build_timestamp().is_none());
     /// # Ok(())
@@ -1108,10 +1108,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert!(packet.waveform().is_empty());
     /// # Ok(())
@@ -1131,10 +1131,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.suppression_baseline(), Some(0));
     /// # Ok(())
@@ -1165,10 +1165,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.keep_last(), Some(0));
     /// # Ok(())
@@ -1190,10 +1190,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.keep_bit(), Some(false));
     /// # Ok(())
@@ -1213,10 +1213,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert_eq!(packet.is_suppression_enabled(), Some(true));
     /// # Ok(())
@@ -1235,10 +1235,10 @@ impl AdcPacket {
     /// ```
     /// # use detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, AdcV3Packet};
+    /// use detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
-    /// let packet = AdcPacket::V3(AdcV3Packet::try_from(&buffer[..])?);
+    /// let packet = AdcPacket::try_from(&buffer[..])?;
     ///
     /// assert!(packet.is_v3());
     /// # Ok(())
