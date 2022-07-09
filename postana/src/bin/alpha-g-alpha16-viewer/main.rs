@@ -1,11 +1,11 @@
+use alpha_g_detector::alpha16::{
+    AdcPacket,
+    ChannelId::{A16, A32},
+};
 use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, LinearLayout, RadioGroup, TextView};
 use cursive::Cursive;
-use detector::alpha16::{
-    AdcPacket,
-    ChannelId::{A16, A32},
-};
 use memmap2::Mmap;
 use midasio::read::file::FileView;
 use pgfplots::axis::{plot::*, *};

@@ -1,12 +1,12 @@
 [package]
-name = "postana"
+name = "alpha-g-postana"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+alpha_g_detector = { path = "../detector" }
 clap = { version = "3", features = ["derive"] }
 cursive = "0.18"
-detector = { path = "../detector" }
 glob = "0.3"
 indicatif = "0.16"
 lz4 = "1"

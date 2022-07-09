@@ -41,9 +41,9 @@ impl Adc16ChannelId {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryChannelIdFromUnsignedError;
+    /// # use alpha_g_detector::alpha16::TryChannelIdFromUnsignedError;
     /// # fn main() -> Result<(), TryChannelIdFromUnsignedError> {
-    /// use detector::alpha16::Adc16ChannelId;
+    /// use alpha_g_detector::alpha16::Adc16ChannelId;
     ///
     /// let channel = Adc16ChannelId::try_from(0)?;
     /// assert_eq!(channel.sampling_rate(), 100e6);
@@ -78,9 +78,9 @@ impl Adc32ChannelId {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryChannelIdFromUnsignedError;
+    /// # use alpha_g_detector::alpha16::TryChannelIdFromUnsignedError;
     /// # fn main() -> Result<(), TryChannelIdFromUnsignedError> {
-    /// use detector::alpha16::Adc32ChannelId;
+    /// use alpha_g_detector::alpha16::Adc32ChannelId;
     ///
     /// let channel = Adc32ChannelId::try_from(0)?;
     /// assert_eq!(channel.sampling_rate(), 62.5e6);
@@ -106,9 +106,9 @@ impl ChannelId {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryChannelIdFromUnsignedError;
+    /// # use alpha_g_detector::alpha16::TryChannelIdFromUnsignedError;
     /// # fn main() -> Result<(), TryChannelIdFromUnsignedError> {
-    /// use detector::alpha16::{Adc32ChannelId, ChannelId};
+    /// use alpha_g_detector::alpha16::{Adc32ChannelId, ChannelId};
     ///
     /// let aw_channel = Adc32ChannelId::try_from(0)?;
     /// let channel = ChannelId::A32(aw_channel);
@@ -225,9 +225,9 @@ impl BoardId {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryBoardIdFromMacAddressError;
+    /// # use alpha_g_detector::alpha16::TryBoardIdFromMacAddressError;
     /// # fn main() -> Result<(), TryBoardIdFromMacAddressError> {
-    /// use detector::alpha16::BoardId;
+    /// use alpha_g_detector::alpha16::BoardId;
     ///
     /// let board_id = BoardId::try_from([216, 128, 57, 104, 142, 82])?;
     /// assert_eq!(board_id.name(), "18");
@@ -242,9 +242,9 @@ impl BoardId {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryBoardIdFromMacAddressError;
+    /// # use alpha_g_detector::alpha16::TryBoardIdFromMacAddressError;
     /// # fn main() -> Result<(), TryBoardIdFromMacAddressError> {
-    /// use detector::alpha16::BoardId;
+    /// use alpha_g_detector::alpha16::BoardId;
     ///
     /// let board_id = BoardId::try_from([216, 128, 57, 104, 142, 82])?;
     /// assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 142, 82]);
@@ -383,9 +383,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -402,9 +402,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -426,9 +426,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -446,9 +446,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcV3Packet, ModuleId};
+    /// use alpha_g_detector::alpha16::{AdcV3Packet, ModuleId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -466,9 +466,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcV3Packet, ChannelId};
+    /// use alpha_g_detector::alpha16::{AdcV3Packet, ChannelId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -489,9 +489,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -509,9 +509,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -530,9 +530,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -552,9 +552,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -573,9 +573,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -594,9 +594,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -613,9 +613,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -642,9 +642,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -664,9 +664,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -683,9 +683,9 @@ impl AdcV3Packet {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcV3Packet;
+    /// use alpha_g_detector::alpha16::AdcV3Packet;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcV3Packet::try_from(&buffer[..])?;
@@ -875,9 +875,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -896,9 +896,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -922,9 +922,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -944,9 +944,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, ModuleId};
+    /// use alpha_g_detector::alpha16::{AdcPacket, ModuleId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -966,9 +966,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, ChannelId};
+    /// use alpha_g_detector::alpha16::{AdcPacket, ChannelId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -991,9 +991,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1013,9 +1013,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1036,9 +1036,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::{AdcPacket, BoardId};
+    /// use alpha_g_detector::alpha16::{AdcPacket, BoardId};
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1060,9 +1060,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1083,9 +1083,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1106,9 +1106,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1129,9 +1129,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1163,9 +1163,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1188,9 +1188,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1211,9 +1211,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
@@ -1233,9 +1233,9 @@ impl AdcPacket {
     /// # Examples
     ///
     /// ```
-    /// # use detector::alpha16::TryAdcPacketFromSliceError;
+    /// # use alpha_g_detector::alpha16::TryAdcPacketFromSliceError;
     /// # fn main() -> Result<(), TryAdcPacketFromSliceError> {
-    /// use detector::alpha16::AdcPacket;
+    /// use alpha_g_detector::alpha16::AdcPacket;
     ///
     /// let buffer = [1, 3, 0, 4, 5, 6, 2, 187, 0, 0, 0, 7, 224, 0, 0, 0];
     /// let packet = AdcPacket::try_from(&buffer[..])?;
