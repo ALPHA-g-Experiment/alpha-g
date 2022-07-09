@@ -17,7 +17,7 @@ impl fmt::Display for Extension {
     }
 }
 
-/// Decompress .lz4 file
+/// Decompress `.lz4` file
 pub fn decompress_lz4(source: &Path, destination: &Path) -> std::io::Result<()> {
     let input_file = File::open(source)?;
     let mut decoder = Decoder::new(input_file)?;
