@@ -377,6 +377,41 @@ pub struct AdcV3Packet {
     suppression_enabled: bool,
 }
 
+impl fmt::Display for AdcV3Packet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Packet type: {}", self.packet_type())?;
+        writeln!(f, "Packet version: {}", self.packet_version())?;
+        writeln!(f, "Accepted trigger: {}", self.accepted_trigger)?;
+        writeln!(f, "Module ID: {:?}", self.module_id)?;
+        let channel_id = match self.channel_id {
+            ChannelId::A16(channel) => format!("{:?}", channel),
+            ChannelId::A32(channel) => format!("{:?}", channel),
+        };
+        writeln!(f, "Channel ID: {channel_id}")?;
+        writeln!(f, "Requested samples: {}", self.requested_samples)?;
+        writeln!(f, "Event timestamp: {}", self.event_timestamp)?;
+        let mac_address = self
+            .board_id
+            .map_or("None".to_string(), |b| format!("{:?}", b.mac_address()));
+        writeln!(f, "MAC address: {mac_address}")?;
+        let trigger_offset = self
+            .trigger_offset
+            .map_or("None".to_string(), |v| v.to_string());
+        writeln!(f, "Trigger offset: {trigger_offset}",)?;
+        let build_timestamp = self
+            .build_timestamp
+            .map_or("None".to_string(), |v| v.to_string());
+        writeln!(f, "Build timestamp: {build_timestamp}",)?;
+        writeln!(f, "Waveform samples: {}", self.waveform.len())?;
+        writeln!(f, "Suppression baseline: {}", self.suppression_baseline)?;
+        writeln!(f, "Keep last: {}", self.keep_last)?;
+        writeln!(f, "Keep bit: {}", self.keep_bit)?;
+        write!(f, "Suppression enabled: {}", self.suppression_enabled)?;
+
+        Ok(())
+    }
+}
+
 impl AdcV3Packet {
     /// Return the packet type.
     ///
@@ -867,6 +902,14 @@ impl TryFrom<&[u8]> for AdcV3Packet {
 pub enum AdcPacket {
     /// Version 3 of an ADC packet.
     V3(AdcV3Packet),
+}
+
+impl fmt::Display for AdcPacket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::V3(packet) => write!(f, "{packet}"),
+        }
+    }
 }
 
 impl AdcPacket {

@@ -130,6 +130,49 @@ const LONG_ADC_V3_PACKET: [u8; 166] = [
 ];
 
 #[test]
+fn adc_v3_to_string() {
+    let packet = AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: None
+Trigger offset: None
+Build timestamp: None
+Waveform samples: 0
+Suppression baseline: 0
+Keep last: 0
+Keep bit: false
+Suppression enabled: true"
+    );
+
+    let packet = AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: [216, 128, 57, 104, 142, 82]
+Trigger offset: 5
+Build timestamp: 6
+Waveform samples: 65
+Suppression baseline: 0
+Keep last: 34
+Keep bit: true
+Suppression enabled: true"
+    );
+}
+
+#[test]
 fn adc_v3_good() {
     let mut good_packet = SHORT_ADC_V3_PACKET;
     for i in 0..=7 {
@@ -706,6 +749,49 @@ fn adc_v3_packet_is_suppression_enabled() {
     assert!(AdcV3Packet::try_from(&large_packet[..])
         .unwrap()
         .is_suppression_enabled());
+}
+
+#[test]
+fn adc_to_string() {
+    let packet = AdcPacket::try_from(&SHORT_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: None
+Trigger offset: None
+Build timestamp: None
+Waveform samples: 0
+Suppression baseline: 0
+Keep last: 0
+Keep bit: false
+Suppression enabled: true"
+    );
+
+    let packet = AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: [216, 128, 57, 104, 142, 82]
+Trigger offset: 5
+Build timestamp: 6
+Waveform samples: 65
+Suppression baseline: 0
+Keep last: 34
+Keep bit: true
+Suppression enabled: true"
+    );
 }
 
 #[test]
