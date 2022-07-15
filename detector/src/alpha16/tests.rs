@@ -72,6 +72,41 @@ fn alpha_16_boards() {
 }
 
 #[test]
+fn try_board_id_from_name() {
+    let board_id = BoardId::try_from("09").unwrap();
+    assert_eq!(board_id.name(), "09");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 55, 76]);
+
+    let board_id = BoardId::try_from("10").unwrap();
+    assert_eq!(board_id.name(), "10");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 170, 37]);
+
+    let board_id = BoardId::try_from("11").unwrap();
+    assert_eq!(board_id.name(), "11");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 172, 127]);
+
+    let board_id = BoardId::try_from("12").unwrap();
+    assert_eq!(board_id.name(), "12");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 79, 167]);
+
+    let board_id = BoardId::try_from("13").unwrap();
+    assert_eq!(board_id.name(), "13");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 202, 166]);
+
+    let board_id = BoardId::try_from("14").unwrap();
+    assert_eq!(board_id.name(), "14");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 142, 130]);
+
+    let board_id = BoardId::try_from("16").unwrap();
+    assert_eq!(board_id.name(), "16");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 111, 162]);
+
+    let board_id = BoardId::try_from("18").unwrap();
+    assert_eq!(board_id.name(), "18");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 142, 82]);
+}
+
+#[test]
 fn try_board_id_from_mac_address() {
     let board_id = BoardId::try_from([216, 128, 57, 104, 55, 76]).unwrap();
     assert_eq!(board_id.name(), "09");

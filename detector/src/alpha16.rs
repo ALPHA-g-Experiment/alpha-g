@@ -175,6 +175,16 @@ impl fmt::Display for TryBoardIdFromMacAddressError {
 }
 impl Error for TryBoardIdFromMacAddressError {}
 
+/// The error type returned when parsing a [`BoardId`] fails.
+#[derive(Clone, Copy, Debug)]
+pub struct ParseBoardIdError;
+impl fmt::Display for ParseBoardIdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "parsing from unknown string attempted")
+    }
+}
+impl Error for ParseBoardIdError {}
+
 // Known Alpha16 board names and mac addresses
 // Just add new boards to this list
 // ("name", [mac address])
@@ -202,6 +212,21 @@ const ALPHA16BOARDS: [(&str, [u8; 6]); 8] = [
 pub struct BoardId {
     name: &'static str,
     mac_address: [u8; 6],
+}
+impl TryFrom<&str> for BoardId {
+    type Error = ParseBoardIdError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        for pair in ALPHA16BOARDS {
+            if name == pair.0 {
+                return Ok(BoardId {
+                    name: pair.0,
+                    mac_address: pair.1,
+                });
+            }
+        }
+        Err(ParseBoardIdError)
+    }
 }
 impl TryFrom<[u8; 6]> for BoardId {
     type Error = TryBoardIdFromMacAddressError;
