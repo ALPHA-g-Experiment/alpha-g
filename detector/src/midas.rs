@@ -70,7 +70,7 @@ impl From<ParseIntError> for ParseAlpha16BankNameError {
     }
 }
 
-/// Bank name of a MIDAS data bank that corresponds to SiPMs of the Barrel Veto.
+/// Name of a MIDAS bank with data from SiPMs of the Barrel Veto.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc16BankName {
     pub board_id: BoardId,
@@ -96,8 +96,8 @@ impl TryFrom<&str> for Adc16BankName {
     }
 }
 
-/// Bank name of a MIDAS data bank that corresponds to anode wires in the radial
-/// Time Projection Chamber.
+/// Name of a MIDAS bank with data from anode wires in the radial Time
+/// Projection Chamber.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc32BankName {
     pub board_id: BoardId,
@@ -120,6 +120,26 @@ impl TryFrom<&str> for Adc32BankName {
             board_id,
             channel_id,
         })
+    }
+}
+
+/// Name of a MIDAS bank with data from an Alpha16 DAQ board.
+#[derive(Clone, Copy, Debug)]
+pub enum Alpha16BankName {
+    /// Barrel Veto SiPM bank name.
+    A16(Adc16BankName),
+    /// Radial Time Projection anode wire bank name.
+    A32(Adc32BankName),
+}
+impl TryFrom<&str> for Alpha16BankName {
+    type Error = ParseAlpha16BankNameError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        match name.chars().next() {
+            Some('C') => Ok(Self::A32(Adc32BankName::try_from(name)?)),
+            Some('B') => Ok(Self::A16(Adc16BankName::try_from(name)?)),
+            _ => Err(Self::Error::PatternMismatch),
+        }
     }
 }
 

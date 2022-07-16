@@ -9,7 +9,7 @@ pub mod alpha16;
 ///
 /// Iterating through the contents of a MIDAS file can be done with the
 /// [`midasio`](https://docs.rs/midasio) crate. This module defines ALPHA-g
-/// specific objects to simplify handling MIDAS files.
+/// specific characteristics to simplify interpreting MIDAS files.
 pub mod midas;
 
 #[cfg(test)]
