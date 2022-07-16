@@ -1,4 +1,6 @@
-use crate::alpha16::{Adc16ChannelId, BoardId, ParseBoardIdError, TryChannelIdFromUnsignedError};
+use crate::alpha16::{
+    Adc16ChannelId, Adc32ChannelId, BoardId, ParseBoardIdError, TryChannelIdFromUnsignedError,
+};
 use std::num::ParseIntError;
 use std::{error::Error, fmt};
 
@@ -68,7 +70,7 @@ impl From<ParseIntError> for ParseAlpha16BankNameError {
     }
 }
 
-/// Bank name that corresponds to SiPMs of the Barrel Veto.
+/// Bank name of a MIDAS data bank that corresponds to SiPMs of the Barrel Veto.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc16BankName {
     pub board_id: BoardId,
@@ -88,6 +90,33 @@ impl TryFrom<&str> for Adc16BankName {
         let board_id = BoardId::try_from(&name[1..][..2])?;
         let channel_id = Adc16ChannelId::try_from(u8::from_str_radix(&name[3..], 16)?)?;
         Ok(Adc16BankName {
+            board_id,
+            channel_id,
+        })
+    }
+}
+
+/// Bank name of a MIDAS data bank that corresponds to anode wires in the radial
+/// Time Projection Chamber.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Adc32BankName {
+    pub board_id: BoardId,
+    pub channel_id: Adc32ChannelId,
+}
+impl TryFrom<&str> for Adc32BankName {
+    type Error = ParseAlpha16BankNameError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if !name.starts_with('C')
+            || name.len() != 4
+            || !name.chars().all(|c| c.is_ascii_alphanumeric())
+            || name.chars().any(|c| c.is_ascii_lowercase())
+        {
+            return Err(Self::Error::PatternMismatch);
+        }
+        let board_id = BoardId::try_from(&name[1..][..2])?;
+        let channel_id = Adc32ChannelId::try_from(u8::from_str_radix(&name[3..], 32)?)?;
+        Ok(Adc32BankName {
             board_id,
             channel_id,
         })
