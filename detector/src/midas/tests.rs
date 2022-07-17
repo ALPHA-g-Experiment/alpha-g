@@ -322,3 +322,52 @@ fn valid_alpha_16_bank_name() {
         }
     }
 }
+
+#[test]
+fn alpha_16_bank_name_board_id() {
+    for num in 9..=14 {
+        let board_id = format!("{num:0>2}");
+        let board_id = BoardId::try_from(&board_id[..]).unwrap();
+
+        let bank_name = format!("B{num:0>2}F");
+        let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(bank_name.board_id(), board_id);
+        let bank_name = format!("C{num:0>2}V");
+        let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(bank_name.board_id(), board_id);
+    }
+}
+
+#[test]
+fn alpha_16_bank_name_channel_id() {
+    for (i, chan) in ('0'..='9')
+        .into_iter()
+        .chain(('A'..='F').into_iter())
+        .enumerate()
+    {
+        let bank_name = format!("B09{chan}");
+        let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
+        match bank_name.channel_id() {
+            ChannelId::A16(channel) => assert_eq!(
+                channel,
+                Adc16ChannelId::try_from(u8::try_from(i).unwrap()).unwrap()
+            ),
+            _ => unreachable!(),
+        }
+    }
+    for (i, chan) in ('0'..='9')
+        .into_iter()
+        .chain(('A'..='V').into_iter())
+        .enumerate()
+    {
+        let bank_name = format!("C09{chan}");
+        let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
+        match bank_name.channel_id() {
+            ChannelId::A32(channel) => assert_eq!(
+                channel,
+                Adc32ChannelId::try_from(u8::try_from(i).unwrap()).unwrap()
+            ),
+            _ => unreachable!(),
+        }
+    }
+}

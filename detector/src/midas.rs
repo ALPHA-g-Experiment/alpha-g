@@ -1,5 +1,6 @@
 use crate::alpha16::{
-    Adc16ChannelId, Adc32ChannelId, BoardId, ParseBoardIdError, TryChannelIdFromUnsignedError,
+    Adc16ChannelId, Adc32ChannelId, BoardId, ChannelId, ParseBoardIdError,
+    TryChannelIdFromUnsignedError,
 };
 use std::num::ParseIntError;
 use std::{error::Error, fmt};
@@ -139,6 +140,54 @@ impl TryFrom<&str> for Alpha16BankName {
             Some('C') => Ok(Self::A32(Adc32BankName::try_from(name)?)),
             Some('B') => Ok(Self::A16(Adc16BankName::try_from(name)?)),
             _ => Err(Self::Error::PatternMismatch),
+        }
+    }
+}
+impl Alpha16BankName {
+    /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # fn main() -> Result<(), ParseAlpha16BankNameError> {
+    /// use alpha_g_detector::midas::Alpha16BankName;
+    /// use alpha_g_detector::alpha16::BoardId;
+    ///
+    /// let bank_name = Alpha16BankName::try_from("B09F")?;
+    /// let board_id = BoardId::try_from("09")?;
+    ///
+    /// assert_eq!(bank_name.board_id(), board_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> BoardId {
+        match self {
+            Self::A16(name) => name.board_id,
+            Self::A32(name) => name.board_id,
+        }
+    }
+    /// Return the [`ChannelId`] associated with a bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # fn main() -> Result<(), ParseAlpha16BankNameError> {
+    /// use alpha_g_detector::midas::Alpha16BankName;
+    /// use alpha_g_detector::alpha16::{ChannelId, Adc16ChannelId};
+    ///
+    /// let bank_name = Alpha16BankName::try_from("B09F")?;
+    /// if let ChannelId::A16(channel) = bank_name.channel_id() {
+    ///     assert_eq!(channel, Adc16ChannelId::try_from(15)?);
+    /// };
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn channel_id(&self) -> ChannelId {
+        match self {
+            Self::A16(name) => ChannelId::A16(name.channel_id),
+            Self::A32(name) => ChannelId::A32(name.channel_id),
         }
     }
 }
