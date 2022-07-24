@@ -1,3 +1,4 @@
+use crate::next::{worker, Packet, TryNextPacketError};
 use alpha_g_detector::alpha16::{
     AdcPacket,
     ChannelId::{A16, A32},
@@ -6,15 +7,18 @@ use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, LinearLayout, RadioGroup, TextView};
 use cursive::Cursive;
-use memmap2::Mmap;
-use midasio::read::file::FileView;
 use pgfplots::axis::{plot::*, *};
-use serde_json::Value;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
-use std::{fmt, fs::File};
 use tempfile::{tempdir, TempDir};
+
+/// Iteration logic.
+///
+/// The application iterates through the input MIDAS files. Each time the "Next"
+/// button is pressed, a [`Packet`] is sent (blocking) between a worker and the
+/// main thread.
+mod next;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -22,129 +26,6 @@ struct Args {
     /// MIDAS files that you want to inspect
     #[clap(required = true)]
     files: Vec<PathBuf>,
-}
-
-/// The error type returned when obtaining the next [`Packet`] failed.
-#[derive(Clone, Debug)]
-enum TryNextPacketError {
-    FailedOpen(PathBuf),
-    FailedMmap(PathBuf),
-    FailedFileView(PathBuf),
-    AllConsumed,
-}
-impl fmt::Display for TryNextPacketError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &*self {
-            Self::FailedOpen(file) => write!(f, "failed to open {}", file.display()),
-            Self::FailedMmap(file) => write!(f, "failed to memory map {}", file.display()),
-            Self::FailedFileView(file) => write!(
-                f,
-                "failed to create a MIDAS FileView from {}",
-                file.display()
-            ),
-            Self::AllConsumed => write!(f, "consumed all input files"),
-        }
-    }
-}
-
-/// Data structure that the worker thread is trying to collect from the MIDAS
-/// file with every iteration of "next".
-#[derive(Clone, Debug)]
-struct Packet {
-    // ADC packet as a slice of bytes. This allows us to attempt the AdcPacket
-    // on the receiver end and display some more helpful information for e.g.
-    // debugging bad packets.
-    adc_packet: Vec<u8>,
-    // Name of the data bank that contains the adc_packet as data_slice
-    bank_name: String,
-    // These are all Option<T> because maybe the fields are not found in the ODB
-    // Suppression threshold of the BV channels
-    a16_suppression: Option<f64>,
-    // Suppression threshold of the rTPC channels
-    a32_suppression: Option<f64>,
-    // Trigger threshold of the BV channels
-    a16_trigger: Option<f64>,
-    // Trigger threshold of the rTPC channels
-    a32_trigger: Option<f64>,
-}
-
-/// Iterate through all the Alpha16 data banks in the given files.
-fn worker(sender: mpsc::SyncSender<Result<Packet, TryNextPacketError>>, file_names: &[PathBuf]) {
-    for file_name in file_names {
-        let file = match File::open(file_name) {
-            Ok(file) => file,
-            Err(_) => {
-                sender
-                    .send(Err(TryNextPacketError::FailedOpen(file_name.to_path_buf())))
-                    .unwrap();
-                continue;
-            }
-        };
-        let mmap = match unsafe { Mmap::map(&file) } {
-            Ok(mmap) => mmap,
-            Err(_) => {
-                sender
-                    .send(Err(TryNextPacketError::FailedMmap(file_name.to_path_buf())))
-                    .unwrap();
-                continue;
-            }
-        };
-        let file_view = match FileView::try_from(&mmap[..]) {
-            Ok(file_view) => file_view,
-            Err(_) => {
-                sender
-                    .send(Err(TryNextPacketError::FailedFileView(
-                        file_name.to_path_buf(),
-                    )))
-                    .unwrap();
-                continue;
-            }
-        };
-        // Get all the suppression and trigger ODB settings
-        let (a16_suppression, a16_trigger, a32_suppression, a32_trigger) = odb_settings(&file_view);
-
-        for event_view in file_view.into_iter().filter(|e| e.id() == 1) {
-            for bank_view in event_view
-                .into_iter()
-                .filter(|b| b.name().starts_with('B') || b.name().starts_with('C'))
-            {
-                sender
-                    .send(Ok(Packet {
-                        adc_packet: bank_view.data_slice().to_owned(),
-                        bank_name: bank_view.name().to_owned(),
-                        a16_suppression,
-                        a32_suppression,
-                        a16_trigger,
-                        a32_trigger,
-                    }))
-                    .unwrap();
-            }
-        }
-    }
-    sender.send(Err(TryNextPacketError::AllConsumed)).unwrap();
-}
-
-/// Return the ADC trigger and data suppression thresholds from the ODB.
-// (a16_suppression, a16_trigger, a32_suppression, a32_trigger)
-fn odb_settings(file_view: &FileView) -> (Option<f64>, Option<f64>, Option<f64>, Option<f64>) {
-    let initial_odb = serde_json::from_slice::<Value>(file_view.initial_odb());
-    match initial_odb {
-        Ok(initial_odb) => (
-            initial_odb
-                .pointer("/Equipment/CTRL/Settings/ADC/adc16_sthreshold")
-                .and_then(|v| v.as_f64()),
-            initial_odb
-                .pointer("/Equipment/CTRL/Settings/ADC/adc16_threshold")
-                .and_then(|v| v.as_f64()),
-            initial_odb
-                .pointer("/Equipment/CTRL/Settings/ADC/adc32_sthreshold")
-                .and_then(|v| v.as_f64()),
-            initial_odb
-                .pointer("/Equipment/CTRL/Settings/ADC/adc32_threshold")
-                .and_then(|v| v.as_f64()),
-        ),
-        Err(_) => (None, None, None, None),
-    }
 }
 
 /// Structure stored in Cursive object that needs to be accessed while modifying
@@ -161,7 +42,6 @@ struct Filter {
     good_packet: Option<bool>,
     detector: Option<Detector>,
     keep_bit: Option<bool>,
-    over_trigger: Option<bool>,
     pos_overflow: Option<bool>,
     neg_overflow: Option<bool>,
 }
@@ -286,7 +166,6 @@ fn main() {
                             good_packet: *good_group.selection(),
                             detector: *detector_group.selection(),
                             keep_bit: *keep_group.selection(),
-                            over_trigger: *trigger_group.selection(),
                             pos_overflow: *pos_overflow_group.selection(),
                             neg_overflow: *neg_overflow_group.selection(),
                         };
@@ -374,48 +253,6 @@ fn passes_filters(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketErr
                             }
                         }
                     },
-                }
-            }
-            if let Some(trigger_filter) = filter.over_trigger {
-                match adc_result {
-                    Err(_) => {
-                        return false;
-                    }
-                    Ok(ref adc_packet) => {
-                        let trigger;
-                        let max_sample;
-                        if packet.bank_name.starts_with('B') {
-                            trigger = packet.a16_trigger;
-                            max_sample = adc_packet.waveform().iter().max();
-                        } else if packet.bank_name.starts_with('C') {
-                            trigger = packet.a32_trigger;
-                            max_sample = adc_packet.waveform().iter().min();
-                        } else {
-                            trigger = None;
-                            max_sample = None;
-                        }
-                        match (trigger, max_sample) {
-                            (Some(threshold), Some(value)) => {
-                                let triggers;
-                                if packet.bank_name.starts_with('B') {
-                                    triggers = f64::from(*value) >= threshold;
-                                } else if packet.bank_name.starts_with('C') {
-                                    triggers = f64::from(*value) <= threshold;
-                                } else {
-                                    triggers = false;
-                                }
-                                if trigger_filter && !triggers {
-                                    return false;
-                                }
-                                if !trigger_filter && triggers {
-                                    return false;
-                                }
-                            }
-                            _ => {
-                                return false;
-                            }
-                        }
-                    }
                 }
             }
             if let Some(overflow) = filter.pos_overflow {
@@ -545,9 +382,9 @@ fn update_plot(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>
             } else {
                 adc_packet.waveform().len()
             };
-            let (suppression_threshold, trigger_threshold) = match adc_packet.channel_id() {
-                A16(_) => (packet.a16_suppression, packet.a16_trigger),
-                A32(_) => (packet.a32_suppression, packet.a32_trigger),
+            let suppression_threshold = match adc_packet.channel_id() {
+                A16(_) => packet.a16_suppression,
+                A32(_) => packet.a32_suppression,
             };
             if let Some(threshold) = suppression_threshold {
                 if let Some(baseline) = adc_packet.suppression_baseline() {
@@ -569,16 +406,6 @@ fn update_plot(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>
                     axis.plots.push(suppression);
                     legend.push(String::from("Data suppression"));
                 }
-            }
-            if let Some(threshold) = trigger_threshold {
-                let mut trigger = Plot2D::new();
-                trigger.coordinates.push((0.0, threshold).into());
-                trigger
-                    .coordinates
-                    .push((last_index as f64, threshold).into());
-                trigger.add_key(PlotKey::Custom("dashed".to_string()));
-                axis.plots.push(trigger);
-                legend.push(String::from("Trigger threshold"));
             }
 
             if !adc_packet.waveform().is_empty() {
