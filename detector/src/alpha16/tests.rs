@@ -410,7 +410,7 @@ fn adc_v3_packet_unknown_mac() {
 #[test]
 fn adc_v3_packet_baseline_mismatch() {
     let mut bad_packet = LONG_ADC_V3_PACKET;
-    bad_packet[159] = 96;
+    bad_packet[159] = 160;
     assert!(matches!(
         AdcV3Packet::try_from(&bad_packet[..]),
         Err(TryAdcPacketFromSliceError::BaselineMismatch)

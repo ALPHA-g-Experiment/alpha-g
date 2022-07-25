@@ -866,7 +866,7 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             .map(|n| i32::from(*n))
             .sum::<i32>()
             / 64;
-        if i32::from(suppression_baseline) != data_baseline {
+        if data_baseline.abs_diff(suppression_baseline.into()) > 1 {
             return Err(Self::Error::BaselineMismatch);
         }
 
