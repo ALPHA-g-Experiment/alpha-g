@@ -1,24 +1,30 @@
+use crate::filter::{Correctness, Detector, Filter, Overflow};
 use crate::next::{worker, Packet, TryNextPacketError};
-use alpha_g_detector::alpha16::{
-    AdcPacket,
-    ChannelId::{A16, A32},
-};
+use alpha_g_detector::alpha16::AdcPacket;
+use alpha_g_detector::alpha16::ChannelId::{A16, A32};
 use clap::Parser;
 use cursive::view::{Nameable, Resizable};
-use cursive::views::{Dialog, LinearLayout, RadioGroup, TextView};
-use cursive::Cursive;
+use cursive::views::{Dialog, LinearLayout, ListView, RadioGroup, TextView};
+use cursive::{Cursive, With};
 use pgfplots::axis::{plot::*, *};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use tempfile::{tempdir, TempDir};
 
-/// Iteration logic.
+/// Iterate through data packets.
 ///
 /// The application iterates through the input MIDAS files. Each time the "Next"
 /// button is pressed, a [`Packet`] is sent (blocking) between a worker and the
 /// main thread.
 mod next;
+
+/// Accept or reject data packets based on user-defined filters.
+///
+/// Every time a new [`Packet`] is sent by the `worker` thread, the main
+/// application accepts/rejects the package given a set of conditions/filters.
+/// A user is only interested in seeing [`Packet`]s that pass the filters.
+mod filter;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -36,21 +42,8 @@ struct UserData {
     filter: Filter,
 }
 
-/// Conditions that the [`Packet`]s have to satisfy for each "next" call
-#[derive(Default, Clone, Copy, Debug)]
-struct Filter {
-    good_packet: Option<bool>,
-    detector: Option<Detector>,
-    keep_bit: Option<bool>,
-    pos_overflow: Option<bool>,
-    neg_overflow: Option<bool>,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum Detector {
-    Bv,
-    Tpc,
-}
+/// Jobname for pdflatex.
+const JOBNAME: &str = "figure";
 
 fn main() {
     let args = Args::parse();
@@ -60,7 +53,7 @@ fn main() {
 
     let user_data = UserData {
         receiver,
-        dir: tempdir().expect("Error: unable to create temporary directory"),
+        dir: tempdir().expect("unable to create temporary directory"),
         filter: Filter::default(),
     };
 
@@ -74,106 +67,10 @@ fn main() {
     update_plot(&mut siv, &Err(TryNextPacketError::AllConsumed));
     let dir = &siv.user_data::<UserData>().unwrap().dir;
     opener::open(dir.path().join(JOBNAME.to_string() + ".pdf"))
-        .expect("Error: unable to open temporary plot");
+        .expect("unable to open temporary plot");
 
     siv.menubar()
-        .add_leaf("Filters", |s| {
-            s.set_autohide_menu(true);
-            let mut good_group: RadioGroup<Option<bool>> = RadioGroup::new();
-            let mut keep_group: RadioGroup<Option<bool>> = RadioGroup::new();
-            let mut trigger_group: RadioGroup<Option<bool>> = RadioGroup::new();
-            let mut detector_group: RadioGroup<Option<Detector>> = RadioGroup::new();
-            let mut pos_overflow_group: RadioGroup<Option<bool>> = RadioGroup::new();
-            let mut neg_overflow_group: RadioGroup<Option<bool>> = RadioGroup::new();
-            s.add_layer(
-                Dialog::new()
-                    .title("Filters")
-                    .content(
-                        LinearLayout::vertical()
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(
-                                        TextView::new("Good packet: ")
-                                            .fixed_width(15)
-                                            .fixed_height(2),
-                                    )
-                                    .child(good_group.button(None, "Any").fixed_width(10))
-                                    .child(good_group.button(Some(true), "True").fixed_width(11))
-                                    .child(good_group.button(Some(false), "False")),
-                            )
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(
-                                        TextView::new("Detector: ").fixed_width(15).fixed_height(2),
-                                    )
-                                    .child(detector_group.button(None, "Any").fixed_width(10))
-                                    .child(
-                                        detector_group
-                                            .button(Some(Detector::Bv), "BV")
-                                            .fixed_width(11),
-                                    )
-                                    .child(detector_group.button(Some(Detector::Tpc), "TPC")),
-                            )
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(
-                                        TextView::new("Keep bit: ").fixed_width(15).fixed_height(2),
-                                    )
-                                    .child(keep_group.button(None, "Any").fixed_width(10))
-                                    .child(keep_group.button(Some(true), "True").fixed_width(11))
-                                    .child(keep_group.button(Some(false), "False")),
-                            )
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(
-                                        TextView::new("Over trigger: ")
-                                            .fixed_width(15)
-                                            .fixed_height(2),
-                                    )
-                                    .child(trigger_group.button(None, "Any").fixed_width(10))
-                                    .child(trigger_group.button(Some(true), "True").fixed_width(11))
-                                    .child(trigger_group.button(Some(false), "False")),
-                            )
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(
-                                        TextView::new("Pos. overflow: ")
-                                            .fixed_width(15)
-                                            .fixed_height(2),
-                                    )
-                                    .child(pos_overflow_group.button(None, "Any").fixed_width(10))
-                                    .child(
-                                        pos_overflow_group
-                                            .button(Some(true), "True")
-                                            .fixed_width(11),
-                                    )
-                                    .child(pos_overflow_group.button(Some(false), "False")),
-                            )
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(TextView::new("Neg. overflow: ").fixed_width(15))
-                                    .child(neg_overflow_group.button(None, "Any").fixed_width(10))
-                                    .child(
-                                        neg_overflow_group
-                                            .button(Some(true), "True")
-                                            .fixed_width(11),
-                                    )
-                                    .child(neg_overflow_group.button(Some(false), "False")),
-                            ),
-                    )
-                    .button("Done", move |s| {
-                        s.user_data::<UserData>().unwrap().filter = Filter {
-                            good_packet: *good_group.selection(),
-                            detector: *detector_group.selection(),
-                            keep_bit: *keep_group.selection(),
-                            pos_overflow: *pos_overflow_group.selection(),
-                            neg_overflow: *neg_overflow_group.selection(),
-                        };
-                        s.pop_layer();
-                        s.set_autohide_menu(false);
-                    }),
-            );
-        })
+        .add_leaf("Filters", draw_filters)
         .add_delimiter();
 
     siv.add_layer(
@@ -183,18 +80,21 @@ fn main() {
         .title("Packet Metadata")
         .button("Quit", |s| s.quit())
         .button("Next", |s| {
+            let filter = s
+                .with_user_data(|user_data: &mut UserData| user_data.filter)
+                .unwrap();
             let result = loop {
                 match s.user_data::<UserData>().unwrap().receiver.recv() {
-                    Ok(result) => {
-                        if passes_filters(s, &result) {
-                            break result;
+                    Ok(result) => match result {
+                        Ok(ref packet) => {
+                            if packet.passes_filter(&filter) {
+                                break result;
+                            }
                         }
-                    }
+                        Err(_) => break result,
+                    },
                     Err(_) => {
-                        // s.quit() does not work. I DON'T understand why.
-                        // I can only quit the application inside this loop
-                        // with a panic!()
-                        panic!("Error: receiver disconnected");
+                        panic!("receiver disconnected");
                     }
                 }
             };
@@ -206,160 +106,131 @@ fn main() {
     siv.run();
 }
 
-fn passes_filters(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) -> bool {
-    let user_data = s.user_data::<UserData>().unwrap();
-    let filter = user_data.filter;
-    match next_result {
-        Err(_) => true,
-        Ok(packet) => {
-            let adc_result = AdcPacket::try_from(&packet.adc_packet[..]);
-            if let Some(good_filter) = filter.good_packet {
-                if good_filter && adc_result.is_err() {
-                    return false;
-                }
-                if !good_filter && adc_result.is_ok() {
-                    return false;
-                }
+/// Create the radio buttons for a group.
+fn make_radio<T: 'static + PartialEq>(
+    values: impl IntoIterator<Item = (impl Into<String>, T, usize)>,
+    group: &mut RadioGroup<T>,
+    current_value: &T,
+) -> impl cursive::View {
+    LinearLayout::horizontal().with(|layout| {
+        for (label, value, width) in values.into_iter() {
+            let selected = &value == current_value;
+            layout.add_child(
+                group
+                    .button(value, label)
+                    .with_if(selected, |b| {
+                        b.select();
+                    })
+                    .fixed_width(width),
+            );
+            if selected {
+                layout.set_focus_index(layout.len() - 1).unwrap();
             }
-            if let Some(detector_filter) = filter.detector {
-                match detector_filter {
-                    Detector::Bv => {
-                        if !packet.bank_name.starts_with('B') {
-                            return false;
-                        }
-                    }
-                    Detector::Tpc => {
-                        if !packet.bank_name.starts_with('C') {
-                            return false;
-                        }
-                    }
-                }
-            }
-            if let Some(keep_filter) = filter.keep_bit {
-                match adc_result {
-                    Err(_) => {
-                        return false;
-                    }
-                    Ok(ref adc_packet) => match adc_packet.keep_bit() {
-                        None => {
-                            return false;
-                        }
-                        Some(keep_bit) => {
-                            if keep_filter && !keep_bit {
-                                return false;
-                            }
-                            if !keep_filter && keep_bit {
-                                return false;
-                            }
-                        }
-                    },
-                }
-            }
-            if let Some(overflow) = filter.pos_overflow {
-                match adc_result {
-                    Err(_) => {
-                        return false;
-                    }
-                    Ok(ref adc_packet) => {
-                        let max = adc_packet.waveform().iter().max();
-                        if overflow && (max != Some(&32764)) {
-                            return false;
-                        }
-                        if !overflow && (max == Some(&32764)) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            if let Some(overflow) = filter.neg_overflow {
-                match adc_result {
-                    Err(_) => {
-                        return false;
-                    }
-                    Ok(adc_packet) => {
-                        let min = adc_packet.waveform().iter().min();
-                        if overflow && (min != Some(&i16::MIN)) {
-                            return false;
-                        }
-                        if !overflow && (min == Some(&i16::MIN)) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            true
         }
-    }
+    })
 }
+
+/// Draw the filter selection pop-up window.
+fn draw_filters(s: &mut Cursive) {
+    s.set_autohide_menu(true);
+
+    let mut correctness: RadioGroup<Option<Correctness>> = RadioGroup::new();
+    let mut detector: RadioGroup<Option<Detector>> = RadioGroup::new();
+    let mut keep_bit: RadioGroup<Option<bool>> = RadioGroup::new();
+    let mut overflow: RadioGroup<Option<Overflow>> = RadioGroup::new();
+
+    // Get the current filters to draw the correct status.
+    let current_filter = s
+        .with_user_data(|user_data: &mut UserData| user_data.filter)
+        .unwrap();
+
+    s.add_layer(
+        Dialog::new()
+            .title("Filters")
+            .content(
+                ListView::new()
+                    .child(
+                        "Correctness:",
+                        make_radio(
+                            [
+                                ("Any", None, 9),
+                                ("Good packet", Some(Correctness::Good), 17),
+                                ("Bad packet", Some(Correctness::Bad), 16),
+                            ],
+                            &mut correctness,
+                            &current_filter.correctness,
+                        ),
+                    )
+                    .child(
+                        "Detector:",
+                        make_radio(
+                            [
+                                ("Any", None, 9),
+                                ("BV", Some(Detector::Bv), 17),
+                                ("TPC", Some(Detector::Tpc), 16),
+                            ],
+                            &mut detector,
+                            &current_filter.detector,
+                        ),
+                    )
+                    .child(
+                        "Keep bit:",
+                        make_radio(
+                            [
+                                ("Any", None, 9),
+                                ("True", Some(true), 17),
+                                ("False", Some(false), 16),
+                            ],
+                            &mut keep_bit,
+                            &current_filter.keep_bit,
+                        ),
+                    )
+                    .child(
+                        "Overflow:",
+                        make_radio(
+                            [
+                                ("Any", None, 9),
+                                ("Positive", Some(Overflow::Positive), 17),
+                                ("Negative", Some(Overflow::Negative), 16),
+                                ("Both", Some(Overflow::Both), 10),
+                                ("Neither", Some(Overflow::Neither), 11),
+                            ],
+                            &mut overflow,
+                            &current_filter.overflow,
+                        ),
+                    ),
+            )
+            .button("Done", move |s| {
+                s.with_user_data(|user_data: &mut UserData| {
+                    user_data.filter.correctness = *correctness.selection();
+                    user_data.filter.detector = *detector.selection();
+                    user_data.filter.keep_bit = *keep_bit.selection();
+                    user_data.filter.overflow = *overflow.selection();
+                })
+                .unwrap();
+
+                s.pop_layer();
+                s.set_autohide_menu(false);
+            }),
+    );
+}
+
 /// Update the Metadata text box with information about the last received packet
 fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
     let text = match next_result {
+        Ok(packet) => match AdcPacket::try_from(&packet.adc_packet[..]) {
+            Ok(packet) => packet.to_string(),
+            Err(error) => format!("Error: {error}"),
+        },
         Err(error) => {
             let text = format!("Error: {error}");
             s.add_layer(Dialog::info(text));
             String::from("Press <Next> to jump to the next Alpha16 packet.")
         }
-        Ok(packet) => metadata(packet),
     };
 
     s.call_on_name("metadata", |view: &mut TextView| view.set_content(text));
 }
-
-/// Obtain the metadata text from a given packet
-fn metadata(packet: &Packet) -> String {
-    let packet_info = match AdcPacket::try_from(&packet.adc_packet[..]) {
-        Err(error) => format!("Error: {error}"),
-        Ok(packet) => format!(
-            "Packet type: {}
-Packet version: {}
-Accepted trigger: {}
-Module ID: {:?}
-Channel ID: {:?}
-Requested samples: {}
-Event timestamp: {}
-MAC address: {}
-Trigger offset: {}
-Build timestamp: {}
-Waveform samples: {}
-Suppression baseline: {}
-Keep last: {}
-Keep bit: {}
-Suppression enabled: {}",
-            packet.packet_type(),
-            packet.packet_version(),
-            packet.accepted_trigger(),
-            packet.module_id(),
-            packet.channel_id(),
-            packet.requested_samples(),
-            packet.event_timestamp(),
-            packet
-                .board_id()
-                .map_or("None".to_string(), |b| format!("{:?}", b.mac_address())),
-            packet
-                .trigger_offset()
-                .map_or("None".to_string(), |v| v.to_string()),
-            packet
-                .build_timestamp()
-                .map_or("None".to_string(), |v| v.to_string()),
-            packet.waveform().len(),
-            packet
-                .suppression_baseline()
-                .map_or("Not applicable".to_string(), |v| v.to_string()),
-            packet
-                .keep_last()
-                .map_or("Not applicable".to_string(), |v| v.to_string()),
-            packet
-                .keep_bit()
-                .map_or("Not applicable".to_string(), |v| v.to_string()),
-            packet
-                .is_suppression_enabled()
-                .map_or("Not applicable".to_string(), |v| v.to_string()),
-        ),
-    };
-    packet_info
-}
-
-const JOBNAME: &str = "figure";
 
 /// Re-create the plot based on an input Packet attempt. The "updating" is
 /// actually done by the PDF viewer; we just re-compile the file.
@@ -437,5 +308,5 @@ fn update_plot(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>
         .arg("-jobname=".to_string() + JOBNAME)
         .arg(argument)
         .status()
-        .expect("Error: failed to run pdflatex");
+        .expect("failed to run pdflatex");
 }

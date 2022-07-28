@@ -334,7 +334,7 @@ impl fmt::Display for TryAdcPacketFromSliceError {
             }
             TryAdcPacketFromSliceError::BadKeepLast => write!(f, "bad keep_last"),
             TryAdcPacketFromSliceError::KeepBitMismatch => write!(f, "keep_bit mismatch"),
-            TryAdcPacketFromSliceError::BadNumberOfSamples => write!(f, "bad waveform bytes"),
+            TryAdcPacketFromSliceError::BadNumberOfSamples => write!(f, "bad number of samples"),
         }
     }
 }
