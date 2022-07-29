@@ -8,8 +8,7 @@ use std::mem::discriminant;
 pub enum Correctness {
     /// A good ADC data packet converts without error into an [`AdcPacket`].
     Good,
-    /// A bad ADC data packet fails during conversion with
-    /// [`TryAdcPacketFromSliceError`]
+    /// A bad ADC data packet fails during conversion.
     Bad,
 }
 
