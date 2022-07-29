@@ -19,6 +19,8 @@ cargo install alpha-g-postana
 
 - [`alpha-g-copy`](src/bin/alpha-g-copy/README.md): Make local copies of MIDAS 
 files from remote hosts.
+- [`alpha-g-alpha16-viewer`](src/bin/alpha-g-alpha16-viewer/README.md): 
+Visualize the ADC waveforms from the BV and the rTPC.
 
 ## Want to contribute?
 

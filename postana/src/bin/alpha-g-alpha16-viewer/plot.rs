@@ -54,7 +54,9 @@ pub fn create_plot<P: AsRef<Path>>(dir: P, packet: &Packet) {
                     y = y * 2.0 * threshold + f64::from(baseline) - threshold;
                     suppression.coordinates.push((x, y).into());
                 }
-                suppression.add_key(PlotKey::Custom("fill=gray!20, draw=gray!20".to_string()));
+                suppression.add_key(PlotKey::Custom(
+                    "fill=gray!20, draw=gray!20, area legend".to_string(),
+                ));
                 axis.plots.push(suppression);
                 legend.push(String::from("Data suppression"));
             }
