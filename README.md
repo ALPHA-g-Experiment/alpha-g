@@ -11,9 +11,10 @@ of the ALPHA-g experiment at CERN.
 
 Read the individual README.md file of each package to obtain more information.
 
-- Detector: Library crate to handle the raw output of the ALPHA-g detectors.
-- Postana: Set of executables that perform common post-processing/offline
- analysis.
+- [Detector](detector/README.md): Library crate to handle the raw output of the
+ ALPHA-g detectors.
+- [Postana](postana/README.md): Set of executables that perform common 
+post-processing/offline analysis.
 
 ## Want to contribute?
 

@@ -72,6 +72,41 @@ fn alpha_16_boards() {
 }
 
 #[test]
+fn try_board_id_from_name() {
+    let board_id = BoardId::try_from("09").unwrap();
+    assert_eq!(board_id.name(), "09");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 55, 76]);
+
+    let board_id = BoardId::try_from("10").unwrap();
+    assert_eq!(board_id.name(), "10");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 170, 37]);
+
+    let board_id = BoardId::try_from("11").unwrap();
+    assert_eq!(board_id.name(), "11");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 172, 127]);
+
+    let board_id = BoardId::try_from("12").unwrap();
+    assert_eq!(board_id.name(), "12");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 79, 167]);
+
+    let board_id = BoardId::try_from("13").unwrap();
+    assert_eq!(board_id.name(), "13");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 202, 166]);
+
+    let board_id = BoardId::try_from("14").unwrap();
+    assert_eq!(board_id.name(), "14");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 142, 130]);
+
+    let board_id = BoardId::try_from("16").unwrap();
+    assert_eq!(board_id.name(), "16");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 111, 162]);
+
+    let board_id = BoardId::try_from("18").unwrap();
+    assert_eq!(board_id.name(), "18");
+    assert_eq!(board_id.mac_address(), [216, 128, 57, 104, 142, 82]);
+}
+
+#[test]
 fn try_board_id_from_mac_address() {
     let board_id = BoardId::try_from([216, 128, 57, 104, 55, 76]).unwrap();
     assert_eq!(board_id.name(), "09");
@@ -128,6 +163,49 @@ const LONG_ADC_V3_PACKET: [u8; 166] = [
     8, 0, 9, 0, 10, 0, 11, 0, 12, 0, 13, 0, 14, 0, 15, 0, 16, 0, 17, 0, 18, 0, 19, 0, 20, 0, 21, 0,
     22, 0, 23, 0, 24, 0, 25, 0, 26, 0, 27, 0, 28, 0, 29, 0, 30, 0, 31, 0, 32, 0, 0, 240, 34, 0, 0,
 ];
+
+#[test]
+fn adc_v3_to_string() {
+    let packet = AdcV3Packet::try_from(&SHORT_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: None
+Trigger offset: None
+Build timestamp: None
+Waveform samples: 0
+Suppression baseline: 0
+Keep last: 0
+Keep bit: false
+Suppression enabled: true"
+    );
+
+    let packet = AdcV3Packet::try_from(&LONG_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: [216, 128, 57, 104, 142, 82]
+Trigger offset: 5
+Build timestamp: 6
+Waveform samples: 65
+Suppression baseline: 0
+Keep last: 34
+Keep bit: true
+Suppression enabled: true"
+    );
+}
 
 #[test]
 fn adc_v3_good() {
@@ -332,7 +410,7 @@ fn adc_v3_packet_unknown_mac() {
 #[test]
 fn adc_v3_packet_baseline_mismatch() {
     let mut bad_packet = LONG_ADC_V3_PACKET;
-    bad_packet[159] = 96;
+    bad_packet[159] = 160;
     assert!(matches!(
         AdcV3Packet::try_from(&bad_packet[..]),
         Err(TryAdcPacketFromSliceError::BaselineMismatch)
@@ -706,6 +784,49 @@ fn adc_v3_packet_is_suppression_enabled() {
     assert!(AdcV3Packet::try_from(&large_packet[..])
         .unwrap()
         .is_suppression_enabled());
+}
+
+#[test]
+fn adc_to_string() {
+    let packet = AdcPacket::try_from(&SHORT_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: None
+Trigger offset: None
+Build timestamp: None
+Waveform samples: 0
+Suppression baseline: 0
+Keep last: 0
+Keep bit: false
+Suppression enabled: true"
+    );
+
+    let packet = AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Packet type: 1
+Packet version: 3
+Accepted trigger: 1
+Module ID: ModuleId(2)
+Channel ID: Adc16ChannelId(3)
+Requested samples: 699
+Event timestamp: 4
+MAC address: [216, 128, 57, 104, 142, 82]
+Trigger offset: 5
+Build timestamp: 6
+Waveform samples: 65
+Suppression baseline: 0
+Keep last: 34
+Keep bit: true
+Suppression enabled: true"
+    );
 }
 
 #[test]

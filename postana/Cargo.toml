@@ -1,10 +1,18 @@
 [package]
-name = "postana"
+name = "alpha-g-postana"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-clap = { version = "3.1.18", features = ["derive"] }
+alpha_g_detector = { path = "../detector" }
+clap = { version = "3", features = ["derive"] }
+cursive = "0.18"
 glob = "0.3"
+indicatif = "0.16"
+lz4 = "1"
+memmap2 = "0.5"
+midasio = "0.4"
+opener = "0.5"
+pgfplots = "0.4"
+serde_json = "1"
+tempfile = "3"
