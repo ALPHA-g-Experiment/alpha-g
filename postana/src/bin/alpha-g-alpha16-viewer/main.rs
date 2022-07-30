@@ -1,3 +1,6 @@
+//! Iterate through a MIDAS file, and visualize the individual ADC waveforms
+//! from the Barrel Veto and the radial Time Projection Chamber.
+
 use crate::filter::{Correctness, Detector, Filter, Overflow};
 use crate::next::{worker, Packet, TryNextPacketError};
 use crate::plot::{create_plot, empty_plot, JOBNAME};
