@@ -252,24 +252,55 @@ fn adc_v3_good() {
 
 #[test]
 fn adc_v3_packet_incomplete_slice() {
+    let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
+    bad_packet.insert(32, 0);
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::IncompleteSlice {
+            found,
+            min_expected,
+        }) => {
+            assert_eq!(found, 131);
+            assert_eq!(min_expected, 132);
+        }
+        _ => unreachable!(),
+    }
+
     let bad_packet = &SHORT_ADC_V3_PACKET[..10];
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::IncompleteSlice)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::IncompleteSlice {
+            found,
+            min_expected,
+        }) => {
+            assert_eq!(found, 10);
+            assert_eq!(min_expected, 16);
+        }
+        _ => unreachable!(),
+    }
 
     let bad_packet = &LONG_ADC_V3_PACKET[..30];
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::IncompleteSlice)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::IncompleteSlice {
+            found,
+            min_expected,
+        }) => {
+            assert_eq!(found, 30);
+            assert_eq!(min_expected, 36);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet = SHORT_ADC_V3_PACKET;
     bad_packet[12] = 192;
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::IncompleteSlice)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::IncompleteSlice {
+            found,
+            min_expected,
+        }) => {
+            assert_eq!(found, 16);
+            assert_eq!(min_expected, 36);
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -280,10 +311,12 @@ fn adc_v3_packet_unknown_type() {
             continue;
         }
         bad_packet[0] = i;
-        assert!(matches!(
-            AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownType)
-        ));
+        match AdcV3Packet::try_from(&bad_packet[..]) {
+            Err(TryAdcPacketFromSliceError::UnknownType { found }) => {
+                assert_eq!(found, i);
+            }
+            _ => unreachable!(),
+        }
     }
 
     let mut bad_packet = LONG_ADC_V3_PACKET;
@@ -292,10 +325,12 @@ fn adc_v3_packet_unknown_type() {
             continue;
         }
         bad_packet[0] = i;
-        assert!(matches!(
-            AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownType)
-        ));
+        match AdcV3Packet::try_from(&bad_packet[..]) {
+            Err(TryAdcPacketFromSliceError::UnknownType { found }) => {
+                assert_eq!(found, i);
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -307,10 +342,12 @@ fn adc_v3_packet_unknown_version() {
             continue;
         }
         bad_packet[1] = i;
-        assert!(matches!(
-            AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownVersion)
-        ));
+        match AdcV3Packet::try_from(&bad_packet[..]) {
+            Err(TryAdcPacketFromSliceError::UnknownVersion { found }) => {
+                assert_eq!(found, i);
+            }
+            _ => unreachable!(),
+        }
     }
 
     let mut bad_packet = LONG_ADC_V3_PACKET;
@@ -319,10 +356,12 @@ fn adc_v3_packet_unknown_version() {
             continue;
         }
         bad_packet[1] = i;
-        assert!(matches!(
-            AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownVersion)
-        ));
+        match AdcV3Packet::try_from(&bad_packet[..]) {
+            Err(TryAdcPacketFromSliceError::UnknownVersion { found }) => {
+                assert_eq!(found, i);
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -336,7 +375,7 @@ fn adc_v3_packet_unknown_module_id() {
         bad_packet[4] = i;
         assert!(matches!(
             AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownModuleId)
+            Err(TryAdcPacketFromSliceError::UnknownModuleId(_))
         ));
     }
 
@@ -348,7 +387,7 @@ fn adc_v3_packet_unknown_module_id() {
         bad_packet[4] = i;
         assert!(matches!(
             AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownModuleId)
+            Err(TryAdcPacketFromSliceError::UnknownModuleId(_))
         ));
     }
 }
@@ -363,7 +402,7 @@ fn adc_v3_packet_unknown_channel_id() {
         bad_packet[5] = i;
         assert!(matches!(
             AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownChannelId)
+            Err(TryAdcPacketFromSliceError::UnknownChannelId(_))
         ));
     }
 
@@ -375,7 +414,7 @@ fn adc_v3_packet_unknown_channel_id() {
         bad_packet[5] = i;
         assert!(matches!(
             AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::UnknownChannelId)
+            Err(TryAdcPacketFromSliceError::UnknownChannelId(_))
         ));
     }
 }
@@ -384,17 +423,21 @@ fn adc_v3_packet_unknown_channel_id() {
 fn adc_v3_packet_zero_mismatch() {
     let mut bad_packet = LONG_ADC_V3_PACKET;
     bad_packet[12] = 200;
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::ZeroMismatch)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::ZeroMismatch { found }) => {
+            assert_eq!(found, [200, 0]);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet = LONG_ADC_V3_PACKET;
     bad_packet[13] = 50;
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::ZeroMismatch)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::ZeroMismatch { found }) => {
+            assert_eq!(found, [0, 50]);
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -403,18 +446,21 @@ fn adc_v3_packet_unknown_mac() {
     bad_packet[14..20].copy_from_slice(&[0, 0, 0, 0, 0, 0]);
     assert!(matches!(
         AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::UnknownMac)
+        Err(TryAdcPacketFromSliceError::UnknownMac(_))
     ));
 }
 
 #[test]
 fn adc_v3_packet_baseline_mismatch() {
     let mut bad_packet = LONG_ADC_V3_PACKET;
-    bad_packet[159] = 160;
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BaselineMismatch)
-    ));
+    bad_packet[159] = 96;
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BaselineMismatch { found, expected }) => {
+            assert_eq!(found, 0);
+            assert_eq!(expected, 1);
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -422,18 +468,24 @@ fn adc_v3_packet_bad_keep_last() {
     let mut bad_packet = SHORT_ADC_V3_PACKET;
     for i in 1..=255 {
         bad_packet[13] = i;
-        assert!(matches!(
-            AdcV3Packet::try_from(&bad_packet[..]),
-            Err(TryAdcPacketFromSliceError::BadKeepLast)
-        ));
+        match AdcV3Packet::try_from(&bad_packet[..]) {
+            Err(TryAdcPacketFromSliceError::BadKeepLast { found, limit }) => {
+                assert_eq!(found, i.into());
+                assert_eq!(limit, 0);
+            }
+            _ => unreachable!(),
+        }
     }
 
     let mut bad_packet = LONG_ADC_V3_PACKET;
     bad_packet[163] = 33;
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadKeepLast)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadKeepLast { found, limit }) => {
+            assert_eq!(found, 33);
+            assert_eq!(limit, 34);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
     bad_packet[162] = 208;
@@ -442,10 +494,13 @@ fn adc_v3_packet_bad_keep_last() {
         bad_packet.insert(32, 0);
         bad_packet.insert(32, 0);
     }
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadKeepLast)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadKeepLast { found, limit }) => {
+            assert_eq!(found, 33);
+            assert_eq!(limit, 34);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
     bad_packet[162] = 192;
@@ -454,74 +509,90 @@ fn adc_v3_packet_bad_keep_last() {
         bad_packet.insert(32, 0);
         bad_packet.insert(32, 0);
     }
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadKeepLast)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadKeepLast { found, limit }) => {
+            assert_eq!(found, 1);
+            assert_eq!(limit, 0);
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
 fn adc_v3_packet_keep_bit_mismatch() {
     let mut bad_packet = SHORT_ADC_V3_PACKET;
     bad_packet[12] = 240;
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::KeepBitMismatch)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::KeepBitMismatch { found }) => {
+            assert_eq!(found, true);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet = LONG_ADC_V3_PACKET;
     bad_packet[162] = 224;
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::KeepBitMismatch)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::KeepBitMismatch { found }) => {
+            assert_eq!(found, false);
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
 fn adc_v3_packet_bad_number_of_samples() {
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
-    bad_packet.insert(32, 0);
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadNumberOfSamples)
-    ));
+    bad_packet.remove(32);
+    bad_packet.remove(32);
+    bad_packet.remove(32);
+    bad_packet.remove(32);
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadNumberOfSamples { found, min, max }) => {
+            assert_eq!(found, 63);
+            assert_eq!(min, 64);
+            assert_eq!(max, 697);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
     bad_packet.remove(32);
     bad_packet.remove(32);
-    bad_packet.remove(32);
-    bad_packet.remove(32);
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadNumberOfSamples)
-    ));
-
-    let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
-    bad_packet.remove(32);
-    bad_packet.remove(32);
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadNumberOfSamples)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadNumberOfSamples { found, min, max }) => {
+            assert_eq!(found, 64);
+            assert_eq!(min, 65);
+            assert_eq!(max, 697);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
     for _ in 0..635 {
         bad_packet.insert(32, 0);
         bad_packet.insert(32, 0);
     }
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadNumberOfSamples)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadNumberOfSamples { found, min, max }) => {
+            assert_eq!(found, 700);
+            assert_eq!(min, 65);
+            assert_eq!(max, 697);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
     bad_packet[162] = 208;
     bad_packet.remove(32);
     bad_packet.remove(32);
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadNumberOfSamples)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadNumberOfSamples { found, min, max }) => {
+            assert_eq!(found, 64);
+            assert_eq!(min, 65);
+            assert_eq!(max, 697);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
     bad_packet[162] = 208;
@@ -529,10 +600,14 @@ fn adc_v3_packet_bad_number_of_samples() {
         bad_packet.insert(32, 0);
         bad_packet.insert(32, 0);
     }
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadNumberOfSamples)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadNumberOfSamples { found, min, max }) => {
+            assert_eq!(found, 698);
+            assert_eq!(min, 697);
+            assert_eq!(max, 697);
+        }
+        _ => unreachable!(),
+    }
 
     let mut bad_packet: Vec<u8> = LONG_ADC_V3_PACKET.to_vec();
     bad_packet[162] = 192;
@@ -541,10 +616,14 @@ fn adc_v3_packet_bad_number_of_samples() {
         bad_packet.insert(32, 0);
         bad_packet.insert(32, 0);
     }
-    assert!(matches!(
-        AdcV3Packet::try_from(&bad_packet[..]),
-        Err(TryAdcPacketFromSliceError::BadNumberOfSamples)
-    ));
+    match AdcV3Packet::try_from(&bad_packet[..]) {
+        Err(TryAdcPacketFromSliceError::BadNumberOfSamples { found, min, max }) => {
+            assert_eq!(found, 698);
+            assert_eq!(min, 697);
+            assert_eq!(max, 697);
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]

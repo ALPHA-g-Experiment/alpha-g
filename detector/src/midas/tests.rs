@@ -13,34 +13,48 @@ fn event_id_try_from_u16() {
 
 #[test]
 fn adc_16_bank_name_pattern_mismatch() {
-    assert!(matches!(
-        Adc16BankName::try_from("C09A"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc16BankName::try_from("B91"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc16BankName::try_from("B0911"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc16BankName::try_from("B0¹"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc16BankName::try_from("B09 "),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc16BankName::try_from("B09a"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc16BankName::try_from("b09A"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
+    match Adc16BankName::try_from("C09A") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C09A");
+        }
+        _ => unreachable!(),
+    }
+    match Adc16BankName::try_from("B91") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B91");
+        }
+        _ => unreachable!(),
+    }
+    match Adc16BankName::try_from("B0911") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B0911");
+        }
+        _ => unreachable!(),
+    }
+    match Adc16BankName::try_from("B0¹") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B0¹");
+        }
+        _ => unreachable!(),
+    }
+    match Adc16BankName::try_from("B09 ") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B09 ");
+        }
+        _ => unreachable!(),
+    }
+    match Adc16BankName::try_from("B09a") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B09a");
+        }
+        _ => unreachable!(),
+    }
+    match Adc16BankName::try_from("b09A") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "b09A");
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -49,25 +63,25 @@ fn adc_16_bank_name_unknown_board_id() {
         let name = format!("B{num:0>2}0");
         assert!(matches!(
             Adc16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
     }
     for num in 19..100 {
         let name = format!("B{num}0");
         assert!(matches!(
             Adc16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
     }
 }
 
 #[test]
-fn adc_16_bank_name_unknown_channel_id() {
+fn adc_16_bank_name_bad_channel_id() {
     for chan in 'G'..='Z' {
         let name = format!("B09{chan}");
         assert!(matches!(
             Adc16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownChannelId)
+            Err(ParseAlpha16BankNameError::UnknownChannelId(_))
         ));
     }
 }
@@ -106,34 +120,48 @@ fn valid_adc_16_bank_name() {
 
 #[test]
 fn adc_32_bank_name_pattern_mismatch() {
-    assert!(matches!(
-        Adc32BankName::try_from("B09A"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc32BankName::try_from("C91"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc32BankName::try_from("C0911"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc32BankName::try_from("C0¹"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc32BankName::try_from("C09 "),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc32BankName::try_from("C09a"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Adc32BankName::try_from("c09A"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
+    match Adc32BankName::try_from("B09A") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B09A");
+        }
+        _ => unreachable!(),
+    }
+    match Adc32BankName::try_from("C91") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C91");
+        }
+        _ => unreachable!(),
+    }
+    match Adc32BankName::try_from("C0911") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C0911");
+        }
+        _ => unreachable!(),
+    }
+    match Adc32BankName::try_from("C0¹") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C0¹");
+        }
+        _ => unreachable!(),
+    }
+    match Adc32BankName::try_from("C09 ") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C09 ");
+        }
+        _ => unreachable!(),
+    }
+    match Adc32BankName::try_from("C09a") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C09a");
+        }
+        _ => unreachable!(),
+    }
+    match Adc32BankName::try_from("c09A") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "c09A");
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -142,25 +170,25 @@ fn adc_32_bank_name_unknown_board_id() {
         let name = format!("C{num:0>2}0");
         assert!(matches!(
             Adc32BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
     }
     for num in 19..100 {
         let name = format!("C{num}0");
         assert!(matches!(
             Adc32BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
     }
 }
 
 #[test]
-fn adc_32_bank_name_unknown_channel_id() {
+fn adc_32_bank_name_bad_channel_id() {
     for chan in 'W'..='Z' {
         let name = format!("C09{chan}");
         assert!(matches!(
             Adc32BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownChannelId)
+            Err(ParseAlpha16BankNameError::UnknownChannelId(_))
         ));
     }
 }
@@ -199,54 +227,78 @@ fn valid_adc_32_bank_name() {
 
 #[test]
 fn alpha_16_bank_name_pattern_mismatch() {
-    assert!(matches!(
-        Alpha16BankName::try_from("C91"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("C0911"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("C0¹"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("C09 "),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("C09a"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("c09A"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("B91"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("B0911"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("B0¹"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("B09 "),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("B09a"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
-    assert!(matches!(
-        Alpha16BankName::try_from("b09A"),
-        Err(ParseAlpha16BankNameError::PatternMismatch)
-    ));
+    match Alpha16BankName::try_from("C91") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C91");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("C0911") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C0911");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("C0¹") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C0¹");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("C09 ") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C09 ");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("C09a") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "C09a");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("c09A") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "c09A");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("B91") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B91");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("B0911") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B0911");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("B0¹") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B0¹");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("B09 ") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B09 ");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("B09a") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "B09a");
+        }
+        _ => unreachable!(),
+    }
+    match Alpha16BankName::try_from("b09A") {
+        Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "b09A");
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -255,42 +307,42 @@ fn alpha_16_bank_name_unknown_board_id() {
         let name = format!("C{num:0>2}0");
         assert!(matches!(
             Alpha16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
         let name = format!("B{num:0>2}0");
         assert!(matches!(
             Alpha16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
     }
     for num in 19..100 {
         let name = format!("C{num}0");
         assert!(matches!(
             Alpha16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
         let name = format!("B{num}0");
         assert!(matches!(
             Alpha16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownBoardId)
+            Err(ParseAlpha16BankNameError::UnknownBoardId(_))
         ));
     }
 }
 
 #[test]
-fn alpha_16_bank_name_unknown_channel_id() {
+fn alpha_16_bank_name_bad_channel_id() {
     for chan in 'G'..='Z' {
         let name = format!("B09{chan}");
         assert!(matches!(
             Alpha16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownChannelId)
+            Err(ParseAlpha16BankNameError::UnknownChannelId(_))
         ));
     }
     for chan in 'W'..='Z' {
         let name = format!("C09{chan}");
         assert!(matches!(
             Alpha16BankName::try_from(&name[..]),
-            Err(ParseAlpha16BankNameError::UnknownChannelId)
+            Err(ParseAlpha16BankNameError::UnknownChannelId(_))
         ));
     }
 }
