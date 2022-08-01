@@ -839,8 +839,9 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         let waveform_bytes = slice.len() - 36;
         if waveform_bytes % 2 != 0 {
             return Err(Self::Error::IncompleteSlice {
-                found: waveform_bytes,
-                min_expected: waveform_bytes + 1,
+                // waveform bytes + header + footer
+                found: waveform_bytes + 36,
+                min_expected: waveform_bytes + 37,
             });
         }
         let waveform: Vec<i16> = slice[32..][..waveform_bytes]

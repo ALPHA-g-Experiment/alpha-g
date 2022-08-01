@@ -259,8 +259,8 @@ fn adc_v3_packet_incomplete_slice() {
             found,
             min_expected,
         }) => {
-            assert_eq!(found, 131);
-            assert_eq!(min_expected, 132);
+            assert_eq!(found, 167);
+            assert_eq!(min_expected, 168);
         }
         _ => unreachable!(),
     }

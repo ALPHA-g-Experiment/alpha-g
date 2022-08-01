@@ -76,7 +76,7 @@ fn adc_16_bank_name_unknown_board_id() {
 }
 
 #[test]
-fn adc_16_bank_name_bad_channel_id() {
+fn adc_16_bank_name_unknown_channel_id() {
     for chan in 'G'..='Z' {
         let name = format!("B09{chan}");
         assert!(matches!(
@@ -183,7 +183,7 @@ fn adc_32_bank_name_unknown_board_id() {
 }
 
 #[test]
-fn adc_32_bank_name_bad_channel_id() {
+fn adc_32_bank_name_unknown_channel_id() {
     for chan in 'W'..='Z' {
         let name = format!("C09{chan}");
         assert!(matches!(
@@ -330,7 +330,7 @@ fn alpha_16_bank_name_unknown_board_id() {
 }
 
 #[test]
-fn alpha_16_bank_name_bad_channel_id() {
+fn alpha_16_bank_name_unknown_channel_id() {
     for chan in 'G'..='Z' {
         let name = format!("B09{chan}");
         assert!(matches!(
