@@ -5,6 +5,13 @@
 /// Time projection Chamber (anode wires).
 pub mod alpha16;
 
+/// PadWing DAQ boards.
+///
+/// There are a total of 64 PadWing boards (8 rows, 8 columns); each with 4
+/// AFTER chips (A, B, C, and D). Every chip reads out 72 pads, for a total
+/// of 18432 cathode pads in the radial Time Projection Chamber.
+pub mod padwing;
+
 /// MIDAS files.
 ///
 /// Iterating through the contents of a MIDAS file can be done with the
