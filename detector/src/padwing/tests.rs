@@ -40,6 +40,25 @@ fn try_from_unsigned_after() {
     }
 }
 
+#[test]
+fn try_from_char_after() {
+    assert!(matches!(AfterId::try_from('A').unwrap(), AfterId::A));
+    assert!(matches!(AfterId::try_from('B').unwrap(), AfterId::B));
+    assert!(matches!(AfterId::try_from('C').unwrap(), AfterId::C));
+    assert!(matches!(AfterId::try_from('D').unwrap(), AfterId::D));
+    assert!(matches!(AfterId::try_from('a').unwrap(), AfterId::A));
+    assert!(matches!(AfterId::try_from('b').unwrap(), AfterId::B));
+    assert!(matches!(AfterId::try_from('c').unwrap(), AfterId::C));
+    assert!(matches!(AfterId::try_from('d').unwrap(), AfterId::D));
+
+    for i in 'e'..'z' {
+        assert!(AfterId::try_from(i).is_err());
+    }
+    for i in 'E'..'Z' {
+        assert!(AfterId::try_from(i).is_err());
+    }
+}
+
 const CHUNK: [u8; 28] = [
     236, 40, 255, 135, 2, 0, 0, 0, 3, 0, 0, 1, 5, 0, 1, 0, 143, 203, 131, 81, 255, 0, 0, 0, 122,
     92, 155, 159,
@@ -385,5 +404,32 @@ fn chunk_payload_crc() {
                 2677759098
             );
         }
+    }
+}
+
+#[test]
+fn try_from_unsigned_compression() {
+    assert!(matches!(
+        Compression::try_from(0).unwrap(),
+        Compression::Raw
+    ));
+
+    for i in 1..u8::MAX {
+        assert!(Compression::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn try_from_unsigned_trigger() {
+    assert!(matches!(Trigger::try_from(0).unwrap(), Trigger::External));
+    assert!(matches!(Trigger::try_from(1).unwrap(), Trigger::Manual));
+    assert!(matches!(
+        Trigger::try_from(3).unwrap(),
+        Trigger::InternalPulse
+    ));
+
+    assert!(Trigger::try_from(2).is_err());
+    for i in 4..u8::MAX {
+        assert!(Trigger::try_from(i).is_err());
     }
 }

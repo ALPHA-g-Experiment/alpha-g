@@ -225,6 +225,13 @@ pub struct TryAfterIdFromUnsignedError {
     input: u8,
 }
 
+/// The error type returned when parsing an [`AfterId`] fails.
+#[derive(Error, Debug)]
+#[error("unknown parsing from char `{input}` to AfterId")]
+pub struct ParseAfterIdError {
+    input: char,
+}
+
 /// AFTER chip in a PadWing board.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AfterId {
@@ -243,6 +250,19 @@ impl TryFrom<u8> for AfterId {
             2 => Ok(Self::C),
             3 => Ok(Self::D),
             _ => Err(Self::Error { input: num }),
+        }
+    }
+}
+impl TryFrom<char> for AfterId {
+    type Error = ParseAfterIdError;
+
+    fn try_from(character: char) -> Result<Self, Self::Error> {
+        match character {
+            'A' | 'a' => Ok(Self::A),
+            'B' | 'b' => Ok(Self::B),
+            'C' | 'c' => Ok(Self::C),
+            'D' | 'd' => Ok(Self::D),
+            _ => Err(Self::Error { input: character }),
         }
     }
 }
@@ -628,6 +648,111 @@ impl TryFrom<&[u8]> for Chunk {
             payload,
         })
     }
+}
+
+/// The error type returned when conversion from unsigned integer to
+/// [`Compression`] fails.
+#[derive(Error, Debug)]
+#[error("unknown conversion from unsigned `{input}` to Compression")]
+pub struct TryCompressionFromUnsignedError {
+    input: u8,
+}
+
+/// Compression types available for the PadWing boards event data.
+#[derive(Clone, Copy, Debug)]
+pub enum Compression {
+    /// Uncompressed raw data. Any SCA channel data is sent without compression,
+    /// in 16-bit signed format.
+    Raw,
+}
+impl TryFrom<u8> for Compression {
+    type Error = TryCompressionFromUnsignedError;
+
+    fn try_from(num: u8) -> Result<Self, Self::Error> {
+        match num {
+            0 => Ok(Self::Raw),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
+
+/// The error type returned when conversion from unsigned integer to [`Trigger`]
+/// fails.
+#[derive(Error, Debug)]
+#[error("unknown conversion from unsigned `{input}` to Trigger")]
+pub struct TryTriggerFromUnsignedError {
+    input: u8,
+}
+
+/// Trigger sources available that cause an event to be captured.
+#[derive(Clone, Copy, Debug)]
+pub enum Trigger {
+    /// Trigger came from the external pin on the PadWing board.
+    External,
+    /// Trigger came from the NIOS via user request.
+    Manual,
+    /// Trigger came from the internal pulser.
+    InternalPulse,
+}
+impl TryFrom<u8> for Trigger {
+    type Error = TryTriggerFromUnsignedError;
+
+    fn try_from(num: u8) -> Result<Self, Self::Error> {
+        match num {
+            0 => Ok(Self::External),
+            1 => Ok(Self::Manual),
+            3 => Ok(Self::InternalPulse),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
+
+/// The error type returned when conversion from
+/// [`&[u8]`](https://doc.rust-lang.org/std/primitive.slice.html) to
+/// [`PwbPacket`] fails.
+#[derive(Error, Debug)]
+pub enum TryPwbPacketFromSliceError {
+    /// The input slice is not long enough to contain a complete packet.
+    #[error("incomplete slice (expected at least `{min_expected}` bytes, found `{found}`)")]
+    IncompleteSlice { found: usize, min_expected: usize },
+    /// Unknown packet version
+    #[error("unknown packet version `{found}`")]
+    UnknownVersion { found: u8 },
+    /// ASCII representation of AFTER chip doesn't match any known [`AfterId`].
+    #[error("unknown AFTER id")]
+    UnknownAfterId(#[from] ParseAfterIdError),
+    /// Integer representation of compression doesn't match any known
+    /// [`Compression`].
+    #[error("unknown compression")]
+    UnknownCompression(#[from] TryCompressionFromUnsignedError),
+    /// Integer representation of compression doesn't match any known
+    /// [`Trigger`].
+    #[error("unknown trigger source")]
+    UnknownTrigger(#[from] TryTriggerFromUnsignedError),
+    /// MAC address doesn't map to any known [`BoardId`].
+    #[error("unknown mac address")]
+    UnknownMac(#[from] TryBoardIdFromMacAddressError),
+    /// Non-zero value found in bytes meant to be fixed to `0`.
+    #[error("zero-bytes mismatch (found `{found:?}`)")]
+    ZeroMismatch { found: [u8; 2] },
+    /// The value of `last_sca_cell` is larger than `511`. There are only `511`
+    /// SCA cells per channel.
+    #[error("bad last_sca_cell `{found}`")]
+    BadLastScaCell { found: u16 },
+    /// The value of `requested_samples` is larger than `511`. There are
+    /// only `511` SCA cells per channel.
+    #[error("bad requested_samples `{found}`")]
+    BadScaSamples { found: usize },
+    /// The 79th bit in set channels_sent bit mask is set. There are only 79
+    /// channels i.e. 78th is maximum possible bit.
+    #[error("bad channels sent bit mask")]
+    BadScaChannelsSent,
+    /// The 79th bit in set channels_threshold bit mask is set. There are only
+    /// 79 channels i.e. 78th is maximum possible bit.
+    #[error("bad channels over threshold bit mask")]
+    BadScaChannelsThreshold,
+    // Still missing errors from the waveforms themselves, but first need to
+    // understand them.
 }
 
 #[cfg(test)]
