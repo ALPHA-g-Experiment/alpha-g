@@ -707,6 +707,70 @@ impl TryFrom<u8> for Trigger {
     }
 }
 
+/// The error type returned when conversion from unsigned integer to
+/// [`ChannelId`] fails.
+#[derive(Error, Debug)]
+#[error("unknown conversion from unsigned `{input}` to ChannelId")]
+pub struct TryChannelIdFromUnsignedError {
+    input: u16,
+}
+
+/// Channel ID that corresponds to "Reset states" of an AFTER chip.
+///
+/// I don't understand what these channels are. They correspond to the readout
+/// indices of 1, 2, and 3. These are currently not used for anything, they are
+/// even suppressed from the PWB output. They are added here for completeness,
+/// in case they are ever used in the future.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// The internal u16 corresponds to the readout index. Guaranteed by the
+// ChannelId::try_from(u16)
+pub struct ResetChannelId(u16);
+
+/// Channel ID that corresponds to Fixed Pattern Noise channels.
+///
+/// Every AFTER chip has 4 FPN channels, with readout indices 16, 29, 54, and
+/// 67.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// The internal u16 corresponds to the readout index. Guaranteed by the
+// ChannelId::try_from(u16)
+pub struct FpnChannelId(u16);
+
+/// Channel ID that corresponds to cathode pads in the radial Time Projection
+/// Chamber.
+// The internal u16 corresponds to the readout index. Guaranteed by the
+// ChannelId::try_from(u16)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PadChannelId(u16);
+
+/// Channel ID in a PadWing board.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChannelId {
+    Reset(ResetChannelId),
+    /// Fixed pattern noise channel.
+    Fpn(FpnChannelId),
+    /// Cathode pad channel.
+    Pad(PadChannelId),
+}
+impl TryFrom<u16> for ChannelId {
+    type Error = TryChannelIdFromUnsignedError;
+
+    /// Perform the conversion from readout index of PWB channel (`1..=79`).
+    fn try_from(readout_index: u16) -> Result<Self, Self::Error> {
+        // Cannot fail in [1-79]. Because PwbPacket::try_from unwraps in this
+        // range
+        if readout_index == 0 || readout_index > 79 {
+            return Err(TryChannelIdFromUnsignedError {
+                input: readout_index,
+            });
+        }
+        match readout_index {
+            1 | 2 | 3 => Ok(ChannelId::Reset(ResetChannelId(readout_index))),
+            16 | 29 | 54 | 67 => Ok(ChannelId::Fpn(FpnChannelId(readout_index))),
+            _ => Ok(ChannelId::Pad(PadChannelId(readout_index))),
+        }
+    }
+}
+
 /// The error type returned when conversion from
 /// [`&[u8]`](https://doc.rust-lang.org/std/primitive.slice.html) to
 /// [`PwbPacket`] fails.
@@ -743,16 +807,267 @@ pub enum TryPwbPacketFromSliceError {
     /// only `511` SCA cells per channel.
     #[error("bad requested_samples `{found}`")]
     BadScaSamples { found: usize },
-    /// The 79th bit in set channels_sent bit mask is set. There are only 79
+    /// The 79th bit in channels_sent bit mask is set. There are only 79
     /// channels i.e. 78th is maximum possible bit.
     #[error("bad channels sent bit mask")]
     BadScaChannelsSent,
-    /// The 79th bit in set channels_threshold bit mask is set. There are only
+    /// The 79th bit in channels_over_threshold bit mask is set. There are only
     /// 79 channels i.e. 78th is maximum possible bit.
     #[error("bad channels over threshold bit mask")]
     BadScaChannelsThreshold,
-    // Still missing errors from the waveforms themselves, but first need to
-    // understand them.
+    /// Integer representation of a channel ID in the waveforms data doesn't
+    /// match any known [`ChannelId`]
+    #[error("unknown channel id")]
+    UnknownChannelId(#[from] TryChannelIdFromUnsignedError),
+    /// Channel ID in the waveforms data doesn't match the expected channels
+    /// sent.
+    #[error("channel id mismatch (expected `{expected:?}`, found `{found:?}`)")]
+    ChannelIdMismatch {
+        found: ChannelId,
+        expected: ChannelId,
+    },
+    /// The number of waveform samples for a channel doesn't match the
+    /// requested samples.
+    #[error("number of samples mismatch (expected `{expected}`, found `{found}`)")]
+    NumberOfSamplesMismatch { found: usize, expected: usize },
+    /// The end-of-data marker doesn't match the expected `0xCCCCCCCC`.
+    #[error("bad end-of-data marker `{found:?}`")]
+    BadEndOfDataMarker { found: [u8; 4] },
+}
+
+/// Version 2 of a PWB data packet.
+///
+/// A PWB packet represents the data collected from the channels of an
+/// individual AFTER chip in a PadWing board. A PWB data bank in a MIDAS file
+/// contains a single [`Chunk`]; the PWB packet is formed from the payload of
+/// all chunks sent through the same device/channel. The binary representation
+/// of a [`PwbV2Packet`] is shown below. All multi-byte fields are
+/// little-endian:
+///
+/// <center>
+///
+/// |Byte(s)|Description|
+/// |:-:|:-:|
+/// |0|Fixed to 2|
+/// |1|AFTER ID|
+/// |2|Compression type|
+/// |3|Trigger source|
+/// |4-9|MAC address|
+/// |10-11|Trigger delay|
+/// |12-17|Trigger timestamp|
+/// |18-19|Fixed to 0|
+/// |20-21|SCA last cell|
+/// |22-23|Requested samples|
+/// |24-33|Sent channels bitmask|
+/// |34-43|Channels over threshold bitmask|
+/// |44-47|Event counter|
+/// |48-49|FIFO max depth|
+/// |50|Event descriptor write depth|
+/// |51|Event descriptor read depth|
+/// |...|Waveforms|
+///
+/// </center>
+#[derive(Clone, Debug)]
+pub struct PwbV2Packet {
+    after_id: AfterId,
+    compression: Compression,
+    trigger_source: Trigger,
+    board_id: BoardId,
+    trigger_delay: u16,
+    trigger_timestamp: u64,
+    last_sca_cell: u16,
+    requested_samples: usize,
+    channels_sent: Vec<ChannelId>,
+    channels_over_threshold: Vec<ChannelId>,
+    event_counter: u32,
+    fifo_max_depth: u16,
+    event_descriptor_write_depth: u8,
+    event_descriptor_read_depth: u8,
+    // In the constructor, just check that the data has the appropriate format.
+    // But store it as a Vec<u8> and return the desired waveform on demand.
+    data: Vec<u8>,
+}
+
+impl PwbV2Packet {
+    pub fn packet_version(&self) -> u8 {
+        2
+    }
+    pub fn after_id(&self) -> AfterId {
+        self.after_id
+    }
+    pub fn compression(&self) -> Compression {
+        self.compression
+    }
+    pub fn trigger_source(&self) -> Trigger {
+        self.trigger_source
+    }
+    pub fn board_id(&self) -> BoardId {
+        self.board_id
+    }
+    pub fn trigger_delay(&self) -> u16 {
+        self.trigger_delay
+    }
+    pub fn trigger_timestamp(&self) -> u64 {
+        self.trigger_timestamp
+    }
+    pub fn last_sca_cell(&self) -> u16 {
+        self.last_sca_cell
+    }
+    pub fn requested_samples(&self) -> usize {
+        self.requested_samples
+    }
+    pub fn channels_sent(&self) -> &[ChannelId] {
+        &self.channels_sent
+    }
+    pub fn channels_over_threshold(&self) -> &[ChannelId] {
+        &self.channels_over_threshold
+    }
+    pub fn event_counter(&self) -> u32 {
+        self.event_counter
+    }
+    pub fn fifo_max_depth(&self) -> u16 {
+        self.fifo_max_depth
+    }
+    pub fn event_descriptor_write_depth(&self) -> u8 {
+        self.event_descriptor_write_depth
+    }
+    pub fn event_descriptor_read_depth(&self) -> u8 {
+        self.event_descriptor_read_depth
+    }
+    pub fn waveform_at(&self, channel: ChannelId) -> Option<&[i16]> {
+        todo!()
+    }
+    pub fn remove_once_understood(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+impl TryFrom<&[u8]> for PwbV2Packet {
+    type Error = TryPwbPacketFromSliceError;
+
+    // All fields are little endian
+    fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+        if slice.len() < 56 {
+            return Err(Self::Error::IncompleteSlice {
+                found: slice.len(),
+                min_expected: 56,
+            });
+        }
+
+        if slice[0] != 2 {
+            return Err(Self::Error::UnknownVersion { found: slice[0] });
+        }
+        let after_id = AfterId::try_from(slice[1] as char)?;
+        let compression = Compression::try_from(slice[2])?;
+        let trigger_source = Trigger::try_from(slice[3])?;
+        let board_id: [u8; 6] = slice[4..10].try_into().unwrap();
+        let board_id = BoardId::try_from(board_id)?;
+        let trigger_delay = slice[10..12].try_into().unwrap();
+        let trigger_delay = u16::from_le_bytes(trigger_delay);
+        if slice[18..20] != [0, 0] {
+            return Err(Self::Error::ZeroMismatch {
+                found: slice[18..20].try_into().unwrap(),
+            });
+        }
+        let trigger_timestamp = slice[12..20].try_into().unwrap();
+        let trigger_timestamp = u64::from_le_bytes(trigger_timestamp);
+        let last_sca_cell = slice[20..22].try_into().unwrap();
+        let last_sca_cell = u16::from_le_bytes(last_sca_cell);
+        let requested_samples = slice[22..24].try_into().unwrap();
+        let requested_samples = u16::from_le_bytes(requested_samples).into();
+        // This is probably more efficient with leading_zeros for sparse bits
+        if slice[33] & 128 != 0 {
+            return Err(Self::Error::BadScaChannelsSent);
+        }
+        let channels_sent = {
+            let mut array = [0; 16];
+            array[..10].copy_from_slice(&slice[24..34]);
+            u128::from_le_bytes(array)
+        };
+        let channels_sent: Vec<ChannelId> = (0..79)
+            .filter(|index| channels_sent & (1 << index) != 0)
+            .map(|index| ChannelId::try_from(index + 1).unwrap())
+            .collect();
+        if slice[43] & 128 != 0 {
+            return Err(Self::Error::BadScaChannelsThreshold);
+        }
+        let channels_over_threshold = {
+            let mut array = [0; 16];
+            array[..10].copy_from_slice(&slice[34..44]);
+            u128::from_le_bytes(array)
+        };
+        let channels_over_threshold = (0..79)
+            .filter(|index| channels_over_threshold & (1 << index) != 0)
+            .map(|index| ChannelId::try_from(index + 1).unwrap())
+            .collect();
+        let event_counter = slice[44..48].try_into().unwrap();
+        let event_counter = u32::from_le_bytes(event_counter);
+        let fifo_max_depth = slice[48..50].try_into().unwrap();
+        let fifo_max_depth = u16::from_le_bytes(fifo_max_depth);
+        let event_descriptor_write_depth = slice[50];
+        let event_descriptor_read_depth = slice[51];
+        let data = slice[52..].to_vec();
+        let bytes_per_channel = if requested_samples % 2 == 0 {
+            4 + 2 * requested_samples
+        } else {
+            4 + 2 * requested_samples + 2
+        };
+        if bytes_per_channel * channels_sent.len() + 4 != data.len() {
+            return Err(Self::Error::IncompleteSlice {
+                found: slice.len(),
+                min_expected: 56 + bytes_per_channel * channels_sent.len(),
+            });
+        }
+        for (index, &channel) in channels_sent.iter().enumerate() {
+            let index = bytes_per_channel * index;
+            let found_channel = data[index..][..2].try_into().unwrap();
+            let found_channel = u16::from_le_bytes(found_channel);
+            let found_channel = ChannelId::try_from(found_channel)?;
+            if found_channel != channel {
+                return Err(Self::Error::ChannelIdMismatch {
+                    found: found_channel,
+                    expected: channel,
+                });
+            }
+            let found_size = data[index + 2..][..2].try_into().unwrap();
+            let found_size = u16::from_le_bytes(found_size).into();
+            if found_size != requested_samples {
+                return Err(Self::Error::NumberOfSamplesMismatch {
+                    found: found_size,
+                    expected: requested_samples,
+                });
+            }
+            if requested_samples % 2 != 0 {
+                if data[4 + 2 * requested_samples..][..2] != [0, 0] {
+                    return Err(Self::Error::ZeroMismatch {
+                        found: data[4 + 2 * requested_samples..][..2].try_into().unwrap(),
+                    });
+                }
+            }
+        }
+        if data[data.len() - 4..] != [204, 204, 204, 204] {
+            return Err(Self::Error::BadEndOfDataMarker {
+                found: data[..data.len() - 4].try_into().unwrap(),
+            });
+        }
+        Ok(Self {
+            after_id,
+            compression,
+            trigger_source,
+            board_id,
+            trigger_delay,
+            trigger_timestamp,
+            last_sca_cell,
+            requested_samples,
+            channels_sent,
+            channels_over_threshold,
+            event_counter,
+            fifo_max_depth,
+            event_descriptor_write_depth,
+            event_descriptor_read_depth,
+            data,
+        })
+    }
 }
 
 #[cfg(test)]

@@ -433,3 +433,46 @@ fn try_from_unsigned_trigger() {
         assert!(Trigger::try_from(i).is_err());
     }
 }
+
+#[test]
+fn try_from_unsigned_channel_id() {
+    assert!(ChannelId::try_from(0).is_err());
+    for i in 1..=3 {
+        assert!(matches!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Reset(_)
+        ));
+    }
+    for i in 4..=15 {
+        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+    }
+    assert!(matches!(
+        ChannelId::try_from(16).unwrap(),
+        ChannelId::Fpn(_)
+    ));
+    for i in 17..=28 {
+        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+    }
+    assert!(matches!(
+        ChannelId::try_from(29).unwrap(),
+        ChannelId::Fpn(_)
+    ));
+    for i in 30..=53 {
+        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+    }
+    assert!(matches!(
+        ChannelId::try_from(54).unwrap(),
+        ChannelId::Fpn(_)
+    ));
+    for i in 55..=66 {
+        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+    }
+    assert!(matches!(
+        ChannelId::try_from(67).unwrap(),
+        ChannelId::Fpn(_)
+    ));
+    for i in 68..=79 {
+        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+    }
+    assert!(ChannelId::try_from(80).is_err());
+}
