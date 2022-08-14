@@ -884,61 +884,343 @@ pub struct PwbV2Packet {
     event_descriptor_write_depth: u8,
     event_descriptor_read_depth: u8,
     // In the constructor, just check that the data has the appropriate format.
-    // But store it as a Vec<u8> and return the desired waveform on demand.
-    data: Vec<u8>,
+    // But store it as a Vec<i16> and return the desired waveform on demand.
+    data: Vec<i16>,
 }
 
 impl PwbV2Packet {
+    /// Return the packet version i.e. format revision. For [`PwbV2Packet`] it
+    /// is fixed to `2`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.packet_version(), 2);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn packet_version(&self) -> u8 {
         2
     }
+    /// Return the [`AfterId`] of the chip in the PadWing board from which the
+    /// packet was generated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::{AfterId, PwbV2Packet};
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.after_id(), AfterId::A);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn after_id(&self) -> AfterId {
         self.after_id
     }
+    /// Return the [`Compression`] used in the original binary packet data.
+    /// This is only useful as a sanity check, any waveform returned by a
+    /// [`PwbV2Packet`] is already decompressed and in raw format as a slice of
+    /// [`i16`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::{Compression, PwbV2Packet};
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert!(matches!(packet.compression(), Compression::Raw));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn compression(&self) -> Compression {
         self.compression
     }
+    /// Return the [`Trigger`] that caused the event to be captured.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::{Trigger, PwbV2Packet};
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert!(matches!(packet.trigger_source(), Trigger::External));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn trigger_source(&self) -> Trigger {
         self.trigger_source
     }
+    /// Return the [`BoardId`] of the PadWing board from which the packet was
+    /// generated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use alpha_g_detector::padwing::{BoardId, PwbV2Packet};
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.board_id(), BoardId::try_from("00")?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn board_id(&self) -> BoardId {
         self.board_id
     }
+    /// Indicates how long the trigger was delayed from initial request, in
+    /// order to allow the SCA data to fill up post-trigger.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.trigger_delay(), 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn trigger_delay(&self) -> u16 {
         self.trigger_delay
     }
+    /// Indicates when the trigger was accepted. The actual timestamp of the
+    /// trigger signal is given by `trigger_timestamp - trigger_delay`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.trigger_timestamp(), 2);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn trigger_timestamp(&self) -> u64 {
         self.trigger_timestamp
     }
+    /// Indicates the last cell written to by the SCA. As there are only `511`
+    /// SCA cells per channel, this function is guaranteed to return a value in
+    /// the range `1..=511`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.last_sca_cell(), 100);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn last_sca_cell(&self) -> u16 {
         self.last_sca_cell
     }
+    /// Return the number of requested waveform samples per channel. If a
+    /// channel is sent, it is guaranteed to have this number of samples.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.requested_samples(), 511);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn requested_samples(&self) -> usize {
         self.requested_samples
     }
+    /// Return the [`ChannelId`] of all the channels that sent data for this
+    /// event.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert!(packet.channels_sent().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn channels_sent(&self) -> &[ChannelId] {
         &self.channels_sent
     }
+    /// Return the [`ChannelId`] of all the channels with a waveform that went
+    /// over the threshold level. It is possible for a channel to not cross the
+    /// threshold level and yet still be sent e.g. when a channel is `FORCED`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::{ChannelId, PwbV2Packet};
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.channels_over_threshold(), &[ChannelId::try_from(3)?]);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn channels_over_threshold(&self) -> &[ChannelId] {
         &self.channels_over_threshold
     }
+    /// Return a counter that increments on each successful trigger received and
+    /// processed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.event_counter(), 5);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn event_counter(&self) -> u32 {
         self.event_counter
     }
+    /// Indicates the maximum depth the SCA FIFO reached while streaming into
+    /// DDR memory.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.fifo_max_depth(), 200);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn fifo_max_depth(&self) -> u16 {
         self.fifo_max_depth
     }
+    /// Indicates the depth of the event descriptor on its write side at the
+    /// time the event was written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.event_descriptor_write_depth(), 6);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn event_descriptor_write_depth(&self) -> u8 {
         self.event_descriptor_write_depth
     }
+    /// Indicates the depth of the event descriptor on its read side at the time
+    /// the event was read out.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::PwbV2Packet;
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert_eq!(packet.event_descriptor_read_depth(), 7);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn event_descriptor_read_depth(&self) -> u8 {
         self.event_descriptor_read_depth
     }
+    /// Return the digitized waveform samples received by a channel in a PadWing
+    /// board. Return [`None`] if the given channel was not sent.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::padwing::TryPwbPacketFromSliceError;
+    /// # fn main() -> Result<(), TryPwbPacketFromSliceError> {
+    /// use alpha_g_detector::padwing::{ChannelId, PwbV2Packet};
+    ///
+    /// let payload = [2, 65, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 100, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 200, 0, 6, 7, 204, 204, 204, 204];
+    /// let packet = PwbV2Packet::try_from(&payload[..])?;
+    ///
+    /// assert!(packet.waveform_at(ChannelId::try_from(10)?).is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn waveform_at(&self, channel: ChannelId) -> Option<&[i16]> {
-        todo!()
-    }
-    pub fn remove_once_understood(&self) -> &[u8] {
-        &self.data
+        if let Some(index) = self.channels_sent.iter().position(|c| *c == channel) {
+            let samples_per_channel = if self.requested_samples % 2 == 0 {
+                2 + self.requested_samples
+            } else {
+                2 + self.requested_samples + 1
+            };
+            let index = samples_per_channel * index;
+            Some(&self.data[index + 2..][..self.requested_samples])
+        } else {
+            None
+        }
     }
 }
 
@@ -1006,7 +1288,7 @@ impl TryFrom<&[u8]> for PwbV2Packet {
         let fifo_max_depth = u16::from_le_bytes(fifo_max_depth);
         let event_descriptor_write_depth = slice[50];
         let event_descriptor_read_depth = slice[51];
-        let data = slice[52..].to_vec();
+        let data = &slice[52..];
         let bytes_per_channel = if requested_samples % 2 == 0 {
             4 + 2 * requested_samples
         } else {
@@ -1037,12 +1319,12 @@ impl TryFrom<&[u8]> for PwbV2Packet {
                     expected: requested_samples,
                 });
             }
-            if requested_samples % 2 != 0 {
-                if data[4 + 2 * requested_samples..][..2] != [0, 0] {
-                    return Err(Self::Error::ZeroMismatch {
-                        found: data[4 + 2 * requested_samples..][..2].try_into().unwrap(),
-                    });
-                }
+            if requested_samples % 2 != 0
+                && data[index + 4 + 2 * requested_samples..][..2] != [0, 0]
+            {
+                return Err(Self::Error::ZeroMismatch {
+                    found: data[4 + 2 * requested_samples..][..2].try_into().unwrap(),
+                });
             }
         }
         if data[data.len() - 4..] != [204, 204, 204, 204] {
@@ -1050,6 +1332,13 @@ impl TryFrom<&[u8]> for PwbV2Packet {
                 found: data[..data.len() - 4].try_into().unwrap(),
             });
         }
+        let data = data
+            .chunks_exact(2)
+            .map(|s| {
+                let s = s.try_into().unwrap();
+                i16::from_le_bytes(s)
+            })
+            .collect();
         Ok(Self {
             after_id,
             compression,
