@@ -46,12 +46,8 @@ fn try_from_char_after() {
     assert!(matches!(AfterId::try_from('B').unwrap(), AfterId::B));
     assert!(matches!(AfterId::try_from('C').unwrap(), AfterId::C));
     assert!(matches!(AfterId::try_from('D').unwrap(), AfterId::D));
-    assert!(matches!(AfterId::try_from('a').unwrap(), AfterId::A));
-    assert!(matches!(AfterId::try_from('b').unwrap(), AfterId::B));
-    assert!(matches!(AfterId::try_from('c').unwrap(), AfterId::C));
-    assert!(matches!(AfterId::try_from('d').unwrap(), AfterId::D));
 
-    for i in 'e'..'z' {
+    for i in 'a'..'z' {
         assert!(AfterId::try_from(i).is_err());
     }
     for i in 'E'..'Z' {
@@ -475,4 +471,569 @@ fn try_from_unsigned_channel_id() {
         assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
     }
     assert!(ChannelId::try_from(80).is_err());
+}
+
+const ODD_PWB_V2_PACKET: [u8; 104] = [
+    2, 68, 0, 0, 236, 40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, 0, 0,
+    0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 5, 0, 6, 7, 57, 0, 5, 0, 1, 2, 3, 4,
+    5, 6, 7, 8, 9, 10, 0, 0, 65, 0, 5, 0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 0, 0, 73, 0, 5,
+    0, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 0, 0, 204, 204, 204, 204,
+];
+
+#[test]
+fn pwb_v2_good() {
+    let mut good_packet = ODD_PWB_V2_PACKET;
+    for i in 65..=68 {
+        good_packet[1] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in [0, 1, 3] {
+        good_packet[3] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for triplet in PADWINGBOARDS {
+        good_packet[4..10].copy_from_slice(&triplet.1[..]);
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in 0..=u8::MAX {
+        good_packet[10] = i;
+        good_packet[11] = i;
+        good_packet[12] = i;
+        good_packet[13] = i;
+        good_packet[14] = i;
+        good_packet[15] = i;
+        good_packet[16] = i;
+        good_packet[17] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in 0..=511u16 {
+        let i = i.to_le_bytes();
+        good_packet[20..22].copy_from_slice(&i[..]);
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in 0..=u8::MAX {
+        good_packet[44] = i;
+        good_packet[45] = i;
+        good_packet[46] = i;
+        good_packet[47] = i;
+        good_packet[48] = i;
+        good_packet[49] = i;
+        good_packet[50] = i;
+        good_packet[51] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    // Even packet
+    for i in [22, 54, 70, 86] {
+        good_packet[i] = 6;
+    }
+    assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    for i in 65..=68 {
+        good_packet[1] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in [0, 1, 3] {
+        good_packet[3] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for triplet in PADWINGBOARDS {
+        good_packet[4..10].copy_from_slice(&triplet.1[..]);
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in 0..=u8::MAX {
+        good_packet[10] = i;
+        good_packet[11] = i;
+        good_packet[12] = i;
+        good_packet[13] = i;
+        good_packet[14] = i;
+        good_packet[15] = i;
+        good_packet[16] = i;
+        good_packet[17] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in 0..=511u16 {
+        let i = i.to_le_bytes();
+        good_packet[20..22].copy_from_slice(&i[..]);
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+    for i in 0..=u8::MAX {
+        good_packet[44] = i;
+        good_packet[45] = i;
+        good_packet[46] = i;
+        good_packet[47] = i;
+        good_packet[48] = i;
+        good_packet[49] = i;
+        good_packet[50] = i;
+        good_packet[51] = i;
+        assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
+    }
+}
+
+#[test]
+fn pwb_v2_packet_incomplete_slice() {
+    let mut bad_packet: Vec<u8> = ODD_PWB_V2_PACKET.to_vec();
+    bad_packet.push(0);
+    match PwbV2Packet::try_from(&bad_packet[..]) {
+        Err(TryPwbPacketFromSliceError::IncompleteSlice {
+            found,
+            min_expected,
+        }) => {
+            assert_eq!(found, 105);
+            assert_eq!(min_expected, 104);
+        }
+        _ => unreachable!(),
+    }
+
+    let bad_packet = &ODD_PWB_V2_PACKET[..10];
+    match PwbV2Packet::try_from(&bad_packet[..]) {
+        Err(TryPwbPacketFromSliceError::IncompleteSlice {
+            found,
+            min_expected,
+        }) => {
+            assert_eq!(found, 10);
+            assert_eq!(min_expected, 56);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn pwb_v2_packet_unknown_version() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for i in 0..=u8::MAX {
+        if i == 2 {
+            continue;
+        }
+        bad_packet[0] = i;
+        match PwbV2Packet::try_from(&bad_packet[..]) {
+            Err(TryPwbPacketFromSliceError::UnknownVersion { found }) => {
+                assert_eq!(found, i);
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[test]
+fn pwb_v2_packet_unknown_after_id() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for i in 0..=u8::MAX {
+        if i >= 65 && i <= 68 {
+            continue;
+        }
+        bad_packet[1] = i;
+        assert!(matches!(
+            PwbV2Packet::try_from(&bad_packet[..]),
+            Err(TryPwbPacketFromSliceError::UnknownAfterId(_))
+        ));
+    }
+}
+
+#[test]
+fn pwb_v2_packet_unknown_compression() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for i in 1..=u8::MAX {
+        bad_packet[2] = i;
+        assert!(matches!(
+            PwbV2Packet::try_from(&bad_packet[..]),
+            Err(TryPwbPacketFromSliceError::UnknownCompression(_))
+        ));
+    }
+}
+
+#[test]
+fn pwb_v2_packet_unknown_trigger() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for i in 1..=u8::MAX {
+        if i == 0 || i == 1 || i == 3 {
+            continue;
+        }
+        bad_packet[3] = i;
+        assert!(matches!(
+            PwbV2Packet::try_from(&bad_packet[..]),
+            Err(TryPwbPacketFromSliceError::UnknownTrigger(_))
+        ));
+    }
+}
+
+#[test]
+fn pwb_v2_packet_unknown_mac() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    bad_packet[4..10].copy_from_slice(&[0, 0, 0, 0, 0, 0]);
+    assert!(matches!(
+        PwbV2Packet::try_from(&bad_packet[..]),
+        Err(TryPwbPacketFromSliceError::UnknownMac(_))
+    ));
+}
+
+#[test]
+fn pwb_v2_packet_zero_mismatch() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for i in 1..=u8::MAX {
+        bad_packet[18] = i;
+        match PwbV2Packet::try_from(&bad_packet[..]) {
+            Err(TryPwbPacketFromSliceError::ZeroMismatch { found }) => {
+                assert_eq!(found, [i, 0]);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for i in 1..=u8::MAX {
+        bad_packet[19] = i;
+        match PwbV2Packet::try_from(&bad_packet[..]) {
+            Err(TryPwbPacketFromSliceError::ZeroMismatch { found }) => {
+                assert_eq!(found, [0, i]);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    for i in [66, 82, 98] {
+        let mut bad_packet = ODD_PWB_V2_PACKET;
+        for j in 1..=u8::MAX {
+            bad_packet[i] = j;
+            match PwbV2Packet::try_from(&bad_packet[..]) {
+                Err(TryPwbPacketFromSliceError::ZeroMismatch { found }) => {
+                    assert_eq!(found, [j, 0]);
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    for i in [67, 83, 99] {
+        let mut bad_packet = ODD_PWB_V2_PACKET;
+        for j in 1..=u8::MAX {
+            bad_packet[i] = j;
+            match PwbV2Packet::try_from(&bad_packet[..]) {
+                Err(TryPwbPacketFromSliceError::ZeroMismatch { found }) => {
+                    assert_eq!(found, [0, j]);
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}
+
+#[test]
+fn pwb_v2_packet_bad_last_sca_cell() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    let i = 512u16.to_le_bytes();
+    bad_packet[20..22].copy_from_slice(&i[..]);
+    match PwbV2Packet::try_from(&bad_packet[..]) {
+        Err(TryPwbPacketFromSliceError::BadLastScaCell { found }) => {
+            assert_eq!(found, 512);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn pwb_v2_packet_bad_sca_samples() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    let i = 512u16.to_le_bytes();
+    bad_packet[22..24].copy_from_slice(&i[..]);
+    match PwbV2Packet::try_from(&bad_packet[..]) {
+        Err(TryPwbPacketFromSliceError::BadScaSamples { found }) => {
+            assert_eq!(found, 512);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn pwb_v2_packet_bad_sca_channels_sent() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for mut i in 1..=u8::MAX {
+        i |= 128;
+        bad_packet[33] = i;
+        assert!(matches!(
+            PwbV2Packet::try_from(&bad_packet[..]),
+            Err(TryPwbPacketFromSliceError::BadScaChannelsSent)
+        ));
+    }
+}
+
+#[test]
+fn pwb_v2_packet_bad_sca_channels_threshold() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    for mut i in 1..=u8::MAX {
+        i |= 128;
+        bad_packet[43] = i;
+        assert!(matches!(
+            PwbV2Packet::try_from(&bad_packet[..]),
+            Err(TryPwbPacketFromSliceError::BadScaChannelsThreshold)
+        ));
+    }
+}
+
+#[test]
+fn pwb_v2_packet_unknown_channel_id() {
+    for j in [52, 68, 84] {
+        let mut bad_packet = ODD_PWB_V2_PACKET;
+        for i in 80..=u8::MAX {
+            bad_packet[j] = i;
+            assert!(matches!(
+                PwbV2Packet::try_from(&bad_packet[..]),
+                Err(TryPwbPacketFromSliceError::UnknownChannelId(_))
+            ));
+        }
+    }
+}
+
+#[test]
+fn pwb_v2_packet_channel_id_mismatch() {
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    bad_packet[52] = 58;
+    match PwbV2Packet::try_from(&bad_packet[..]) {
+        Err(TryPwbPacketFromSliceError::ChannelIdMismatch { found, expected }) => {
+            assert_eq!(found, ChannelId::try_from(58).unwrap());
+            assert_eq!(expected, ChannelId::try_from(57).unwrap());
+        }
+        _ => unreachable!(),
+    }
+
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    bad_packet[68] = 66;
+    match PwbV2Packet::try_from(&bad_packet[..]) {
+        Err(TryPwbPacketFromSliceError::ChannelIdMismatch { found, expected }) => {
+            assert_eq!(found, ChannelId::try_from(66).unwrap());
+            assert_eq!(expected, ChannelId::try_from(65).unwrap());
+        }
+        _ => unreachable!(),
+    }
+
+    let mut bad_packet = ODD_PWB_V2_PACKET;
+    bad_packet[84] = 74;
+    match PwbV2Packet::try_from(&bad_packet[..]) {
+        Err(TryPwbPacketFromSliceError::ChannelIdMismatch { found, expected }) => {
+            assert_eq!(found, ChannelId::try_from(74).unwrap());
+            assert_eq!(expected, ChannelId::try_from(73).unwrap());
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn pwb_v2_packet_number_of_samples_mismatch() {
+    for i in [54, 70, 86] {
+        let mut bad_packet = ODD_PWB_V2_PACKET;
+        bad_packet[i] = 6;
+        match PwbV2Packet::try_from(&bad_packet[..]) {
+            Err(TryPwbPacketFromSliceError::NumberOfSamplesMismatch { found, expected }) => {
+                assert_eq!(found, 6);
+                assert_eq!(expected, 5);
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[test]
+fn pwb_v2_packet_bad_end_of_data_marker() {
+    for i in 100..=103 {
+        let mut bad_packet = ODD_PWB_V2_PACKET;
+        bad_packet[i] = 0;
+        match PwbV2Packet::try_from(&bad_packet[..]) {
+            Err(TryPwbPacketFromSliceError::BadEndOfDataMarker { found }) => {
+                let mut eod_marker = [204, 204, 204, 204];
+                eod_marker[i - 100] = 0;
+                assert_eq!(found, eod_marker);
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[test]
+fn pwb_v2_packet_version() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .packet_version(),
+        2
+    );
+}
+
+#[test]
+fn pwb_v2_packet_after_id() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .after_id(),
+        AfterId::try_from('D').unwrap()
+    );
+}
+
+#[test]
+fn pwb_v2_packet_compression() {
+    assert!(matches!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .compression(),
+        Compression::Raw
+    ));
+}
+
+#[test]
+fn pwb_v2_packet_trigger_source() {
+    assert!(matches!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .trigger_source(),
+        Trigger::External
+    ));
+}
+
+#[test]
+fn pwb_v2_packet_board_id() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .board_id(),
+        BoardId::try_from("00").unwrap()
+    );
+}
+
+#[test]
+fn pwb_v2_packet_trigger_delay() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .trigger_delay(),
+        1
+    );
+}
+
+#[test]
+fn pwb_v2_packet_trigger_timestamp() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .trigger_timestamp(),
+        2
+    );
+}
+
+#[test]
+fn pwb_v2_packet_last_sca_cell() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .last_sca_cell(),
+        3
+    );
+}
+
+#[test]
+fn pwb_v2_packet_requested_samples() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .requested_samples(),
+        5
+    );
+}
+
+#[test]
+fn pwb_v2_packet_channels_sent() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .channels_sent(),
+        [
+            ChannelId::try_from(57).unwrap(),
+            ChannelId::try_from(65).unwrap(),
+            ChannelId::try_from(73).unwrap()
+        ]
+    );
+}
+
+#[test]
+fn pwb_v2_packet_channels_over_threshold() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .channels_over_threshold(),
+        [
+            ChannelId::try_from(1).unwrap(),
+            ChannelId::try_from(9).unwrap(),
+            ChannelId::try_from(17).unwrap()
+        ]
+    );
+}
+
+#[test]
+fn pwb_v2_packet_event_counter() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .event_counter(),
+        4
+    );
+}
+
+#[test]
+fn pwb_v2_packet_fifo_max_depth() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .fifo_max_depth(),
+        5
+    );
+}
+
+#[test]
+fn pwb_v2_packet_event_descriptor_write_depth() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .event_descriptor_write_depth(),
+        6
+    );
+}
+
+#[test]
+fn pwb_v2_packet_event_descriptor_read_depth() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .event_descriptor_read_depth(),
+        7
+    );
+}
+
+#[test]
+fn pwb_v2_packet_waveform_at() {
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(57).unwrap())
+            .unwrap(),
+        [513, 1027, 1541, 2055, 2569]
+    );
+
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(65).unwrap())
+            .unwrap(),
+        [3083, 3597, 4111, 4625, 5139]
+    );
+
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(73).unwrap())
+            .unwrap(),
+        [5653, 6167, 6681, 7195, 7709]
+    );
+
+    assert_eq!(
+        PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(1).unwrap()),
+        None
+    );
 }

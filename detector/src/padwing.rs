@@ -258,10 +258,10 @@ impl TryFrom<char> for AfterId {
 
     fn try_from(character: char) -> Result<Self, Self::Error> {
         match character {
-            'A' | 'a' => Ok(Self::A),
-            'B' | 'b' => Ok(Self::B),
-            'C' | 'c' => Ok(Self::C),
-            'D' | 'd' => Ok(Self::D),
+            'A' => Ok(Self::A),
+            'B' => Ok(Self::B),
+            'C' => Ok(Self::C),
+            'D' => Ok(Self::D),
             _ => Err(Self::Error { input: character }),
         }
     }
@@ -1255,8 +1255,18 @@ impl TryFrom<&[u8]> for PwbV2Packet {
         let trigger_timestamp = u64::from_le_bytes(trigger_timestamp);
         let last_sca_cell = slice[20..22].try_into().unwrap();
         let last_sca_cell = u16::from_le_bytes(last_sca_cell);
+        if last_sca_cell > 511 {
+            return Err(Self::Error::BadLastScaCell {
+                found: last_sca_cell,
+            });
+        }
         let requested_samples = slice[22..24].try_into().unwrap();
         let requested_samples = u16::from_le_bytes(requested_samples).into();
+        if requested_samples > 511 {
+            return Err(Self::Error::BadScaSamples {
+                found: requested_samples,
+            });
+        }
         // This is probably more efficient with leading_zeros for sparse bits
         if slice[33] & 128 != 0 {
             return Err(Self::Error::BadScaChannelsSent);
@@ -1323,13 +1333,15 @@ impl TryFrom<&[u8]> for PwbV2Packet {
                 && data[index + 4 + 2 * requested_samples..][..2] != [0, 0]
             {
                 return Err(Self::Error::ZeroMismatch {
-                    found: data[4 + 2 * requested_samples..][..2].try_into().unwrap(),
+                    found: data[index + 4 + 2 * requested_samples..][..2]
+                        .try_into()
+                        .unwrap(),
                 });
             }
         }
         if data[data.len() - 4..] != [204, 204, 204, 204] {
             return Err(Self::Error::BadEndOfDataMarker {
-                found: data[..data.len() - 4].try_into().unwrap(),
+                found: data[data.len() - 4..].try_into().unwrap(),
             });
         }
         let data = data
