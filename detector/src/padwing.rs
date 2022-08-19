@@ -1371,5 +1371,94 @@ impl TryFrom<&[u8]> for PwbV2Packet {
     }
 }
 
+/// The error type returned when conversion from [`Vec<Chunk>`] to [`PwbPacket`]
+/// fails.
+#[derive(Error, Debug)]
+pub enum TryPwbPacketFromChunksError {
+    /// All [`Chunk`]s do not belong to the same device.
+    // `Expected` corresponds to that with chunk_id = 0
+    #[error("device id mismatch (expected `{expected:?}`, found `{found:?}`)")]
+    DeviceIdMismatch { found: BoardId, expected: BoardId },
+    /// All [`Chunk`]s do not belong to the same channel within a device.
+    // `Expected` corresponds to that with chunk_id = 0
+    #[error("channel id mismatch (expected `{expected:?}`, found `{found:?}`)")]
+    ChannelIdMismatch { found: AfterId, expected: AfterId },
+    /// An intermediate [`Chunk`] is missing from a message.
+    #[error("missing chunk with chunk id `{position}`")]
+    MissingChunk { position: usize },
+    /// The last [`Chunk`] in a message does not have the end_of_message flag.
+    #[error("last chunk does not have the `end_of_message` flag")]
+    MissingEndOfMessageChunk,
+    /// An intermediate [`Chunk`] contains the end_of_message flag.
+    #[error("unexpected `end_of_message` found at chunk id `{position}`")]
+    MisplacedEndOfMessageChunk { position: usize },
+    /// The payload from an intermediate [`Chunk`] has a length different than
+    /// expected.
+    // All chunks (except last one) need to have the same chunk_length
+    #[error("payload length mismatch (expected `{expected}`, found `{found}`)")]
+    PayloadLengthMismatch { found: usize, expected: usize },
+    /// The concatenated payload from all chunks is not a correct [`PwbPacket`].
+    #[error("bad payload")]
+    BadPayload(#[from] TryPwbPacketFromSliceError),
+}
+
+impl TryFrom<Vec<Chunk>> for PwbV2Packet {
+    type Error = TryPwbPacketFromChunksError;
+
+    fn try_from(mut chunks: Vec<Chunk>) -> Result<Self, Self::Error> {
+        if chunks.is_empty() {
+            return Err(Self::Error::MissingChunk { position: 0 });
+        }
+        if let Some(index) = chunks
+            .iter()
+            .position(|c| c.board_id() != chunks[0].board_id())
+        {
+            return Err(Self::Error::DeviceIdMismatch {
+                found: chunks[index].board_id(),
+                expected: chunks[0].board_id(),
+            });
+        }
+        if let Some(index) = chunks
+            .iter()
+            .position(|c| c.after_id() != chunks[0].after_id())
+        {
+            return Err(Self::Error::ChannelIdMismatch {
+                found: chunks[index].after_id(),
+                expected: chunks[0].after_id(),
+            });
+        }
+        chunks.sort_unstable_by_key(|c| c.chunk_id);
+        if let Some(position) = chunks
+            .iter()
+            .enumerate()
+            .position(|(i, c)| usize::from(c.chunk_id) != i)
+        {
+            return Err(Self::Error::MissingChunk { position });
+        }
+        if !chunks.last().unwrap().is_end_of_message() {
+            return Err(Self::Error::MissingEndOfMessageChunk);
+        }
+        if let Some(position) = chunks
+            .iter()
+            .take(chunks.len() - 1)
+            .position(|c| c.is_end_of_message())
+        {
+            return Err(Self::Error::MisplacedEndOfMessageChunk { position });
+        }
+        if let Some(index) = chunks
+            .iter()
+            .take(chunks.len() - 1)
+            .position(|c| c.payload().len() != chunks[0].payload().len())
+        {
+            return Err(Self::Error::PayloadLengthMismatch {
+                found: chunks[index].payload().len(),
+                expected: chunks[0].payload().len(),
+            });
+        }
+        let payload: Vec<u8> = chunks.into_iter().flat_map(|c| c.payload).collect();
+        Ok(PwbV2Packet::try_from(&payload[..])?)
+    }
+}
+
 #[cfg(test)]
 mod tests;
