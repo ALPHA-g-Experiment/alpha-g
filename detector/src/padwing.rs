@@ -106,7 +106,7 @@ const PADWINGBOARDS: [(&str, [u8; 6], u32); 64] = [
 /// [`BoardId`] and [`ModuleId`] depends on the run number e.g. we switch an old
 /// board for a new board. You can see the [`ModuleId`] as the slot in which a
 /// board is plugged, which always maps to the same cathode pads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BoardId {
     name: &'static str,
     mac_address: [u8; 6],
@@ -233,7 +233,7 @@ pub struct ParseAfterIdError {
 }
 
 /// AFTER chip in a PadWing board.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AfterId {
     A,
     B,
@@ -1455,7 +1455,10 @@ impl TryFrom<Vec<Chunk>> for PwbV2Packet {
                 expected: chunks[0].payload().len(),
             });
         }
-        let payload: Vec<u8> = chunks.into_iter().flat_map(|c| c.payload).collect();
+        let payload: Vec<u8> = chunks.into_iter().fold(Vec::new(), |mut acc, item| {
+            acc.extend_from_slice(&item.payload);
+            acc
+        });
         Ok(PwbV2Packet::try_from(&payload[..])?)
     }
 }
