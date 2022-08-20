@@ -1037,3 +1037,325 @@ fn pwb_v2_packet_waveform_at() {
         None
     );
 }
+
+const CHUNK_ZERO: [u8; 64] = [
+    236, 40, 255, 135, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 40, 0, 118, 99, 211, 179, 2, 68, 0, 0, 236,
+    40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+    1, 1, 0, 0, 0, 14, 90, 136, 84,
+];
+const CHUNK_ONE: [u8; 64] = [
+    236, 40, 255, 135, 1, 0, 0, 0, 1, 0, 3, 0, 1, 0, 40, 0, 217, 96, 219, 22, 0, 0, 0, 0, 4, 0, 0,
+    0, 5, 0, 6, 7, 57, 0, 5, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 0, 65, 0, 5, 0, 11, 12, 13, 14,
+    15, 16, 17, 18, 204, 252, 9, 110,
+];
+const CHUNK_TWO: [u8; 48] = [
+    236, 40, 255, 135, 2, 0, 0, 0, 2, 0, 3, 1, 2, 0, 24, 0, 246, 111, 112, 132, 19, 20, 0, 0, 73,
+    0, 5, 0, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 0, 0, 204, 204, 204, 204, 112, 195, 108, 175,
+];
+const CHUNK_ALONE: [u8; 128] = [
+    236, 40, 255, 135, 2, 0, 0, 0, 2, 0, 3, 1, 0, 0, 104, 0, 240, 152, 78, 132, 2, 68, 0, 0, 236,
+    40, 255, 135, 84, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 5, 0, 6, 7, 57, 0, 5, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    0, 0, 65, 0, 5, 0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 0, 0, 73, 0, 5, 0, 21, 22, 23, 24,
+    25, 26, 27, 28, 29, 30, 0, 0, 204, 204, 204, 204, 1, 110, 54, 184,
+];
+
+#[test]
+fn pwb_v2_packet_from_chunks_ok() {
+    let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+    let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+    let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+    let chunks = vec![chunk_zero.clone(), chunk_one.clone(), chunk_two.clone()];
+    assert!(PwbV2Packet::try_from(chunks).is_ok());
+
+    let chunks = vec![chunk_zero.clone(), chunk_two.clone(), chunk_one.clone()];
+    assert!(PwbV2Packet::try_from(chunks).is_ok());
+
+    let chunks = vec![chunk_one.clone(), chunk_zero.clone(), chunk_two.clone()];
+    assert!(PwbV2Packet::try_from(chunks).is_ok());
+
+    let chunks = vec![chunk_one.clone(), chunk_two.clone(), chunk_zero.clone()];
+    assert!(PwbV2Packet::try_from(chunks).is_ok());
+
+    let chunks = vec![chunk_two.clone(), chunk_zero.clone(), chunk_one.clone()];
+    assert!(PwbV2Packet::try_from(chunks).is_ok());
+
+    let chunks = vec![chunk_two.clone(), chunk_one.clone(), chunk_zero.clone()];
+    assert!(PwbV2Packet::try_from(chunks).is_ok());
+
+    let chunk = Chunk::try_from(&CHUNK_ALONE[..]).unwrap();
+    let chunks = vec![chunk];
+    assert!(PwbV2Packet::try_from(chunks).is_ok());
+}
+
+#[test]
+fn pwb_v2_packet_from_chunks_device_id_mismatch() {
+    let mut chunk_zero = CHUNK_ZERO;
+    for triplet in PADWINGBOARDS {
+        if BoardId::try_from(triplet.2).unwrap() == BoardId::try_from("00").unwrap() {
+            continue;
+        }
+        chunk_zero[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
+        let crc = !crc32c::crc32c(&chunk_zero[0..16]);
+        chunk_zero[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+
+        let chunk_zero = Chunk::try_from(&chunk_zero[..]).unwrap();
+        let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+        let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+        match PwbV2Packet::try_from(vec![chunk_zero, chunk_one, chunk_two]) {
+            Err(TryPwbPacketFromChunksError::DeviceIdMismatch { found, expected }) => {
+                assert_eq!(found, BoardId::try_from("00").unwrap());
+                assert_eq!(expected, BoardId::try_from(triplet.2).unwrap());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    let mut chunk_one = CHUNK_ONE;
+    for triplet in PADWINGBOARDS {
+        if BoardId::try_from(triplet.2).unwrap() == BoardId::try_from("00").unwrap() {
+            continue;
+        }
+        chunk_one[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
+        let crc = !crc32c::crc32c(&chunk_one[0..16]);
+        chunk_one[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+
+        let chunk_one = Chunk::try_from(&chunk_one[..]).unwrap();
+        let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+        let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+        match PwbV2Packet::try_from(vec![chunk_zero, chunk_one, chunk_two]) {
+            Err(TryPwbPacketFromChunksError::DeviceIdMismatch { found, expected }) => {
+                assert_eq!(expected, BoardId::try_from("00").unwrap());
+                assert_eq!(found, BoardId::try_from(triplet.2).unwrap());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    let mut chunk_two = CHUNK_TWO;
+    for triplet in PADWINGBOARDS {
+        if BoardId::try_from(triplet.2).unwrap() == BoardId::try_from("00").unwrap() {
+            continue;
+        }
+        chunk_two[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
+        let crc = !crc32c::crc32c(&chunk_two[0..16]);
+        chunk_two[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+
+        let chunk_two = Chunk::try_from(&chunk_two[..]).unwrap();
+        let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+        let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+
+        match PwbV2Packet::try_from(vec![chunk_zero, chunk_one, chunk_two]) {
+            Err(TryPwbPacketFromChunksError::DeviceIdMismatch { found, expected }) => {
+                assert_eq!(expected, BoardId::try_from("00").unwrap());
+                assert_eq!(found, BoardId::try_from(triplet.2).unwrap());
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[test]
+fn pwb_v2_packet_from_chunks_channel_id_mismatch() {
+    let mut chunk_zero = CHUNK_ZERO;
+    for channel in 0..=2 {
+        chunk_zero[10] = channel;
+        let crc = !crc32c::crc32c(&chunk_zero[0..16]);
+        chunk_zero[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+
+        let chunk_zero = Chunk::try_from(&chunk_zero[..]).unwrap();
+        let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+        let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+        match PwbV2Packet::try_from(vec![chunk_zero, chunk_one, chunk_two]) {
+            Err(TryPwbPacketFromChunksError::ChannelIdMismatch { found, expected }) => {
+                assert_eq!(found, AfterId::try_from('D').unwrap());
+                assert_eq!(expected, AfterId::try_from(channel).unwrap());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    let mut chunk_one = CHUNK_ONE;
+    for channel in 0..=2 {
+        chunk_one[10] = channel;
+        let crc = !crc32c::crc32c(&chunk_one[0..16]);
+        chunk_one[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+
+        let chunk_one = Chunk::try_from(&chunk_one[..]).unwrap();
+        let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+        let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+        match PwbV2Packet::try_from(vec![chunk_zero, chunk_one, chunk_two]) {
+            Err(TryPwbPacketFromChunksError::ChannelIdMismatch { found, expected }) => {
+                assert_eq!(expected, AfterId::try_from('D').unwrap());
+                assert_eq!(found, AfterId::try_from(channel).unwrap());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    let mut chunk_two = CHUNK_TWO;
+    for channel in 0..=2 {
+        chunk_two[10] = channel;
+        let crc = !crc32c::crc32c(&chunk_two[0..16]);
+        chunk_two[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+
+        let chunk_two = Chunk::try_from(&chunk_two[..]).unwrap();
+        let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+        let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+
+        match PwbV2Packet::try_from(vec![chunk_zero, chunk_one, chunk_two]) {
+            Err(TryPwbPacketFromChunksError::ChannelIdMismatch { found, expected }) => {
+                assert_eq!(expected, AfterId::try_from('D').unwrap());
+                assert_eq!(found, AfterId::try_from(channel).unwrap());
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[test]
+fn pwb_v2_packet_from_chunks_missing_chunk() {
+    match PwbV2Packet::try_from(Vec::new()) {
+        Err(TryPwbPacketFromChunksError::MissingChunk { position }) => {
+            assert_eq!(position, 0);
+        }
+        _ => unreachable!(),
+    }
+    let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+    let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+    let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+    let chunks = vec![chunk_one.clone(), chunk_two.clone()];
+    match PwbV2Packet::try_from(chunks) {
+        Err(TryPwbPacketFromChunksError::MissingChunk { position }) => {
+            assert_eq!(position, 0);
+        }
+        _ => unreachable!(),
+    }
+
+    let chunks = vec![chunk_two.clone(), chunk_one.clone()];
+    match PwbV2Packet::try_from(chunks) {
+        Err(TryPwbPacketFromChunksError::MissingChunk { position }) => {
+            assert_eq!(position, 0);
+        }
+        _ => unreachable!(),
+    }
+
+    let chunks = vec![chunk_zero.clone(), chunk_two.clone()];
+    match PwbV2Packet::try_from(chunks) {
+        Err(TryPwbPacketFromChunksError::MissingChunk { position }) => {
+            assert_eq!(position, 1);
+        }
+        _ => unreachable!(),
+    }
+
+    let chunks = vec![chunk_two.clone(), chunk_zero.clone()];
+    match PwbV2Packet::try_from(chunks) {
+        Err(TryPwbPacketFromChunksError::MissingChunk { position }) => {
+            assert_eq!(position, 1);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn pwb_v2_packet_from_chunks_missing_end_of_message_chunk() {
+    let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+    let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+
+    let chunks = vec![chunk_zero.clone(), chunk_one.clone()];
+    assert!(matches!(
+        PwbV2Packet::try_from(chunks),
+        Err(TryPwbPacketFromChunksError::MissingEndOfMessageChunk)
+    ));
+
+    let chunks = vec![chunk_zero.clone()];
+    assert!(matches!(
+        PwbV2Packet::try_from(chunks),
+        Err(TryPwbPacketFromChunksError::MissingEndOfMessageChunk)
+    ));
+}
+
+#[test]
+fn pwb_v2_packet_from_chunks_misplaced_end_of_message_chunk() {
+    let mut chunk_zero = CHUNK_ZERO;
+    chunk_zero[11] = 1;
+    let crc = !crc32c::crc32c(&chunk_zero[0..16]);
+    chunk_zero[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+    let chunk_zero = Chunk::try_from(&chunk_zero[..]).unwrap();
+    let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+    let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+    let chunks = vec![chunk_zero.clone(), chunk_one.clone(), chunk_two.clone()];
+    match PwbV2Packet::try_from(chunks) {
+        Err(TryPwbPacketFromChunksError::MisplacedEndOfMessageChunk { position }) => {
+            assert_eq!(position, 0);
+        }
+        _ => unreachable!(),
+    }
+
+    let mut chunk_one = CHUNK_ONE;
+    chunk_one[11] = 1;
+    let crc = !crc32c::crc32c(&chunk_one[0..16]);
+    chunk_one[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+    let chunk_one = Chunk::try_from(&chunk_one[..]).unwrap();
+    let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+    let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+    let chunks = vec![chunk_zero.clone(), chunk_one.clone(), chunk_two.clone()];
+    match PwbV2Packet::try_from(chunks) {
+        Err(TryPwbPacketFromChunksError::MisplacedEndOfMessageChunk { position }) => {
+            assert_eq!(position, 1);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn pwb_v2_packet_from_chunks_payload_length_mismatch() {
+    let mut chunk_zero = CHUNK_ZERO;
+    chunk_zero[11] = 1;
+    chunk_zero[12] = 2;
+    let crc = !crc32c::crc32c(&chunk_zero[0..16]);
+    chunk_zero[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+    let chunk_zero = Chunk::try_from(&chunk_zero[..]).unwrap();
+
+    let mut chunk_two = CHUNK_TWO;
+    chunk_two[11] = 0;
+    chunk_two[12] = 0;
+    let crc = !crc32c::crc32c(&chunk_two[0..16]);
+    chunk_two[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
+    let chunk_two = Chunk::try_from(&chunk_two[..]).unwrap();
+
+    let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+    let chunks = vec![chunk_zero, chunk_one, chunk_two];
+    match PwbV2Packet::try_from(chunks) {
+        Err(TryPwbPacketFromChunksError::PayloadLengthMismatch { found, expected }) => {
+            assert_eq!(found, 40);
+            assert_eq!(expected, 24);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn pwb_v2_packet_from_chunks_bad_payload() {
+    let mut chunk_zero = CHUNK_ZERO;
+    chunk_zero[20] = 1;
+    let crc = !crc32c::crc32c(&chunk_zero[20..60]);
+    chunk_zero[60..].copy_from_slice(&crc.to_le_bytes()[..]);
+    let chunk_zero = Chunk::try_from(&chunk_zero[..]).unwrap();
+
+    let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+    let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+    let chunks = vec![chunk_zero, chunk_one, chunk_two];
+    assert!(matches!(
+        PwbV2Packet::try_from(chunks),
+        Err(TryPwbPacketFromChunksError::BadPayload(_))
+    ));
+}
