@@ -1267,29 +1267,42 @@ impl TryFrom<&[u8]> for PwbV2Packet {
                 found: requested_samples,
             });
         }
-        // This is probably more efficient with leading_zeros for sparse bits
         if slice[33] & 128 != 0 {
             return Err(Self::Error::BadScaChannelsSent);
         }
-        let channels_sent = {
+        let mut num = {
             let mut array = [0; 16];
             array[..10].copy_from_slice(&slice[24..34]);
             u128::from_le_bytes(array)
         };
-        let channels_sent: Vec<ChannelId> = (0..79)
-            .filter(|index| channels_sent & (1 << index) != 0)
+        let mut channels_sent: Vec<u16> = Vec::new();
+        while num != 0 {
+            let bit = num.leading_zeros();
+            channels_sent.push((127 - bit).try_into().unwrap());
+            num ^= 1 << (127 - bit);
+        }
+        let channels_sent: Vec<ChannelId> = channels_sent
+            .into_iter()
+            .rev()
             .map(|index| ChannelId::try_from(index + 1).unwrap())
             .collect();
         if slice[43] & 128 != 0 {
             return Err(Self::Error::BadScaChannelsThreshold);
         }
-        let channels_over_threshold = {
+        let mut num = {
             let mut array = [0; 16];
             array[..10].copy_from_slice(&slice[34..44]);
             u128::from_le_bytes(array)
         };
-        let channels_over_threshold = (0..79)
-            .filter(|index| channels_over_threshold & (1 << index) != 0)
+        let mut channels_over_threshold: Vec<u16> = Vec::new();
+        while num != 0 {
+            let bit = num.leading_zeros();
+            channels_over_threshold.push((127 - bit).try_into().unwrap());
+            num ^= 1 << (127 - bit);
+        }
+        let channels_over_threshold: Vec<ChannelId> = channels_over_threshold
+            .into_iter()
+            .rev()
             .map(|index| ChannelId::try_from(index + 1).unwrap())
             .collect();
         let event_counter = slice[44..48].try_into().unwrap();
