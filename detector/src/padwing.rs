@@ -1455,10 +1455,13 @@ impl TryFrom<Vec<Chunk>> for PwbV2Packet {
                 expected: chunks[0].payload().len(),
             });
         }
-        let payload: Vec<u8> = chunks.into_iter().fold(Vec::new(), |mut acc, item| {
-            acc.extend_from_slice(&item.payload);
-            acc
-        });
+        let max_items = chunks[0].payload().len() * chunks.len();
+        let payload = chunks
+            .into_iter()
+            .fold(Vec::with_capacity(max_items), |mut acc, item| {
+                acc.extend_from_slice(&item.payload);
+                acc
+            });
         Ok(PwbV2Packet::try_from(&payload[..])?)
     }
 }
