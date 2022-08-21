@@ -1359,3 +1359,211 @@ fn pwb_v2_packet_from_chunks_bad_payload() {
         Err(TryPwbPacketFromChunksError::BadPayload(_))
     ));
 }
+
+#[test]
+fn pwb_packet_good() {
+    let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
+    let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
+    let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
+
+    let chunks = vec![chunk_zero.clone(), chunk_one.clone(), chunk_two.clone()];
+    assert!(PwbPacket::try_from(chunks).is_ok());
+
+    assert!(PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).is_ok());
+}
+
+#[test]
+fn pwb_packet_version() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .packet_version(),
+        2
+    );
+}
+
+#[test]
+fn pwb_packet_after_id() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .after_id(),
+        AfterId::try_from('D').unwrap()
+    );
+}
+
+#[test]
+fn pwb_packet_compression() {
+    assert!(matches!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .compression(),
+        Compression::Raw
+    ));
+}
+
+#[test]
+fn pwb_packet_trigger_source() {
+    assert!(matches!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .trigger_source(),
+        Trigger::External
+    ));
+}
+
+#[test]
+fn pwb_packet_board_id() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .board_id(),
+        BoardId::try_from("00").unwrap()
+    );
+}
+
+#[test]
+fn pwb_packet_trigger_delay() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .trigger_delay(),
+        1
+    );
+}
+
+#[test]
+fn pwb_packet_trigger_timestamp() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .trigger_timestamp(),
+        2
+    );
+}
+
+#[test]
+fn pwb_packet_last_sca_cell() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .last_sca_cell(),
+        3
+    );
+}
+
+#[test]
+fn pwb_packet_requested_samples() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .requested_samples(),
+        5
+    );
+}
+
+#[test]
+fn pwb_packet_channels_sent() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .channels_sent(),
+        [
+            ChannelId::try_from(57).unwrap(),
+            ChannelId::try_from(65).unwrap(),
+            ChannelId::try_from(73).unwrap()
+        ]
+    );
+}
+
+#[test]
+fn pwb_packet_channels_over_threshold() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .channels_over_threshold(),
+        [
+            ChannelId::try_from(1).unwrap(),
+            ChannelId::try_from(9).unwrap(),
+            ChannelId::try_from(17).unwrap()
+        ]
+    );
+}
+
+#[test]
+fn pwb_packet_event_counter() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .event_counter()
+            .unwrap(),
+        4
+    );
+}
+
+#[test]
+fn pwb_packet_fifo_max_depth() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .fifo_max_depth()
+            .unwrap(),
+        5
+    );
+}
+
+#[test]
+fn pwb_packet_event_descriptor_write_depth() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .event_descriptor_write_depth()
+            .unwrap(),
+        6
+    );
+}
+
+#[test]
+fn pwb_packet_event_descriptor_read_depth() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .event_descriptor_read_depth()
+            .unwrap(),
+        7
+    );
+}
+
+#[test]
+fn pwb_packet_waveform_at() {
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(57).unwrap())
+            .unwrap(),
+        [513, 1027, 1541, 2055, 2569]
+    );
+
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(65).unwrap())
+            .unwrap(),
+        [3083, 3597, 4111, 4625, 5139]
+    );
+
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(73).unwrap())
+            .unwrap(),
+        [5653, 6167, 6681, 7195, 7709]
+    );
+
+    assert_eq!(
+        PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
+            .unwrap()
+            .waveform_at(ChannelId::try_from(1).unwrap()),
+        None
+    );
+}
