@@ -1,4 +1,4 @@
-use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, BoardId, ChannelId, ParseBoardIdError};
+use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, ChannelId, ParseBoardIdError};
 use std::num::ParseIntError;
 use thiserror::Error;
 
@@ -36,6 +36,8 @@ pub enum ParseAlpha16BankNameError {
     #[error("input string `{input}` doesn't match Alpha16BankName pattern")]
     PatternMismatch { input: String },
     /// Board name doesn't match any known [`BoardId`].
+    ///
+    /// [`BoardId`]: crate::alpha16::BoardId
     #[error("unknown board id")]
     UnknownBoardId(#[from] ParseBoardIdError),
     /// The representation of the Channel ID doesn't match any known
@@ -47,11 +49,13 @@ pub enum ParseAlpha16BankNameError {
 /// Name of a MIDAS bank with data from SiPMs of the Barrel Veto.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc16BankName {
-    board_id: BoardId,
+    board_id: crate::alpha16::BoardId,
     channel_id: Adc16ChannelId,
 }
 impl Adc16BankName {
     /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// [`BoardId`]: crate::alpha16::BoardId
     ///
     /// # Examples
     ///
@@ -68,7 +72,7 @@ impl Adc16BankName {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn board_id(&self) -> BoardId {
+    pub fn board_id(&self) -> crate::alpha16::BoardId {
         self.board_id
     }
     /// Return the [`ChannelId`] associated with a bank name.
@@ -106,7 +110,7 @@ impl TryFrom<&str> for Adc16BankName {
                 input: name.to_string(),
             });
         }
-        let board_id = BoardId::try_from(&name[1..][..2])?;
+        let board_id = crate::alpha16::BoardId::try_from(&name[1..][..2])?;
         let channel_id = Adc16ChannelId::try_from(u8::from_str_radix(&name[3..], 16)?).unwrap();
         Ok(Adc16BankName {
             board_id,
@@ -119,11 +123,13 @@ impl TryFrom<&str> for Adc16BankName {
 /// Projection Chamber.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc32BankName {
-    board_id: BoardId,
+    board_id: crate::alpha16::BoardId,
     channel_id: Adc32ChannelId,
 }
 impl Adc32BankName {
     /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// [`BoardId`]: crate::alpha16::BoardId
     ///
     /// # Examples
     ///
@@ -140,7 +146,7 @@ impl Adc32BankName {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn board_id(&self) -> BoardId {
+    pub fn board_id(&self) -> crate::alpha16::BoardId {
         self.board_id
     }
     /// Return the [`ChannelId`] associated with a bank name.
@@ -178,7 +184,7 @@ impl TryFrom<&str> for Adc32BankName {
                 input: name.to_string(),
             });
         }
-        let board_id = BoardId::try_from(&name[1..][..2])?;
+        let board_id = crate::alpha16::BoardId::try_from(&name[1..][..2])?;
         let channel_id = Adc32ChannelId::try_from(u8::from_str_radix(&name[3..], 32)?).unwrap();
         Ok(Adc32BankName {
             board_id,
@@ -211,6 +217,8 @@ impl TryFrom<&str> for Alpha16BankName {
 impl Alpha16BankName {
     /// Return the [`BoardId`] associated with the bank name.
     ///
+    /// [`BoardId`]: crate::alpha16::BoardId
+    ///
     /// # Examples
     ///
     /// ```
@@ -226,7 +234,7 @@ impl Alpha16BankName {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn board_id(&self) -> BoardId {
+    pub fn board_id(&self) -> crate::alpha16::BoardId {
         match self {
             Self::A16(name) => name.board_id,
             Self::A32(name) => name.board_id,

@@ -94,7 +94,7 @@ fn valid_adc_16_bank_name() {
             let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
@@ -108,7 +108,7 @@ fn valid_adc_16_bank_name() {
             let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
@@ -125,7 +125,7 @@ fn adc_16_bank_name_board_id() {
         let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
         assert_eq!(
             bank_name.board_id(),
-            BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+            crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
         );
     }
 }
@@ -233,7 +233,7 @@ fn valid_adc_32_bank_name() {
             let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
@@ -247,7 +247,7 @@ fn valid_adc_32_bank_name() {
             let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
@@ -264,7 +264,7 @@ fn adc_32_bank_name_board_id() {
         let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
         assert_eq!(
             bank_name.board_id(),
-            BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+            crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
         );
     }
 }
@@ -443,7 +443,7 @@ fn valid_alpha_16_bank_name() {
 fn alpha_16_bank_name_board_id() {
     for num in 9..=14 {
         let board_id = format!("{num:0>2}");
-        let board_id = BoardId::try_from(&board_id[..]).unwrap();
+        let board_id = crate::alpha16::BoardId::try_from(&board_id[..]).unwrap();
 
         let bank_name = format!("B{num:0>2}F");
         let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
