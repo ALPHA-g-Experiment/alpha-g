@@ -487,3 +487,84 @@ fn alpha_16_bank_name_channel_id() {
         }
     }
 }
+
+#[test]
+fn padwing_bank_name_pattern_mismatch() {
+    match PadwingBankName::try_from("pc00") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "pc00");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC0") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC0");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC000") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC000");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC0 ") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC0 ");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC0A") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC0A");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC¹") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC¹");
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn padwing_bank_name_unknown_board_id() {
+    for num in 79..100 {
+        let name = format!("PC{num}");
+        assert!(matches!(
+            PadwingBankName::try_from(&name[..]),
+            Err(ParsePadwingBankNameError::UnknownBoardId(_))
+        ));
+    }
+}
+
+#[test]
+fn padwing_bank_name_valid() {
+    for num in 0..79 {
+        if num == 9
+            || num == 16
+            || num == 28
+            || num == 30
+            || num == 31
+            || num == 32
+            || num == 38
+            || num == 43
+            || num == 47
+            || num == 48
+            || num == 50
+            || num == 51
+            || num == 59
+            || num == 61
+            || num == 62
+        {
+            continue;
+        }
+        let name = format!("PC{num:0>2}");
+        let bank_name = PadwingBankName::try_from(&name[..]).unwrap();
+        assert_eq!(
+            bank_name.board_id(),
+            crate::padwing::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+        );
+    }
+}
