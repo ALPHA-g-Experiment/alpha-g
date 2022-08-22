@@ -136,7 +136,7 @@ fn adc_16_bank_name_channel_id() {
         let bank_name = format!("B09{chan}");
         let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
         assert_eq!(
-            bank_name.channel_id,
+            bank_name.channel_id(),
             Adc16ChannelId::try_from(chan).unwrap()
         );
     }
