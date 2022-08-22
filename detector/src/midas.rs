@@ -1,4 +1,4 @@
-use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, ChannelId, ParseBoardIdError};
+use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, ChannelId};
 use std::num::ParseIntError;
 use thiserror::Error;
 
@@ -39,7 +39,7 @@ pub enum ParseAlpha16BankNameError {
     ///
     /// [`BoardId`]: crate::alpha16::BoardId
     #[error("unknown board id")]
-    UnknownBoardId(#[from] ParseBoardIdError),
+    UnknownBoardId(#[from] crate::alpha16::ParseBoardIdError),
     /// The representation of the Channel ID doesn't match any known
     /// [`ChannelId`].
     #[error("unknown channel id")]
