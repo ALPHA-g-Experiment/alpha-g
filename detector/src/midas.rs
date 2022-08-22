@@ -266,5 +266,66 @@ impl Alpha16BankName {
     }
 }
 
+/// The error type returned when parsing a PadWing bank name fails.
+#[derive(Error, Debug)]
+pub enum ParsePadwingBankNameError {
+    /// Input string pattern doesn't match the expected PadWing bank name
+    /// pattern.
+    #[error("input string `{input}` doesn't match PadwingBankName pattern")]
+    PatternMismatch { input: String },
+    /// Board name doesn't match any known [`BoardId`].
+    ///
+    /// [`BoardId`]: crate::padwing::BoardId
+    #[error("unknown board id")]
+    UnknownBoardId(#[from] crate::padwing::ParseBoardIdError),
+}
+
+/// Name of a MIDAS bank with data from cathode pads of the radial Time
+/// Projection Chamber.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PadwingBankName {
+    board_id: crate::padwing::BoardId,
+}
+impl PadwingBankName {
+    /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// [`BoardId`]: crate::padwing::BoardId
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParsePadwingBankNameError;
+    /// # fn main() -> Result<(), ParsePadwingBankNameError> {
+    /// use alpha_g_detector::midas::PadwingBankName;
+    /// use alpha_g_detector::padwing::BoardId;
+    ///
+    /// let bank_name = PadwingBankName::try_from("PC00")?;
+    /// let board_id = BoardId::try_from("00")?;
+    ///
+    /// assert_eq!(bank_name.board_id(), board_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> crate::padwing::BoardId {
+        self.board_id
+    }
+}
+impl TryFrom<&str> for PadwingBankName {
+    type Error = ParsePadwingBankNameError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if !name.starts_with("PC")
+            || name.len() != 4
+            || !name[2..].chars().all(|c| c.is_ascii_digit())
+        {
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
+        }
+        let board_id = crate::padwing::BoardId::try_from(&name[2..])?;
+        Ok(PadwingBankName { board_id })
+    }
+}
+
 #[cfg(test)]
 mod tests;
