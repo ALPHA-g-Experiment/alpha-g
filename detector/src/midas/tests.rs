@@ -119,6 +119,38 @@ fn valid_adc_16_bank_name() {
 }
 
 #[test]
+fn adc_16_bank_name_board_id() {
+    for num in 9..=14 {
+        let bank_name = format!("B{num:0>2}0");
+        let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.board_id(),
+            BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+        );
+    }
+}
+
+#[test]
+fn adc_16_bank_name_channel_id() {
+    for chan in 0..=9 {
+        let bank_name = format!("B09{chan}");
+        let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id,
+            Adc16ChannelId::try_from(chan).unwrap()
+        );
+    }
+    for (i, chan) in ('A'..='F').into_iter().enumerate() {
+        let bank_name = format!("B09{chan}");
+        let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id(),
+            Adc16ChannelId::try_from(u8::try_from(i).unwrap() + 10).unwrap()
+        );
+    }
+}
+
+#[test]
 fn adc_32_bank_name_pattern_mismatch() {
     match Adc32BankName::try_from("B09A") {
         Err(ParseAlpha16BankNameError::PatternMismatch { input }) => {
@@ -222,6 +254,38 @@ fn valid_adc_32_bank_name() {
                 Adc32ChannelId::try_from(u8::try_from(i).unwrap() + 10).unwrap()
             );
         }
+    }
+}
+
+#[test]
+fn adc_32_bank_name_board_id() {
+    for num in 9..=14 {
+        let bank_name = format!("C{num:0>2}0");
+        let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.board_id(),
+            BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+        );
+    }
+}
+
+#[test]
+fn adc_32_bank_name_channel_id() {
+    for chan in 0..=9 {
+        let bank_name = format!("C09{chan}");
+        let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id(),
+            Adc32ChannelId::try_from(chan).unwrap()
+        );
+    }
+    for (i, chan) in ('A'..='V').into_iter().enumerate() {
+        let bank_name = format!("C09{chan}");
+        let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id(),
+            Adc32ChannelId::try_from(u8::try_from(i).unwrap() + 10).unwrap()
+        );
     }
 }
 

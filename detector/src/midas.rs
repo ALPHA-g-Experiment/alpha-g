@@ -47,8 +47,51 @@ pub enum ParseAlpha16BankNameError {
 /// Name of a MIDAS bank with data from SiPMs of the Barrel Veto.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc16BankName {
-    pub board_id: BoardId,
-    pub channel_id: Adc16ChannelId,
+    board_id: BoardId,
+    channel_id: Adc16ChannelId,
+}
+impl Adc16BankName {
+    /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # fn main() -> Result<(), ParseAlpha16BankNameError> {
+    /// use alpha_g_detector::midas::Adc16BankName;
+    /// use alpha_g_detector::alpha16::BoardId;
+    ///
+    /// let bank_name = Adc16BankName::try_from("B09F")?;
+    /// let board_id = BoardId::try_from("09")?;
+    ///
+    /// assert_eq!(bank_name.board_id(), board_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> BoardId {
+        self.board_id
+    }
+    /// Return the [`ChannelId`] associated with a bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use alpha_g_detector::midas::Adc16BankName;
+    /// use alpha_g_detector::alpha16::Adc16ChannelId;
+    ///
+    /// let bank_name = Adc16BankName::try_from("B09F")?;
+    /// let channel_id = Adc16ChannelId::try_from(15)?;
+    ///
+    /// assert_eq!(bank_name.channel_id(), channel_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn channel_id(&self) -> Adc16ChannelId {
+        self.channel_id
+    }
 }
 impl TryFrom<&str> for Adc16BankName {
     type Error = ParseAlpha16BankNameError;
@@ -76,8 +119,51 @@ impl TryFrom<&str> for Adc16BankName {
 /// Projection Chamber.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc32BankName {
-    pub board_id: BoardId,
-    pub channel_id: Adc32ChannelId,
+    board_id: BoardId,
+    channel_id: Adc32ChannelId,
+}
+impl Adc32BankName {
+    /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # fn main() -> Result<(), ParseAlpha16BankNameError> {
+    /// use alpha_g_detector::midas::Adc32BankName;
+    /// use alpha_g_detector::alpha16::BoardId;
+    ///
+    /// let bank_name = Adc32BankName::try_from("C09F")?;
+    /// let board_id = BoardId::try_from("09")?;
+    ///
+    /// assert_eq!(bank_name.board_id(), board_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> BoardId {
+        self.board_id
+    }
+    /// Return the [`ChannelId`] associated with a bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use alpha_g_detector::midas::Adc32BankName;
+    /// use alpha_g_detector::alpha16::Adc32ChannelId;
+    ///
+    /// let bank_name = Adc32BankName::try_from("C09F")?;
+    /// let channel_id = Adc32ChannelId::try_from(15)?;
+    ///
+    /// assert_eq!(bank_name.channel_id(), channel_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn channel_id(&self) -> Adc32ChannelId {
+        self.channel_id
+    }
 }
 impl TryFrom<&str> for Adc32BankName {
     type Error = ParseAlpha16BankNameError;
