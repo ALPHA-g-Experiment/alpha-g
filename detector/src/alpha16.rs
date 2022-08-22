@@ -1,4 +1,5 @@
-use std::{error::Error, fmt};
+use std::fmt;
+use thiserror::Error;
 
 // Sampling rate (samples per second) of the ADC channels that receive the
 // Barrel Veto SiPM signals.
@@ -10,14 +11,11 @@ const ADC32RATE: f64 = 62.5e6;
 
 /// The error type returned when conversion from unsigned integer to
 /// [`ChannelId`] fails.
-#[derive(Clone, Copy, Debug)]
-pub struct TryChannelIdFromUnsignedError;
-impl fmt::Display for TryChannelIdFromUnsignedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "conversion from unknown channel number attempted")
-    }
+#[derive(Error, Debug)]
+#[error("unknown conversion from unsigned `{input}` to ChannelId")]
+pub struct TryChannelIdFromUnsignedError {
+    input: u8,
 }
-impl Error for TryChannelIdFromUnsignedError {}
 
 /// Channel ID that corresponds to SiPMs of the Barrel Veto.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,7 +27,7 @@ impl TryFrom<u8> for Adc16ChannelId {
     /// in range `0..=15`.
     fn try_from(num: u8) -> Result<Self, Self::Error> {
         if num > 15 {
-            Err(TryChannelIdFromUnsignedError)
+            Err(TryChannelIdFromUnsignedError { input: num })
         } else {
             Ok(Adc16ChannelId(num))
         }
@@ -66,7 +64,7 @@ impl TryFrom<u8> for Adc32ChannelId {
     /// in range `0..=31`.
     fn try_from(num: u8) -> Result<Self, Self::Error> {
         if num > 31 {
-            Err(TryChannelIdFromUnsignedError)
+            Err(TryChannelIdFromUnsignedError { input: num })
         } else {
             Ok(Adc32ChannelId(num))
         }
@@ -131,14 +129,11 @@ impl ChannelId {
 
 /// The error type returned when conversion from unsigned integer to
 /// [`ModuleId`] fails.
-#[derive(Clone, Copy, Debug)]
-pub struct TryModuleIdFromUnsignedError;
-impl fmt::Display for TryModuleIdFromUnsignedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "conversion from unknown module number attempted")
-    }
+#[derive(Error, Debug)]
+#[error("unknown conversion from unsigned `{input}` to ModuleId")]
+pub struct TryModuleIdFromUnsignedError {
+    input: u8,
 }
-impl Error for TryModuleIdFromUnsignedError {}
 
 /// Module ID of an Alpha16 board.
 ///
@@ -157,7 +152,7 @@ impl TryFrom<u8> for ModuleId {
     /// in range `0..=7`.
     fn try_from(num: u8) -> Result<Self, Self::Error> {
         if num > 7 {
-            Err(TryModuleIdFromUnsignedError)
+            Err(TryModuleIdFromUnsignedError { input: num })
         } else {
             Ok(ModuleId(num))
         }
@@ -166,24 +161,18 @@ impl TryFrom<u8> for ModuleId {
 
 /// The error type returned when conversion from mac address to [`BoardId`]
 /// fails.
-#[derive(Clone, Copy, Debug)]
-pub struct TryBoardIdFromMacAddressError;
-impl fmt::Display for TryBoardIdFromMacAddressError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "conversion from unknown mac address attempted")
-    }
+#[derive(Error, Debug)]
+#[error("unknown conversion from mac address `{input:?}` to BoardId")]
+pub struct TryBoardIdFromMacAddressError {
+    input: [u8; 6],
 }
-impl Error for TryBoardIdFromMacAddressError {}
 
 /// The error type returned when parsing a [`BoardId`] fails.
-#[derive(Clone, Copy, Debug)]
-pub struct ParseBoardIdError;
-impl fmt::Display for ParseBoardIdError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "parsing from unknown string attempted")
-    }
+#[derive(Error, Debug)]
+#[error("unknown parsing from board name `{input}` to BoardId")]
+pub struct ParseBoardIdError {
+    input: String,
 }
-impl Error for ParseBoardIdError {}
 
 // Known Alpha16 board names and mac addresses
 // Just add new boards to this list
@@ -225,7 +214,9 @@ impl TryFrom<&str> for BoardId {
                 });
             }
         }
-        Err(ParseBoardIdError)
+        Err(ParseBoardIdError {
+            input: name.to_string(),
+        })
     }
 }
 impl TryFrom<[u8; 6]> for BoardId {
@@ -240,7 +231,7 @@ impl TryFrom<[u8; 6]> for BoardId {
                 });
             }
         }
-        Err(TryBoardIdFromMacAddressError)
+        Err(TryBoardIdFromMacAddressError { input: mac })
     }
 }
 impl BoardId {
@@ -284,75 +275,58 @@ impl BoardId {
 /// The error type returned when conversion from
 /// [`&[u8]`](https://doc.rust-lang.org/std/primitive.slice.html) to
 /// [`AdcPacket`] fails.
-#[derive(Clone, Copy, Debug)]
+#[derive(Error, Debug)]
 pub enum TryAdcPacketFromSliceError {
     /// The input slice is not long enough to contain a complete packet.
-    IncompleteSlice,
+    #[error("incomplete slice (expected at least `{min_expected}` bytes, found `{found}`)")]
+    IncompleteSlice { found: usize, min_expected: usize },
     /// Unknown packet type.
-    UnknownType,
+    #[error("unknown packet type `{found}`")]
+    UnknownType { found: u8 },
     /// Unknown packet version.
-    UnknownVersion,
+    #[error("unknown packet version `{found}`")]
+    UnknownVersion { found: u8 },
     /// Integer representation of Module ID doesn't match any known
     /// [`ModuleId`].
-    UnknownModuleId,
+    #[error("unknown module id")]
+    UnknownModuleId(#[from] TryModuleIdFromUnsignedError),
     /// Integer representation of channel ID doesn't match any known
     /// [`ChannelId`].
-    UnknownChannelId,
+    #[error("unknown channel number")]
+    UnknownChannelId(#[from] TryChannelIdFromUnsignedError),
     /// Non-zero value found in bytes meant to be fixed to `0`.
-    ZeroMismatch,
+    #[error("zero-bytes mismatch (found `{found:?}`)")]
+    ZeroMismatch { found: [u8; 2] },
     /// MAC address doesn't map to any known [`BoardId`].
-    UnknownMac,
+    #[error("unknown mac address")]
+    UnknownMac(#[from] TryBoardIdFromMacAddressError),
     /// Suppression baseline in the footer doesn't match waveform samples.
-    BaselineMismatch,
+    #[error("suppression baseline mismatch (expected `{expected}`, found `{found}`)")]
+    BaselineMismatch { found: i16, expected: i16 },
     /// The value of `keep_last` is inconsistent with the `keep_bit`, or its
     /// value is less than the minimum required by the suppression baseline.
     // The `keep_more` and `threshold` values are not known here, so a more
     // specific error than this is not possible.
-    BadKeepLast,
+    // If limit == 0, then it is an inconsistency with the `keep_bit`
+    // If limit != 0, then value is less than the limit imposed by the
+    // suppression baseline.
+    #[error("bad keep_last `{found}` (limit was `{limit}`)")]
+    BadKeepLast { found: usize, limit: usize },
     /// The `keep_bit` in the footer is inconsistent with the packet size and
     /// data suppression status.
     // The `threshold` is not known here, so a more specific error than this is
     // not possible.
-    KeepBitMismatch,
+    #[error("keep_bit mismatch (found `{found}`)")]
+    KeepBitMismatch { found: bool },
     /// The number of waveform samples is less/more than the minimum/maximum
     /// required by the suppression baseline, `keep_last`, or requested number
     /// of samples.
-    BadNumberOfSamples,
-}
-impl fmt::Display for TryAdcPacketFromSliceError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TryAdcPacketFromSliceError::IncompleteSlice => write!(f, "short input slice"),
-            TryAdcPacketFromSliceError::UnknownType => write!(f, "unknown packet type"),
-            TryAdcPacketFromSliceError::UnknownVersion => write!(f, "unknown packet version"),
-            TryAdcPacketFromSliceError::UnknownModuleId => write!(f, "unknown module id"),
-            TryAdcPacketFromSliceError::UnknownChannelId => write!(f, "unknown channel number"),
-            TryAdcPacketFromSliceError::ZeroMismatch => write!(f, "zero-bytes mismatch"),
-            TryAdcPacketFromSliceError::UnknownMac => write!(f, "unknown mac address"),
-            TryAdcPacketFromSliceError::BaselineMismatch => {
-                write!(f, "suppression baseline mismatch")
-            }
-            TryAdcPacketFromSliceError::BadKeepLast => write!(f, "bad keep_last"),
-            TryAdcPacketFromSliceError::KeepBitMismatch => write!(f, "keep_bit mismatch"),
-            TryAdcPacketFromSliceError::BadNumberOfSamples => write!(f, "bad number of samples"),
-        }
-    }
-}
-impl Error for TryAdcPacketFromSliceError {}
-impl From<TryModuleIdFromUnsignedError> for TryAdcPacketFromSliceError {
-    fn from(_: TryModuleIdFromUnsignedError) -> Self {
-        Self::UnknownModuleId
-    }
-}
-impl From<TryChannelIdFromUnsignedError> for TryAdcPacketFromSliceError {
-    fn from(_: TryChannelIdFromUnsignedError) -> Self {
-        Self::UnknownChannelId
-    }
-}
-impl From<TryBoardIdFromMacAddressError> for TryAdcPacketFromSliceError {
-    fn from(_: TryBoardIdFromMacAddressError) -> Self {
-        Self::UnknownMac
-    }
+    #[error("bad number of samples `{found}` (expected at least `{min}` and at most `{max}`)")]
+    BadNumberOfSamples {
+        found: usize,
+        min: usize,
+        max: usize,
+    },
 }
 
 /// Version 3 of an ADC data packet.
@@ -773,14 +747,17 @@ impl TryFrom<&[u8]> for AdcV3Packet {
     // All fields are big endian
     fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
         if slice.len() < 16 {
-            return Err(Self::Error::IncompleteSlice);
+            return Err(Self::Error::IncompleteSlice {
+                found: slice.len(),
+                min_expected: 16,
+            });
         }
 
         if slice[0] != 1 {
-            return Err(Self::Error::UnknownType);
+            return Err(Self::Error::UnknownType { found: slice[0] });
         }
         if slice[1] != 3 {
-            return Err(Self::Error::UnknownVersion);
+            return Err(Self::Error::UnknownVersion { found: slice[1] });
         }
         let accepted_trigger = slice[2..4].try_into().unwrap();
         let accepted_trigger = u16::from_be_bytes(accepted_trigger);
@@ -806,13 +783,19 @@ impl TryFrom<&[u8]> for AdcV3Packet {
 
         if slice.len() == 16 {
             if !suppression_enabled {
-                return Err(Self::Error::IncompleteSlice);
+                return Err(Self::Error::IncompleteSlice {
+                    found: 16,
+                    min_expected: 36,
+                });
             }
             if keep_bit {
-                return Err(Self::Error::KeepBitMismatch);
+                return Err(Self::Error::KeepBitMismatch { found: keep_bit });
             }
             if keep_last != 0 {
-                return Err(Self::Error::BadKeepLast);
+                return Err(Self::Error::BadKeepLast {
+                    found: keep_last,
+                    limit: 0,
+                });
             }
             return Ok(AdcV3Packet {
                 accepted_trigger,
@@ -832,11 +815,16 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         }
 
         if slice.len() < 36 {
-            return Err(Self::Error::IncompleteSlice);
+            return Err(Self::Error::IncompleteSlice {
+                found: slice.len(),
+                min_expected: 36,
+            });
         }
 
         if slice[12..14] != [0, 0] {
-            return Err(Self::Error::ZeroMismatch);
+            return Err(Self::Error::ZeroMismatch {
+                found: slice[12..14].try_into().unwrap(),
+            });
         }
         let board_id: [u8; 6] = slice[14..20].try_into().unwrap();
         let board_id = BoardId::try_from(board_id)?;
@@ -850,7 +838,11 @@ impl TryFrom<&[u8]> for AdcV3Packet {
         let build_timestamp = u32::from_be_bytes(build_timestamp);
         let waveform_bytes = slice.len() - 36;
         if waveform_bytes % 2 != 0 {
-            return Err(Self::Error::BadNumberOfSamples);
+            return Err(Self::Error::IncompleteSlice {
+                // waveform bytes + header + footer
+                found: waveform_bytes + 36,
+                min_expected: waveform_bytes + 37,
+            });
         }
         let waveform: Vec<i16> = slice[32..][..waveform_bytes]
             .chunks_exact(2)
@@ -858,46 +850,85 @@ impl TryFrom<&[u8]> for AdcV3Packet {
             .collect();
 
         if waveform.len() < BASELINE_SAMPLES {
-            return Err(Self::Error::BadNumberOfSamples);
+            return Err(Self::Error::BadNumberOfSamples {
+                found: waveform.len(),
+                min: BASELINE_SAMPLES,
+                max: requested_samples - 2,
+            });
         }
-        // Add over i32 to avoid overflow
-        let data_baseline = waveform[..BASELINE_SAMPLES]
-            .iter()
-            .map(|n| i32::from(*n))
-            .sum::<i32>()
-            / 64;
-        if data_baseline.abs_diff(suppression_baseline.into()) > 1 {
-            return Err(Self::Error::BaselineMismatch);
+        let data_baseline = {
+            // Add over i32 to avoid overflow
+            let num = waveform[..BASELINE_SAMPLES]
+                .iter()
+                .map(|n| i32::from(*n))
+                .sum::<i32>();
+            let d = num / 64;
+            if num % 64 < 0 {
+                d - 1
+            } else {
+                d
+            }
+        };
+        if data_baseline != suppression_baseline.into() {
+            return Err(Self::Error::BaselineMismatch {
+                found: suppression_baseline,
+                expected: data_baseline.try_into().unwrap(),
+            });
         }
 
         if suppression_enabled {
             if !keep_bit {
-                return Err(Self::Error::KeepBitMismatch);
+                return Err(Self::Error::KeepBitMismatch { found: keep_bit });
             }
             if keep_last < MIN_KEEP_LAST {
-                return Err(Self::Error::BadKeepLast);
+                return Err(Self::Error::BadKeepLast {
+                    found: keep_last,
+                    limit: MIN_KEEP_LAST,
+                });
             }
             let last_index = (keep_last - 1) * 2 - 2;
             if waveform.len() <= last_index {
-                return Err(Self::Error::BadNumberOfSamples);
+                return Err(Self::Error::BadNumberOfSamples {
+                    found: waveform.len(),
+                    min: last_index + 1,
+                    max: requested_samples - 2,
+                });
             }
             if waveform.len() > requested_samples - 2 {
-                return Err(Self::Error::BadNumberOfSamples);
+                return Err(Self::Error::BadNumberOfSamples {
+                    found: waveform.len(),
+                    min: last_index + 1,
+                    max: requested_samples - 2,
+                });
             }
         } else {
             if keep_bit {
                 if keep_last < MIN_KEEP_LAST {
-                    return Err(Self::Error::BadKeepLast);
+                    return Err(Self::Error::BadKeepLast {
+                        found: keep_last,
+                        limit: MIN_KEEP_LAST,
+                    });
                 }
                 let last_index = (keep_last - 1) * 2 - 2;
                 if waveform.len() <= last_index {
-                    return Err(Self::Error::BadNumberOfSamples);
+                    return Err(Self::Error::BadNumberOfSamples {
+                        found: waveform.len(),
+                        min: last_index + 1,
+                        max: requested_samples - 2,
+                    });
                 }
             } else if keep_last != 0 {
-                return Err(Self::Error::BadKeepLast);
+                return Err(Self::Error::BadKeepLast {
+                    found: keep_last,
+                    limit: 0,
+                });
             }
             if waveform.len() != requested_samples - 2 {
-                return Err(Self::Error::BadNumberOfSamples);
+                return Err(Self::Error::BadNumberOfSamples {
+                    found: waveform.len(),
+                    min: requested_samples - 2,
+                    max: requested_samples - 2,
+                });
             }
         }
 

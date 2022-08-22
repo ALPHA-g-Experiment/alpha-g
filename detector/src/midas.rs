@@ -1,20 +1,14 @@
-use crate::alpha16::{
-    Adc16ChannelId, Adc32ChannelId, BoardId, ChannelId, ParseBoardIdError,
-    TryChannelIdFromUnsignedError,
-};
+use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, BoardId, ChannelId, ParseBoardIdError};
 use std::num::ParseIntError;
-use std::{error::Error, fmt};
+use thiserror::Error;
 
 /// The error type returned when conversion from unsigned integer to [`EventId`]
 /// fails.
-#[derive(Clone, Copy, Debug)]
-pub struct TryEventIdFromUnsignedError;
-impl fmt::Display for TryEventIdFromUnsignedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "conversion from unknown event id number attempted")
-    }
+#[derive(Error, Debug)]
+#[error("unknown conversion from unsigned `{input}` to EventId")]
+pub struct TryEventIdFromUnsignedError {
+    input: u16,
 }
-impl Error for TryEventIdFromUnsignedError {}
 
 /// Possible ID of an event in an ALPHA-g MIDAS file.
 #[derive(Clone, Copy, Debug)]
@@ -30,45 +24,24 @@ impl TryFrom<u16> for EventId {
     fn try_from(num: u16) -> Result<Self, Self::Error> {
         match num {
             1 => Ok(EventId::Main),
-            _ => Err(TryEventIdFromUnsignedError),
+            _ => Err(TryEventIdFromUnsignedError { input: num }),
         }
     }
 }
 
 /// The error type returned when parsing an Alpha16 bank name fails.
-#[derive(Clone, Copy, Debug)]
+#[derive(Error, Debug)]
 pub enum ParseAlpha16BankNameError {
     /// Input string pattern doesn't match expected Alpha16 bank name pattern.
-    PatternMismatch,
+    #[error("input string `{input}` doesn't match Alpha16BankName pattern")]
+    PatternMismatch { input: String },
     /// Board name doesn't match any known [`BoardId`].
-    UnknownBoardId,
-    /// Channel ID doesn't match any known [`ChannelId`].
-    UnknownChannelId,
-}
-impl fmt::Display for ParseAlpha16BankNameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::PatternMismatch => write!(f, "pattern mismatch"),
-            Self::UnknownBoardId => write!(f, "unknown board id"),
-            Self::UnknownChannelId => write!(f, "unknown channel id"),
-        }
-    }
-}
-impl Error for ParseAlpha16BankNameError {}
-impl From<ParseBoardIdError> for ParseAlpha16BankNameError {
-    fn from(_: ParseBoardIdError) -> Self {
-        Self::UnknownBoardId
-    }
-}
-impl From<TryChannelIdFromUnsignedError> for ParseAlpha16BankNameError {
-    fn from(_: TryChannelIdFromUnsignedError) -> Self {
-        Self::UnknownChannelId
-    }
-}
-impl From<ParseIntError> for ParseAlpha16BankNameError {
-    fn from(_: ParseIntError) -> Self {
-        Self::UnknownChannelId
-    }
+    #[error("unknown board id")]
+    UnknownBoardId(#[from] ParseBoardIdError),
+    /// The representation of the Channel ID doesn't match any known
+    /// [`ChannelId`].
+    #[error("unknown channel id")]
+    UnknownChannelId(#[from] ParseIntError),
 }
 
 /// Name of a MIDAS bank with data from SiPMs of the Barrel Veto.
@@ -86,10 +59,12 @@ impl TryFrom<&str> for Adc16BankName {
             || !name.chars().all(|c| c.is_ascii_alphanumeric())
             || name.chars().any(|c| c.is_ascii_lowercase())
         {
-            return Err(Self::Error::PatternMismatch);
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
         }
         let board_id = BoardId::try_from(&name[1..][..2])?;
-        let channel_id = Adc16ChannelId::try_from(u8::from_str_radix(&name[3..], 16)?)?;
+        let channel_id = Adc16ChannelId::try_from(u8::from_str_radix(&name[3..], 16)?).unwrap();
         Ok(Adc16BankName {
             board_id,
             channel_id,
@@ -113,10 +88,12 @@ impl TryFrom<&str> for Adc32BankName {
             || !name.chars().all(|c| c.is_ascii_alphanumeric())
             || name.chars().any(|c| c.is_ascii_lowercase())
         {
-            return Err(Self::Error::PatternMismatch);
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
         }
         let board_id = BoardId::try_from(&name[1..][..2])?;
-        let channel_id = Adc32ChannelId::try_from(u8::from_str_radix(&name[3..], 32)?)?;
+        let channel_id = Adc32ChannelId::try_from(u8::from_str_radix(&name[3..], 32)?).unwrap();
         Ok(Adc32BankName {
             board_id,
             channel_id,
@@ -139,7 +116,9 @@ impl TryFrom<&str> for Alpha16BankName {
         match name.chars().next() {
             Some('C') => Ok(Self::A32(Adc32BankName::try_from(name)?)),
             Some('B') => Ok(Self::A16(Adc16BankName::try_from(name)?)),
-            _ => Err(Self::Error::PatternMismatch),
+            _ => Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            }),
         }
     }
 }
@@ -173,7 +152,8 @@ impl Alpha16BankName {
     ///
     /// ```
     /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
-    /// # fn main() -> Result<(), ParseAlpha16BankNameError> {
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use alpha_g_detector::midas::Alpha16BankName;
     /// use alpha_g_detector::alpha16::{ChannelId, Adc16ChannelId};
     ///
