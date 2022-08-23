@@ -1,4 +1,4 @@
-use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, BoardId, ChannelId, ParseBoardIdError};
+use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, ChannelId};
 use std::num::ParseIntError;
 use thiserror::Error;
 
@@ -36,8 +36,10 @@ pub enum ParseAlpha16BankNameError {
     #[error("input string `{input}` doesn't match Alpha16BankName pattern")]
     PatternMismatch { input: String },
     /// Board name doesn't match any known [`BoardId`].
+    ///
+    /// [`BoardId`]: crate::alpha16::BoardId
     #[error("unknown board id")]
-    UnknownBoardId(#[from] ParseBoardIdError),
+    UnknownBoardId(#[from] crate::alpha16::ParseBoardIdError),
     /// The representation of the Channel ID doesn't match any known
     /// [`ChannelId`].
     #[error("unknown channel id")]
@@ -47,8 +49,53 @@ pub enum ParseAlpha16BankNameError {
 /// Name of a MIDAS bank with data from SiPMs of the Barrel Veto.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc16BankName {
-    pub board_id: BoardId,
-    pub channel_id: Adc16ChannelId,
+    board_id: crate::alpha16::BoardId,
+    channel_id: Adc16ChannelId,
+}
+impl Adc16BankName {
+    /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// [`BoardId`]: crate::alpha16::BoardId
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # fn main() -> Result<(), ParseAlpha16BankNameError> {
+    /// use alpha_g_detector::midas::Adc16BankName;
+    /// use alpha_g_detector::alpha16::BoardId;
+    ///
+    /// let bank_name = Adc16BankName::try_from("B09F")?;
+    /// let board_id = BoardId::try_from("09")?;
+    ///
+    /// assert_eq!(bank_name.board_id(), board_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> crate::alpha16::BoardId {
+        self.board_id
+    }
+    /// Return the [`ChannelId`] associated with a bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use alpha_g_detector::midas::Adc16BankName;
+    /// use alpha_g_detector::alpha16::Adc16ChannelId;
+    ///
+    /// let bank_name = Adc16BankName::try_from("B09F")?;
+    /// let channel_id = Adc16ChannelId::try_from(15)?;
+    ///
+    /// assert_eq!(bank_name.channel_id(), channel_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn channel_id(&self) -> Adc16ChannelId {
+        self.channel_id
+    }
 }
 impl TryFrom<&str> for Adc16BankName {
     type Error = ParseAlpha16BankNameError;
@@ -63,7 +110,7 @@ impl TryFrom<&str> for Adc16BankName {
                 input: name.to_string(),
             });
         }
-        let board_id = BoardId::try_from(&name[1..][..2])?;
+        let board_id = crate::alpha16::BoardId::try_from(&name[1..][..2])?;
         let channel_id = Adc16ChannelId::try_from(u8::from_str_radix(&name[3..], 16)?).unwrap();
         Ok(Adc16BankName {
             board_id,
@@ -76,8 +123,53 @@ impl TryFrom<&str> for Adc16BankName {
 /// Projection Chamber.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Adc32BankName {
-    pub board_id: BoardId,
-    pub channel_id: Adc32ChannelId,
+    board_id: crate::alpha16::BoardId,
+    channel_id: Adc32ChannelId,
+}
+impl Adc32BankName {
+    /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// [`BoardId`]: crate::alpha16::BoardId
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # fn main() -> Result<(), ParseAlpha16BankNameError> {
+    /// use alpha_g_detector::midas::Adc32BankName;
+    /// use alpha_g_detector::alpha16::BoardId;
+    ///
+    /// let bank_name = Adc32BankName::try_from("C09F")?;
+    /// let board_id = BoardId::try_from("09")?;
+    ///
+    /// assert_eq!(bank_name.board_id(), board_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> crate::alpha16::BoardId {
+        self.board_id
+    }
+    /// Return the [`ChannelId`] associated with a bank name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParseAlpha16BankNameError;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use alpha_g_detector::midas::Adc32BankName;
+    /// use alpha_g_detector::alpha16::Adc32ChannelId;
+    ///
+    /// let bank_name = Adc32BankName::try_from("C09F")?;
+    /// let channel_id = Adc32ChannelId::try_from(15)?;
+    ///
+    /// assert_eq!(bank_name.channel_id(), channel_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn channel_id(&self) -> Adc32ChannelId {
+        self.channel_id
+    }
 }
 impl TryFrom<&str> for Adc32BankName {
     type Error = ParseAlpha16BankNameError;
@@ -92,7 +184,7 @@ impl TryFrom<&str> for Adc32BankName {
                 input: name.to_string(),
             });
         }
-        let board_id = BoardId::try_from(&name[1..][..2])?;
+        let board_id = crate::alpha16::BoardId::try_from(&name[1..][..2])?;
         let channel_id = Adc32ChannelId::try_from(u8::from_str_radix(&name[3..], 32)?).unwrap();
         Ok(Adc32BankName {
             board_id,
@@ -125,6 +217,8 @@ impl TryFrom<&str> for Alpha16BankName {
 impl Alpha16BankName {
     /// Return the [`BoardId`] associated with the bank name.
     ///
+    /// [`BoardId`]: crate::alpha16::BoardId
+    ///
     /// # Examples
     ///
     /// ```
@@ -140,7 +234,7 @@ impl Alpha16BankName {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn board_id(&self) -> BoardId {
+    pub fn board_id(&self) -> crate::alpha16::BoardId {
         match self {
             Self::A16(name) => name.board_id,
             Self::A32(name) => name.board_id,
@@ -169,6 +263,67 @@ impl Alpha16BankName {
             Self::A16(name) => ChannelId::A16(name.channel_id),
             Self::A32(name) => ChannelId::A32(name.channel_id),
         }
+    }
+}
+
+/// The error type returned when parsing a PadWing bank name fails.
+#[derive(Error, Debug)]
+pub enum ParsePadwingBankNameError {
+    /// Input string pattern doesn't match the expected PadWing bank name
+    /// pattern.
+    #[error("input string `{input}` doesn't match PadwingBankName pattern")]
+    PatternMismatch { input: String },
+    /// Board name doesn't match any known [`BoardId`].
+    ///
+    /// [`BoardId`]: crate::padwing::BoardId
+    #[error("unknown board id")]
+    UnknownBoardId(#[from] crate::padwing::ParseBoardIdError),
+}
+
+/// Name of a MIDAS bank with data from cathode pads of the radial Time
+/// Projection Chamber.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PadwingBankName {
+    board_id: crate::padwing::BoardId,
+}
+impl PadwingBankName {
+    /// Return the [`BoardId`] associated with the bank name.
+    ///
+    /// [`BoardId`]: crate::padwing::BoardId
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::midas::ParsePadwingBankNameError;
+    /// # fn main() -> Result<(), ParsePadwingBankNameError> {
+    /// use alpha_g_detector::midas::PadwingBankName;
+    /// use alpha_g_detector::padwing::BoardId;
+    ///
+    /// let bank_name = PadwingBankName::try_from("PC00")?;
+    /// let board_id = BoardId::try_from("00")?;
+    ///
+    /// assert_eq!(bank_name.board_id(), board_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn board_id(&self) -> crate::padwing::BoardId {
+        self.board_id
+    }
+}
+impl TryFrom<&str> for PadwingBankName {
+    type Error = ParsePadwingBankNameError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if !name.starts_with("PC")
+            || name.len() != 4
+            || !name[2..].chars().all(|c| c.is_ascii_digit())
+        {
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
+        }
+        let board_id = crate::padwing::BoardId::try_from(&name[2..])?;
+        Ok(PadwingBankName { board_id })
     }
 }
 

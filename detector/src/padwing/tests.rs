@@ -1,4 +1,5 @@
 use super::*;
+use crate::midas::PadwingBankName;
 
 #[test]
 fn padwing_boards() {
@@ -9,6 +10,15 @@ fn padwing_boards() {
             assert_ne!(PADWINGBOARDS[i].1, PADWINGBOARDS[j].1);
             assert_ne!(PADWINGBOARDS[i].2, PADWINGBOARDS[j].2);
         }
+    }
+}
+
+#[test]
+fn bank_names_from_padwing_boards() {
+    for triplet in PADWINGBOARDS {
+        let bank_name = format!("PC{}", triplet.0);
+        let bank_name = PadwingBankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(bank_name.board_id(), BoardId::try_from(triplet.1).unwrap());
     }
 }
 

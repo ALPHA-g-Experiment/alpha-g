@@ -94,7 +94,7 @@ fn valid_adc_16_bank_name() {
             let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
@@ -108,13 +108,45 @@ fn valid_adc_16_bank_name() {
             let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
                 Adc16ChannelId::try_from(u8::try_from(i).unwrap() + 10).unwrap()
             );
         }
+    }
+}
+
+#[test]
+fn adc_16_bank_name_board_id() {
+    for num in 9..=14 {
+        let bank_name = format!("B{num:0>2}0");
+        let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.board_id(),
+            crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+        );
+    }
+}
+
+#[test]
+fn adc_16_bank_name_channel_id() {
+    for chan in 0..=9 {
+        let bank_name = format!("B09{chan}");
+        let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id(),
+            Adc16ChannelId::try_from(chan).unwrap()
+        );
+    }
+    for (i, chan) in ('A'..='F').into_iter().enumerate() {
+        let bank_name = format!("B09{chan}");
+        let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id(),
+            Adc16ChannelId::try_from(u8::try_from(i).unwrap() + 10).unwrap()
+        );
     }
 }
 
@@ -201,7 +233,7 @@ fn valid_adc_32_bank_name() {
             let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
@@ -215,13 +247,45 @@ fn valid_adc_32_bank_name() {
             let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
                 bank_name.board_id,
-                BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+                crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
             );
             assert_eq!(
                 bank_name.channel_id,
                 Adc32ChannelId::try_from(u8::try_from(i).unwrap() + 10).unwrap()
             );
         }
+    }
+}
+
+#[test]
+fn adc_32_bank_name_board_id() {
+    for num in 9..=14 {
+        let bank_name = format!("C{num:0>2}0");
+        let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.board_id(),
+            crate::alpha16::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+        );
+    }
+}
+
+#[test]
+fn adc_32_bank_name_channel_id() {
+    for chan in 0..=9 {
+        let bank_name = format!("C09{chan}");
+        let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id(),
+            Adc32ChannelId::try_from(chan).unwrap()
+        );
+    }
+    for (i, chan) in ('A'..='V').into_iter().enumerate() {
+        let bank_name = format!("C09{chan}");
+        let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(
+            bank_name.channel_id(),
+            Adc32ChannelId::try_from(u8::try_from(i).unwrap() + 10).unwrap()
+        );
     }
 }
 
@@ -379,7 +443,7 @@ fn valid_alpha_16_bank_name() {
 fn alpha_16_bank_name_board_id() {
     for num in 9..=14 {
         let board_id = format!("{num:0>2}");
-        let board_id = BoardId::try_from(&board_id[..]).unwrap();
+        let board_id = crate::alpha16::BoardId::try_from(&board_id[..]).unwrap();
 
         let bank_name = format!("B{num:0>2}F");
         let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
@@ -421,5 +485,86 @@ fn alpha_16_bank_name_channel_id() {
             ),
             _ => unreachable!(),
         }
+    }
+}
+
+#[test]
+fn padwing_bank_name_pattern_mismatch() {
+    match PadwingBankName::try_from("pc00") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "pc00");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC0") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC0");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC000") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC000");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC0 ") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC0 ");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC0A") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC0A");
+        }
+        _ => unreachable!(),
+    }
+    match PadwingBankName::try_from("PC¹") {
+        Err(ParsePadwingBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "PC¹");
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn padwing_bank_name_unknown_board_id() {
+    for num in 79..100 {
+        let name = format!("PC{num}");
+        assert!(matches!(
+            PadwingBankName::try_from(&name[..]),
+            Err(ParsePadwingBankNameError::UnknownBoardId(_))
+        ));
+    }
+}
+
+#[test]
+fn padwing_bank_name_valid() {
+    for num in 0..79 {
+        if num == 9
+            || num == 16
+            || num == 28
+            || num == 30
+            || num == 31
+            || num == 32
+            || num == 38
+            || num == 43
+            || num == 47
+            || num == 48
+            || num == 50
+            || num == 51
+            || num == 59
+            || num == 61
+            || num == 62
+        {
+            continue;
+        }
+        let name = format!("PC{num:0>2}");
+        let bank_name = PadwingBankName::try_from(&name[..]).unwrap();
+        assert_eq!(
+            bank_name.board_id(),
+            crate::padwing::BoardId::try_from(&format!("{num:0>2}")[..]).unwrap()
+        );
     }
 }

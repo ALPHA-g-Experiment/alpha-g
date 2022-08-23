@@ -1,4 +1,5 @@
 use super::*;
+use crate::midas::Alpha16BankName;
 
 #[test]
 fn try_adc_16_channel_id_from_u8() {
@@ -68,6 +69,19 @@ fn alpha_16_boards() {
             assert_ne!(ALPHA16BOARDS[i].0, ALPHA16BOARDS[j].0);
             assert_ne!(ALPHA16BOARDS[i].1, ALPHA16BOARDS[j].1);
         }
+    }
+}
+
+#[test]
+fn bank_names_from_alpha_16_boards() {
+    for pair in ALPHA16BOARDS {
+        let bank_name = format!("B{}A", pair.0);
+        let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(bank_name.board_id(), BoardId::try_from(pair.1).unwrap());
+
+        let bank_name = format!("C{}A", pair.0);
+        let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
+        assert_eq!(bank_name.board_id(), BoardId::try_from(pair.1).unwrap());
     }
 }
 
