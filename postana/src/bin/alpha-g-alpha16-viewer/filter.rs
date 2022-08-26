@@ -4,7 +4,7 @@ use alpha_g_detector::midas::Alpha16BankName::{self, A16, A32};
 use std::mem::discriminant;
 
 /// Correctness of an ADC data packet.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Correctness {
     /// A good ADC data packet converts without error into an [`AdcPacket`].
     Good,
@@ -13,7 +13,7 @@ pub enum Correctness {
 }
 
 /// Source of an ADC data packet.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Detector {
     /// Barrel Veto detector.
     Bv,
@@ -22,7 +22,7 @@ pub enum Detector {
 }
 
 /// Possible overflow of the waveform in an [`AdcPacket`].
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Overflow {
     /// Exclusively positive.
     Positive,

@@ -2,6 +2,16 @@ use super::*;
 use crate::midas::Alpha16BankName;
 
 #[test]
+fn adc_16_rate() {
+    assert_eq!(ADC16RATE, 100e6);
+}
+
+#[test]
+fn adc_32_rate() {
+    assert_eq!(ADC32RATE, 62.5e6);
+}
+
+#[test]
 fn try_adc_16_channel_id_from_u8() {
     for num in 0u8..=15u8 {
         assert_eq!(Adc16ChannelId::try_from(num).unwrap(), Adc16ChannelId(num));
