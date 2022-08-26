@@ -29,6 +29,7 @@ dependencies = [
  "pgfplots",
  "serde_json",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]
