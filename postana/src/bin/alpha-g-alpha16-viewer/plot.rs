@@ -1,6 +1,6 @@
 use crate::Packet;
 use alpha_g_detector::alpha16::ChannelId::{A16, A32};
-use alpha_g_detector::alpha16::{AdcPacket, ADC16RATE, ADC32RATE};
+use alpha_g_detector::alpha16::{AdcPacket, ADC16_RATE, ADC32_RATE};
 use pgfplots::axis::{plot::*, *};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -33,8 +33,8 @@ pub fn create_plot<P: AsRef<Path>>(dir: P, packet: &Packet) {
         axis.set_x_label(format!(
             "Samples~[{} ns]",
             1e9 / match adc_packet.channel_id() {
-                A16(_) => ADC16RATE,
-                A32(_) => ADC32RATE,
+                A16(_) => ADC16_RATE,
+                A32(_) => ADC32_RATE,
             }
         ));
         axis.set_y_label("Amplitude~[a.u.]");

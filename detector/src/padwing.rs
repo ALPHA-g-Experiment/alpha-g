@@ -1,6 +1,10 @@
 use std::fmt;
 use thiserror::Error;
 
+/// Sampling rate (samples per second) of the channels that receive the radial
+/// Time Projection Chamber cathode pad signals.
+pub const PADWING_RATE: f64 = 62.5e6;
+
 /// The error type returned when parsing a [`BoardId`] fails.
 #[derive(Error, Debug)]
 #[error("unknown parsing from board name `{input}` to BoardId")]
@@ -1884,6 +1888,40 @@ impl TryFrom<Vec<Chunk>> for PwbPacket {
     fn try_from(chunks: Vec<Chunk>) -> Result<Self, Self::Error> {
         Ok(PwbPacket::V2(PwbV2Packet::try_from(chunks)?))
     }
+}
+
+/// The error type returned when calculating the Padwing data suppression
+/// baseline fails.
+#[derive(Error, Debug)]
+#[error("short slice (expected at least 68 samples, found `{found}`)")]
+pub struct CalculateSuppressionBaselineError {
+    found: usize,
+}
+
+/// Helper function to return the data suppression baseline of a slice as
+/// implemented in the Padwing board firmware.
+// Take the run number as input because Konstantin can change the baseline
+// calculation at any time. This is not linked to the PwbPacket version. Older
+// or future versions might no even have data suppression (hence return Option).
+//
+// A future alternative to avoid returning a Result, is to have a newtype for
+// the waveform. But I am not sure if this is a good place for this; maybe at
+// a higher level in the analysis chain.
+pub fn suppression_baseline(
+    _run_number: u32,
+    waveform: &[i16],
+) -> Result<Option<i16>, CalculateSuppressionBaselineError> {
+    if waveform.len() < 68 {
+        return Err(CalculateSuppressionBaselineError {
+            found: waveform.len(),
+        });
+    }
+    // Add over i32 to avoid overflow
+    let num = waveform[4..][..64]
+        .iter()
+        .map(|n| i32::from(*n))
+        .sum::<i32>();
+    Ok(Some((num / 64).try_into().unwrap()))
 }
 
 #[cfg(test)]

@@ -1,6 +1,11 @@
 use crate::Packet;
 use std::mem::discriminant;
 
+// Only imported for documentation. If you notice that this is no longer the
+// case, please change it.
+#[allow(unused_imports)]
+use alpha_g_detector::padwing::PwbPacket;
+
 /// Possible overflow of the waveform in a [`PwbPacket`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Overflow {

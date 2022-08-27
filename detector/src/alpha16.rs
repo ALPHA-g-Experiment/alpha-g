@@ -3,11 +3,11 @@ use thiserror::Error;
 
 /// Sampling rate (samples per second) of the ADC channels that receive the
 /// Barrel Veto SiPM signals.
-pub const ADC16RATE: f64 = 100e6;
+pub const ADC16_RATE: f64 = 100e6;
 
 /// Sampling rate (samples per second) of the ADC channels that receive the
 /// radial Time Projection Chamber anode wire signals.
-pub const ADC32RATE: f64 = 62.5e6;
+pub const ADC32_RATE: f64 = 62.5e6;
 
 /// The error type returned when conversion from unsigned integer to
 /// [`ChannelId`] fails.

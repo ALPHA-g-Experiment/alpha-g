@@ -3,12 +3,12 @@ use crate::midas::Alpha16BankName;
 
 #[test]
 fn adc_16_rate() {
-    assert_eq!(ADC16RATE, 100e6);
+    assert_eq!(ADC16_RATE, 100e6);
 }
 
 #[test]
 fn adc_32_rate() {
-    assert_eq!(ADC32RATE, 62.5e6);
+    assert_eq!(ADC32_RATE, 62.5e6);
 }
 
 #[test]

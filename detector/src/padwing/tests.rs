@@ -2,6 +2,11 @@ use super::*;
 use crate::midas::PadwingBankName;
 
 #[test]
+fn padwing_rate() {
+    assert_eq!(PADWING_RATE, 62.5e6);
+}
+
+#[test]
 fn padwing_boards() {
     for i in 0..PADWINGBOARDS.len() {
         let next = i + 1;
@@ -1576,4 +1581,45 @@ fn pwb_packet_waveform_at() {
             .waveform_at(ChannelId::try_from(1).unwrap()),
         None
     );
+}
+
+#[test]
+fn suppression_baseline_short_slice() {
+    let slice = [0; 67];
+    match suppression_baseline(0, &slice) {
+        Err(CalculateSuppressionBaselineError { found }) => {
+            assert_eq!(found, 67);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn suppression_baseline_ok() {
+    let mut slice = vec![0; 68];
+    match suppression_baseline(0, &slice) {
+        Ok(Some(value)) => {
+            assert_eq!(value, 0);
+        }
+        _ => unreachable!(),
+    }
+
+    slice[0] = i16::MAX;
+    slice[1] = i16::MAX;
+    slice[2] = i16::MAX;
+    slice[3] = i16::MAX;
+    match suppression_baseline(0, &slice) {
+        Ok(Some(value)) => {
+            assert_eq!(value, 0);
+        }
+        _ => unreachable!(),
+    }
+
+    slice[67] = 64;
+    match suppression_baseline(0, &slice) {
+        Ok(Some(value)) => {
+            assert_eq!(value, 1);
+        }
+        _ => unreachable!(),
+    }
 }
