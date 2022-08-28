@@ -5,6 +5,7 @@ use alpha_g_detector::padwing::{
 };
 use memmap2::Mmap;
 use midasio::read::file::{FileView, TryFileViewFromSliceError};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
@@ -44,6 +45,11 @@ pub struct Packet {
     // worker thread rather than the Cursive user_data.
     // It just makes everything simpler.
     pub channel_id: ChannelId,
+    /// Run number, required to get the appropriate suppression baseline.
+    pub run_number: u32,
+    /// Data suppression threshold.
+    // Value is the same for all channels (reset, FPN, and pads)
+    pub suppression_threshold: Option<f64>,
 }
 
 /// Worker function that iterates through MIDAS files and tries to send
@@ -82,6 +88,14 @@ pub fn worker<P>(
                 continue;
             }
         };
+        let odb = serde_json::from_slice::<Value>(file_view.initial_odb());
+        let suppression_threshold = if let Ok(odb) = odb {
+            odb.pointer("/Equipment/CTRL/Settings/PWB/ch_threshold")
+                .and_then(|v| v.as_f64())
+        } else {
+            None
+        };
+
         let main_events = file_view
             .into_iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)));
@@ -125,6 +139,8 @@ pub fn worker<P>(
                         .send(Ok(Packet {
                             pwb_packet: pwb_packet.clone(),
                             channel_id,
+                            run_number: file_view.run_number(),
+                            suppression_threshold,
                         }))
                         .expect("receiver disconnected on \"data packet\"");
                 }

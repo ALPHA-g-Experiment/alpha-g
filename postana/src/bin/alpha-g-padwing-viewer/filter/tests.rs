@@ -14,24 +14,32 @@ fn packet_overflow() {
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(49).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert_eq!(packet.overflow(), Overflow::Positive);
 
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(57).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert_eq!(packet.overflow(), Overflow::Negative);
 
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(65).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert_eq!(packet.overflow(), Overflow::Both);
 
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(73).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert_eq!(packet.overflow(), Overflow::Neither);
 }
@@ -45,21 +53,29 @@ fn packet_passes_overflow_filter() {
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(49).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(57).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(65).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(73).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
 
@@ -70,21 +86,29 @@ fn packet_passes_overflow_filter() {
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(49).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(57).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(65).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(73).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
 
@@ -95,21 +119,29 @@ fn packet_passes_overflow_filter() {
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(49).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(57).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(65).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(73).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
 
@@ -120,21 +152,29 @@ fn packet_passes_overflow_filter() {
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(49).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(57).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(65).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(!packet.passes_filter(&filter));
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
         channel_id: ChannelId::try_from(73).unwrap(),
+        run_number: 0,
+        suppression_threshold: Some(0.0),
     };
     assert!(packet.passes_filter(&filter));
 }
