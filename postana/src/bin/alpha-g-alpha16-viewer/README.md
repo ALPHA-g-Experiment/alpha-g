@@ -17,8 +17,7 @@ ncurses](https://github.com/gyscos/cursive/wiki/Install-ncurses).
 `pgfplots` packages are required to generate the plots. To make sure that these
 are installed properly, run:
 	```
-	pdflatex
-	"\documentclass{standalone}\usepackage{pgfplots}\begin{document}\begin{tikzpicture}\begin{axis}\end{axis}\end{tikzpicture}\end{document}"
+	pdflatex "\documentclass{standalone}\usepackage{pgfplots}\begin{document}\begin{tikzpicture}\begin{axis}\end{axis}\end{tikzpicture}\end{document}"
 	```
 	If successful, this will create a PDF file with an empty plot in the current
 working directory.
