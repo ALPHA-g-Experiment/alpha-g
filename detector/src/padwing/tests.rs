@@ -496,6 +496,29 @@ const ODD_PWB_V2_PACKET: [u8; 104] = [
 ];
 
 #[test]
+fn pwb_v2_packet_to_string() {
+    let packet = PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Format revision: 2
+AFTER ID: D
+Compression: Raw
+Trigger source: External
+MAC address: [236, 40, 255, 135, 84, 2]
+Trigger delay: 1
+Trigger timestamp: 2
+Last SCA cell: 3
+Requested samples: 5
+Channels sent: [57, 65, 73]
+Channels over threshold: [1, 9, 17]
+Event counter: 4
+FIFO max depth: 5
+Event descriptor write depth: 6
+Event descriptor read depth: 7"
+    );
+}
+
+#[test]
 fn pwb_v2_good() {
     let mut good_packet = ODD_PWB_V2_PACKET;
     for i in 65..=68 {
@@ -1385,6 +1408,29 @@ fn pwb_packet_good() {
     assert!(PwbPacket::try_from(chunks).is_ok());
 
     assert!(PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).is_ok());
+}
+
+#[test]
+fn pwb_packet_to_string() {
+    let packet = PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Format revision: 2
+AFTER ID: D
+Compression: Raw
+Trigger source: External
+MAC address: [236, 40, 255, 135, 84, 2]
+Trigger delay: 1
+Trigger timestamp: 2
+Last SCA cell: 3
+Requested samples: 5
+Channels sent: [57, 65, 73]
+Channels over threshold: [1, 9, 17]
+Event counter: 4
+FIFO max depth: 5
+Event descriptor write depth: 6
+Event descriptor read depth: 7"
+    );
 }
 
 #[test]

@@ -8,6 +8,8 @@ use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, LinearLayout, ListView, RadioGroup, TextView};
 use cursive::{Cursive, With};
+use std::error::Error;
+use std::fmt::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use tempfile::{tempdir, TempDir};
@@ -166,9 +168,27 @@ fn iterate(s: &mut Cursive) {
             Err(_) => panic!("receiver disconnected"),
         }
     };
+    update_packet_metadata(s, &result);
     let dir = &s.user_data::<UserData>().unwrap().dir;
     match result {
         Ok(packet) => create_plot(dir, &packet),
         Err(_) => empty_plot(dir),
     }
+}
+
+/// Update the Metadata text box with information about the last received packet.
+fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
+    let text = match next_result {
+        Ok(packet) => packet.pwb_packet.to_string(),
+        Err(error) => {
+            let mut text = format!("Error: {error}");
+            if let Some(cause) = error.source() {
+                let _ = write!(text, "\nCaused by: {cause}");
+            }
+            s.add_layer(Dialog::info(text));
+            String::from("Press <Next> to jump to the next Padwing waveform.")
+        }
+    };
+
+    s.call_on_name("metadata", |view: &mut TextView| view.set_content(text));
 }

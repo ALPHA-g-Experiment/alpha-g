@@ -892,6 +892,51 @@ pub struct PwbV2Packet {
     data: Vec<i16>,
 }
 
+impl fmt::Display for PwbV2Packet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Format revision: {}", self.packet_version())?;
+        writeln!(f, "AFTER ID: {:?}", self.after_id)?;
+        writeln!(f, "Compression: {:?}", self.compression)?;
+        writeln!(f, "Trigger source: {:?}", self.trigger_source)?;
+        let mac_address = self.board_id.mac_address();
+        writeln!(f, "MAC address: {mac_address:?}")?;
+        writeln!(f, "Trigger delay: {}", self.trigger_delay)?;
+        writeln!(f, "Trigger timestamp: {}", self.trigger_timestamp)?;
+        writeln!(f, "Last SCA cell: {}", self.last_sca_cell)?;
+        writeln!(f, "Requested samples: {}", self.requested_samples)?;
+        let channels_sent: Vec<u16> = (1..=79)
+            .into_iter()
+            .filter(|i| {
+                let channel = ChannelId::try_from(*i).unwrap();
+                self.channels_sent.contains(&channel)
+            })
+            .collect();
+        writeln!(f, "Channels sent: {channels_sent:?}")?;
+        let channels_over_threshold: Vec<u16> = (1..=79)
+            .into_iter()
+            .filter(|i| {
+                let channel = ChannelId::try_from(*i).unwrap();
+                self.channels_over_threshold.contains(&channel)
+            })
+            .collect();
+        writeln!(f, "Channels over threshold: {channels_over_threshold:?}")?;
+        writeln!(f, "Event counter: {}", self.event_counter)?;
+        writeln!(f, "FIFO max depth: {}", self.fifo_max_depth)?;
+        writeln!(
+            f,
+            "Event descriptor write depth: {}",
+            self.event_descriptor_write_depth
+        )?;
+        write!(
+            f,
+            "Event descriptor read depth: {}",
+            self.event_descriptor_read_depth
+        )?;
+
+        Ok(())
+    }
+}
+
 impl PwbV2Packet {
     /// Return the packet version i.e. format revision. For [`PwbV2Packet`] it
     /// is fixed to `2`.
@@ -1491,6 +1536,14 @@ impl TryFrom<Vec<Chunk>> for PwbV2Packet {
 pub enum PwbPacket {
     /// Version 2 of a PWB packet.
     V2(PwbV2Packet),
+}
+
+impl fmt::Display for PwbPacket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::V2(packet) => write!(f, "{packet}"),
+        }
+    }
 }
 
 impl PwbPacket {
