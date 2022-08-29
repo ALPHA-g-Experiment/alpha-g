@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 crc32c = "0.6"
 thiserror = "1.0"
+
+[dev-dependencies]
+midasio = "0.4"
