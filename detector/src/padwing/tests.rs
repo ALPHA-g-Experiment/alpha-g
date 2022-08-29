@@ -2,6 +2,11 @@ use super::*;
 use crate::midas::PadwingBankName;
 
 #[test]
+fn padwing_rate() {
+    assert_eq!(PADWING_RATE, 62.5e6);
+}
+
+#[test]
 fn padwing_boards() {
     for i in 0..PADWINGBOARDS.len() {
         let next = i + 1;
@@ -489,6 +494,29 @@ const ODD_PWB_V2_PACKET: [u8; 104] = [
     5, 6, 7, 8, 9, 10, 0, 0, 65, 0, 5, 0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 0, 0, 73, 0, 5,
     0, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 0, 0, 204, 204, 204, 204,
 ];
+
+#[test]
+fn pwb_v2_packet_to_string() {
+    let packet = PwbV2Packet::try_from(&ODD_PWB_V2_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Format revision: 2
+AFTER ID: D
+Compression: Raw
+Trigger source: External
+MAC address: [236, 40, 255, 135, 84, 2]
+Trigger delay: 1
+Trigger timestamp: 2
+Last SCA cell: 3
+Requested samples: 5
+Channels sent: [57, 65, 73]
+Channels over threshold: [1, 9, 17]
+Event counter: 4
+FIFO max depth: 5
+Event descriptor write depth: 6
+Event descriptor read depth: 7"
+    );
+}
 
 #[test]
 fn pwb_v2_good() {
@@ -1383,6 +1411,29 @@ fn pwb_packet_good() {
 }
 
 #[test]
+fn pwb_packet_to_string() {
+    let packet = PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap();
+    assert_eq!(
+        format!("{packet}"),
+        "Format revision: 2
+AFTER ID: D
+Compression: Raw
+Trigger source: External
+MAC address: [236, 40, 255, 135, 84, 2]
+Trigger delay: 1
+Trigger timestamp: 2
+Last SCA cell: 3
+Requested samples: 5
+Channels sent: [57, 65, 73]
+Channels over threshold: [1, 9, 17]
+Event counter: 4
+FIFO max depth: 5
+Event descriptor write depth: 6
+Event descriptor read depth: 7"
+    );
+}
+
+#[test]
 fn pwb_packet_version() {
     assert_eq!(
         PwbPacket::try_from(&ODD_PWB_V2_PACKET[..])
@@ -1576,4 +1627,45 @@ fn pwb_packet_waveform_at() {
             .waveform_at(ChannelId::try_from(1).unwrap()),
         None
     );
+}
+
+#[test]
+fn suppression_baseline_short_slice() {
+    let slice = [0; 67];
+    match suppression_baseline(0, &slice) {
+        Err(CalculateSuppressionBaselineError { found }) => {
+            assert_eq!(found, 67);
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn suppression_baseline_ok() {
+    let mut slice = vec![0; 68];
+    match suppression_baseline(0, &slice) {
+        Ok(Some(value)) => {
+            assert_eq!(value, 0);
+        }
+        _ => unreachable!(),
+    }
+
+    slice[0] = i16::MAX;
+    slice[1] = i16::MAX;
+    slice[2] = i16::MAX;
+    slice[3] = i16::MAX;
+    match suppression_baseline(0, &slice) {
+        Ok(Some(value)) => {
+            assert_eq!(value, 0);
+        }
+        _ => unreachable!(),
+    }
+
+    slice[67] = 64;
+    match suppression_baseline(0, &slice) {
+        Ok(Some(value)) => {
+            assert_eq!(value, 1);
+        }
+        _ => unreachable!(),
+    }
 }

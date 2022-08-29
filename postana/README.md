@@ -21,6 +21,8 @@ cargo install alpha-g-postana
 files from remote hosts.
 - [`alpha-g-alpha16-viewer`](src/bin/alpha-g-alpha16-viewer/README.md): 
 Visualize the ADC waveforms from the BV and the rTPC.
+- [`alpha-g-padwing-viewer`](src/bin/alpha-g-padwing-viewer/README.md):
+Visualize the cathode pad waveforms from the rTPC.
 
 ## Want to contribute?
 

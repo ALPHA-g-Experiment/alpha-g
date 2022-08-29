@@ -1,13 +1,13 @@
 use std::fmt;
 use thiserror::Error;
 
-// Sampling rate (samples per second) of the ADC channels that receive the
-// Barrel Veto SiPM signals.
-const ADC16RATE: f64 = 100e6;
+/// Sampling rate (samples per second) of the ADC channels that receive the
+/// Barrel Veto SiPM signals.
+pub const ADC16_RATE: f64 = 100e6;
 
-// Sampling rate (samples per second) of the ADC channels that receive the
-// radial Time Projection Chamber anode wire signals.
-const ADC32RATE: f64 = 62.5e6;
+/// Sampling rate (samples per second) of the ADC channels that receive the
+/// radial Time Projection Chamber anode wire signals.
+pub const ADC32_RATE: f64 = 62.5e6;
 
 /// The error type returned when conversion from unsigned integer to
 /// [`ChannelId`] fails.
@@ -33,25 +33,6 @@ impl TryFrom<u8> for Adc16ChannelId {
         }
     }
 }
-impl Adc16ChannelId {
-    /// Sampling rate of the ADC channel in samples per second.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use alpha_g_detector::alpha16::TryChannelIdFromUnsignedError;
-    /// # fn main() -> Result<(), TryChannelIdFromUnsignedError> {
-    /// use alpha_g_detector::alpha16::Adc16ChannelId;
-    ///
-    /// let channel = Adc16ChannelId::try_from(0)?;
-    /// assert_eq!(channel.sampling_rate(), 100e6);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn sampling_rate(&self) -> f64 {
-        ADC16RATE
-    }
-}
 
 /// Channel ID that corresponds to anode wires in the radial Time Projection
 /// Chamber.
@@ -70,25 +51,6 @@ impl TryFrom<u8> for Adc32ChannelId {
         }
     }
 }
-impl Adc32ChannelId {
-    /// Sampling rate of the ADC channel in samples per second.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use alpha_g_detector::alpha16::TryChannelIdFromUnsignedError;
-    /// # fn main() -> Result<(), TryChannelIdFromUnsignedError> {
-    /// use alpha_g_detector::alpha16::Adc32ChannelId;
-    ///
-    /// let channel = Adc32ChannelId::try_from(0)?;
-    /// assert_eq!(channel.sampling_rate(), 62.5e6);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn sampling_rate(&self) -> f64 {
-        ADC32RATE
-    }
-}
 
 /// ADC channel ID in an Alpha16 board.
 #[derive(Clone, Copy, Debug)]
@@ -97,30 +59,6 @@ pub enum ChannelId {
     A16(Adc16ChannelId),
     /// Radial Time Projection Chamber anode wire channel.
     A32(Adc32ChannelId),
-}
-impl ChannelId {
-    /// Sampling rate of the ADC channel in samples per second.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use alpha_g_detector::alpha16::TryChannelIdFromUnsignedError;
-    /// # fn main() -> Result<(), TryChannelIdFromUnsignedError> {
-    /// use alpha_g_detector::alpha16::{Adc32ChannelId, ChannelId};
-    ///
-    /// let aw_channel = Adc32ChannelId::try_from(0)?;
-    /// let channel = ChannelId::A32(aw_channel);
-    ///
-    /// assert_eq!(channel.sampling_rate(), 62.5e6);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn sampling_rate(&self) -> f64 {
-        match self {
-            ChannelId::A16(channel) => channel.sampling_rate(),
-            ChannelId::A32(channel) => channel.sampling_rate(),
-        }
-    }
 }
 // There is not TryFrom implementation because there is not an unambiguous
 // integer representation for both channels at the same time.

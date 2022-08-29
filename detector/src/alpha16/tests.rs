@@ -2,6 +2,16 @@ use super::*;
 use crate::midas::Alpha16BankName;
 
 #[test]
+fn adc_16_rate() {
+    assert_eq!(ADC16_RATE, 100e6);
+}
+
+#[test]
+fn adc_32_rate() {
+    assert_eq!(ADC32_RATE, 62.5e6);
+}
+
+#[test]
 fn try_adc_16_channel_id_from_u8() {
     for num in 0u8..=15u8 {
         assert_eq!(Adc16ChannelId::try_from(num).unwrap(), Adc16ChannelId(num));
@@ -12,42 +22,12 @@ fn try_adc_16_channel_id_from_u8() {
 }
 
 #[test]
-fn adc_16_channel_id_sampling_rate() {
-    for num in 0u8..=15u8 {
-        assert_eq!(Adc16ChannelId(num).sampling_rate(), 100e6);
-    }
-}
-
-#[test]
 fn try_adc_32_channel_id_from_u8() {
     for num in 0u8..=31u8 {
         assert_eq!(Adc32ChannelId::try_from(num).unwrap(), Adc32ChannelId(num));
     }
     for num in 32u8..=255u8 {
         assert!(Adc32ChannelId::try_from(num).is_err());
-    }
-}
-
-#[test]
-fn adc_32_channel_id_sampling_rate() {
-    for num in 0u8..=31u8 {
-        assert_eq!(Adc32ChannelId(num).sampling_rate(), 62.5e6);
-    }
-}
-
-#[test]
-fn channel_id_sampling_rate() {
-    for num in 0..=15 {
-        assert_eq!(
-            ChannelId::A16(num.try_into().unwrap()).sampling_rate(),
-            100e6
-        );
-    }
-    for num in 0..=31 {
-        assert_eq!(
-            ChannelId::A32(num.try_into().unwrap()).sampling_rate(),
-            62.5e6
-        );
     }
 }
 

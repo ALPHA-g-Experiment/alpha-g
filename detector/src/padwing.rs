@@ -1,6 +1,10 @@
 use std::fmt;
 use thiserror::Error;
 
+/// Sampling rate (samples per second) of the channels that receive the radial
+/// Time Projection Chamber cathode pad signals.
+pub const PADWING_RATE: f64 = 62.5e6;
+
 /// The error type returned when parsing a [`BoardId`] fails.
 #[derive(Error, Debug)]
 #[error("unknown parsing from board name `{input}` to BoardId")]
@@ -888,6 +892,51 @@ pub struct PwbV2Packet {
     data: Vec<i16>,
 }
 
+impl fmt::Display for PwbV2Packet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Format revision: {}", self.packet_version())?;
+        writeln!(f, "AFTER ID: {:?}", self.after_id)?;
+        writeln!(f, "Compression: {:?}", self.compression)?;
+        writeln!(f, "Trigger source: {:?}", self.trigger_source)?;
+        let mac_address = self.board_id.mac_address();
+        writeln!(f, "MAC address: {mac_address:?}")?;
+        writeln!(f, "Trigger delay: {}", self.trigger_delay)?;
+        writeln!(f, "Trigger timestamp: {}", self.trigger_timestamp)?;
+        writeln!(f, "Last SCA cell: {}", self.last_sca_cell)?;
+        writeln!(f, "Requested samples: {}", self.requested_samples)?;
+        let channels_sent: Vec<u16> = (1..=79)
+            .into_iter()
+            .filter(|i| {
+                let channel = ChannelId::try_from(*i).unwrap();
+                self.channels_sent.contains(&channel)
+            })
+            .collect();
+        writeln!(f, "Channels sent: {channels_sent:?}")?;
+        let channels_over_threshold: Vec<u16> = (1..=79)
+            .into_iter()
+            .filter(|i| {
+                let channel = ChannelId::try_from(*i).unwrap();
+                self.channels_over_threshold.contains(&channel)
+            })
+            .collect();
+        writeln!(f, "Channels over threshold: {channels_over_threshold:?}")?;
+        writeln!(f, "Event counter: {}", self.event_counter)?;
+        writeln!(f, "FIFO max depth: {}", self.fifo_max_depth)?;
+        writeln!(
+            f,
+            "Event descriptor write depth: {}",
+            self.event_descriptor_write_depth
+        )?;
+        write!(
+            f,
+            "Event descriptor read depth: {}",
+            self.event_descriptor_read_depth
+        )?;
+
+        Ok(())
+    }
+}
+
 impl PwbV2Packet {
     /// Return the packet version i.e. format revision. For [`PwbV2Packet`] it
     /// is fixed to `2`.
@@ -1489,6 +1538,14 @@ pub enum PwbPacket {
     V2(PwbV2Packet),
 }
 
+impl fmt::Display for PwbPacket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::V2(packet) => write!(f, "{packet}"),
+        }
+    }
+}
+
 impl PwbPacket {
     /// Return the packet version i.e. format revision.
     ///
@@ -1884,6 +1941,40 @@ impl TryFrom<Vec<Chunk>> for PwbPacket {
     fn try_from(chunks: Vec<Chunk>) -> Result<Self, Self::Error> {
         Ok(PwbPacket::V2(PwbV2Packet::try_from(chunks)?))
     }
+}
+
+/// The error type returned when calculating the Padwing data suppression
+/// baseline fails.
+#[derive(Error, Debug)]
+#[error("short slice (expected at least 68 samples, found `{found}`)")]
+pub struct CalculateSuppressionBaselineError {
+    found: usize,
+}
+
+/// Helper function to return the data suppression baseline of a slice as
+/// implemented in the Padwing board firmware.
+// Take the run number as input because Konstantin can change the baseline
+// calculation at any time. This is not linked to the PwbPacket version. Older
+// or future versions might no even have data suppression (hence return Option).
+//
+// A future alternative to avoid returning a Result, is to have a newtype for
+// the waveform. But I am not sure if this is a good place for this; maybe at
+// a higher level in the analysis chain.
+pub fn suppression_baseline(
+    _run_number: u32,
+    waveform: &[i16],
+) -> Result<Option<i16>, CalculateSuppressionBaselineError> {
+    if waveform.len() < 68 {
+        return Err(CalculateSuppressionBaselineError {
+            found: waveform.len(),
+        });
+    }
+    // Add over i32 to avoid overflow
+    let num = waveform[4..][..64]
+        .iter()
+        .map(|n| i32::from(*n))
+        .sum::<i32>();
+    Ok(Some((num / 64).try_into().unwrap()))
 }
 
 #[cfg(test)]
