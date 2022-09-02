@@ -327,5 +327,29 @@ impl TryFrom<&str> for PadwingBankName {
     }
 }
 
+/// The error type returned when parsing a Trigger bank name fails.
+#[derive(Error, Debug)]
+pub enum ParseTriggerBankNameError {
+    /// Input string pattern doesn't match the expected Trigger bank name
+    /// pattern.
+    #[error("input string `{input}` doesn't match TriggerBankName pattern")]
+    PatternMismatch { input: String },
+}
+
+/// Name of a MIDAS bank with data from the Trigger board.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TriggerBankName;
+impl TryFrom<&str> for TriggerBankName {
+    type Error = ParseTriggerBankNameError;
+     fn try_from(name: &str) -> Result<Self, Self::Error> {
+         if name != "ATAT" {
+             return Err(Self::Error::PatternMismatch {
+                 input: name.to_string(),
+             });
+         }
+         Ok(TriggerBankName)
+     }
+}
+
 #[cfg(test)]
 mod tests;
