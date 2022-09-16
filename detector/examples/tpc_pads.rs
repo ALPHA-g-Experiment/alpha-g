@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         for chunks in pwb_chunks_map.into_values() {
             let packet = PwbPacket::try_from(chunks)?;
             for &channel_id in packet.channels_sent() {
-                // A waveform is guaranteed to exist and not be empty if the 
+                // A waveform is guaranteed to exist and not be empty if the
                 // channel was sent. It is safe to unwrap.
                 let _waveform = packet.waveform_at(channel_id).unwrap();
             }

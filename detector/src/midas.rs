@@ -341,14 +341,14 @@ pub enum ParseTriggerBankNameError {
 pub struct TriggerBankName;
 impl TryFrom<&str> for TriggerBankName {
     type Error = ParseTriggerBankNameError;
-     fn try_from(name: &str) -> Result<Self, Self::Error> {
-         if name != "ATAT" {
-             return Err(Self::Error::PatternMismatch {
-                 input: name.to_string(),
-             });
-         }
-         Ok(TriggerBankName)
-     }
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if name != "ATAT" {
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
+        }
+        Ok(TriggerBankName)
+    }
 }
 
 #[cfg(test)]
