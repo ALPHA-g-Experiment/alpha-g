@@ -250,3 +250,6 @@ impl TryFrom<&[u8]> for TrgV3Packet {
         })
     }
 }
+
+#[cfg(test)]
+mod tests;
