@@ -359,3 +359,269 @@ fn trg_v3_packet_zero_mismatch() {
         _ => unreachable!(),
     }
 }
+
+#[test]
+fn trg_v3_packet_udp_counter() {
+    for i in 0..3 {
+        let mut packet = TRG_V3_PACKET;
+        packet[0] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.udp_counter(), (j as u32) << (8 * i));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_timestamp() {
+    for i in 8..12 {
+        let mut packet = TRG_V3_PACKET;
+        packet[8] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.timestamp(), (j as u32) << (8 * (i - 8)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_output_counter() {
+    for i in 12..15 {
+        let mut packet = TRG_V3_PACKET;
+        for j in 0..u8::MAX {
+            packet[16] = 0;
+            packet[40] = 0;
+            packet[44] = 0;
+
+            packet[i] = j;
+            packet[i - 8] = j;
+            packet[i + 64] = j;
+
+            packet[i + 32] = j;
+            packet[44] += 1;
+
+            packet[i + 28] = j;
+            packet[40] += 1;
+
+            packet[i + 4] = j;
+            packet[16] += 1;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.output_counter(), (j as u32) << (8 * (i - 12)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_input_counter() {
+    for i in 16..20 {
+        let mut packet = TRG_V3_PACKET;
+        packet[16] = 0;
+        for j in 2..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.input_counter(), (j as u32) << (8 * (i - 16)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_pulser_counter() {
+    for i in 20..24 {
+        let mut packet = TRG_V3_PACKET;
+        packet[20] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.pulser_counter(), (j as u32) << (8 * (i - 20)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_trigger_bitmap() {
+    for i in 24..28 {
+        let mut packet = TRG_V3_PACKET;
+        packet[24] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.trigger_bitmap(), (j as u32) << (8 * (i - 24)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_nim_bitmap() {
+    for i in 28..32 {
+        let mut packet = TRG_V3_PACKET;
+        packet[28] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.nim_bitmap(), (j as u32) << (8 * (i - 28)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_esata_bitmap() {
+    for i in 32..36 {
+        let mut packet = TRG_V3_PACKET;
+        packet[32] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.esata_bitmap(), (j as u32) << (8 * (i - 32)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_satisfied_mlu() {
+    let mut packet = TRG_V3_PACKET;
+    packet[39] = 128;
+    let trg_packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+    assert!(trg_packet.satisfied_mlu());
+
+    packet[39] = 0;
+    let trg_packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+    assert!(!trg_packet.satisfied_mlu());
+}
+
+#[test]
+fn trg_v3_packet_aw16_prompt() {
+    for i in 36..38 {
+        let mut packet = TRG_V3_PACKET;
+        packet[36] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.aw16_prompt(), (j as u16) << (8 * (i - 36)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_drift_veto_counter() {
+    for i in 40..44 {
+        let mut packet = TRG_V3_PACKET;
+        packet[40] = 0;
+        for j in 1..u8::MAX {
+            packet[16] = 0;
+
+            packet[i] = j;
+
+            packet[i - 24] = j;
+            packet[16] += 1;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.drift_veto_counter(), (j as u32) << (8 * (i - 40)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_scaledown_counter() {
+    for i in 44..48 {
+        let mut packet = TRG_V3_PACKET;
+        packet[44] = 0;
+        for j in 0..u8::MAX {
+            packet[16] = 0;
+            packet[40] = 0;
+
+            packet[i] = j;
+
+            packet[i - 28] = j;
+            packet[16] += 1;
+
+            packet[i - 4] = j;
+            packet[40] += 1;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.scaledown_counter(), (j as u32) << (8 * (i - 44)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_aw16_multiplicity() {
+    let mut packet = TRG_V3_PACKET;
+    for i in 0..=u8::MAX {
+        packet[54] = i;
+        let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+        assert_eq!(packet.aw16_multiplicity(), i);
+    }
+}
+
+#[test]
+fn trg_v3_packet_aw16_bus() {
+    for i in 52..54 {
+        let mut packet = TRG_V3_PACKET;
+        packet[52] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.aw16_bus(), (j as u16) << (8 * (i - 52)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_bsc64_bus() {
+    for i in 56..64 {
+        let mut packet = TRG_V3_PACKET;
+        packet[56] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.bsc64_bus(), (j as u64) << (8 * (i - 56)));
+        }
+    }
+}
+
+#[test]
+fn trg_v3_packet_bsc64_multiplicity() {
+    let mut packet = TRG_V3_PACKET;
+    for i in 0..=u8::MAX {
+        packet[64] = i;
+        let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+        assert_eq!(packet.bsc64_multiplicity(), i);
+    }
+}
+
+#[test]
+fn trg_v3_packet_coincidence_latch() {
+    let mut packet = TRG_V3_PACKET;
+    for i in 0..=u8::MAX {
+        packet[68] = i;
+        let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+        assert_eq!(packet.coincidence_latch(), i);
+    }
+}
+
+#[test]
+fn trg_v3_packet_firmware_revision() {
+    for i in 72..76 {
+        let mut packet = TRG_V3_PACKET;
+        packet[72] = 0;
+        for j in 0..=u8::MAX {
+            packet[i] = j;
+
+            let packet = TrgV3Packet::try_from(&packet[..]).unwrap();
+            assert_eq!(packet.firmware_revision(), (j as u32) << (8 * (i - 72)));
+        }
+    }
+}
