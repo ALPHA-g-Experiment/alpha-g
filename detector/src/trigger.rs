@@ -610,5 +610,443 @@ impl TryFrom<&[u8]> for TrgV3Packet {
     }
 }
 
+/// TRG data packet.
+///
+/// This enum can currently contain only a [`TrgV3Packet`]. See its
+/// documentation for more details.
+#[derive(Clone, Debug)]
+pub enum TrgPacket {
+    /// Version 3 of a TRG packet.
+    V3(TrgV3Packet),
+}
+
+impl TrgPacket {
+    /// Return the value of the UDP packet counter. This counter is reset by
+    /// reboot and starts counting from 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.udp_counter(), 255);
+    /// # Ok(())
+    /// # }
+    pub fn udp_counter(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.udp_counter(),
+        }
+    }
+    /// Return the trigger timestamp, which increments at the frequency of
+    /// [`TRG_CLOCK_FREQ`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.timestamp(), 254);
+    /// # Ok(())
+    /// # }
+    pub fn timestamp(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.timestamp(),
+        }
+    }
+    /// Return the counter of signals that come out of the TRG board (these are
+    /// distributed to all the other modules as trigger signals).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.output_counter(), 0);
+    /// # Ok(())
+    /// # }
+    pub fn output_counter(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.output_counter(),
+        }
+    }
+    /// Return the counter of trigger input signals.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.input_counter(), 3);
+    /// # Ok(())
+    /// # }
+    pub fn input_counter(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.input_counter(),
+        }
+    }
+    /// Return the counter of pulser triggers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.pulser_counter(), 0);
+    /// # Ok(())
+    /// # }
+    pub fn pulser_counter(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.pulser_counter(),
+        }
+    }
+    /// Return a bitmap with trigger information.
+    ///
+    /// # Note
+    ///
+    /// This bitmap changes multiple times within a single TRG packet version.
+    /// It is difficult to keep track, but if you really need this information,
+    /// you can find more details
+    /// [`here`](https://daq00.triumf.ca/AgWiki/index.php/TRG#trigger_bitmap)
+    /// about a specific [`firmware_revision`].
+    ///
+    /// [`firmware_revision`]: TrgPacket::firmware_revision
+    ///
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.trigger_bitmap(), 5);
+    /// # Ok(())
+    /// # }
+    pub fn trigger_bitmap(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.trigger_bitmap(),
+        }
+    }
+    /// Return a bitmap of the ADC NIM inputs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.nim_bitmap(), 6);
+    /// # Ok(())
+    /// # }
+    pub fn nim_bitmap(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.nim_bitmap(),
+        }
+    }
+    /// Return a bitmap of the ADC eSATA inputs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.esata_bitmap(), 7);
+    /// # Ok(())
+    /// # }
+    pub fn esata_bitmap(&self) -> u32 {
+        match self {
+            Self::V3(packet) => packet.esata_bitmap(),
+        }
+    }
+    /// Return [`true`] if the [`aw16_prompt`] bit pattern satisfied the MLU
+    /// condition. The name of the specific MLU file in a particular run can be
+    /// obtained from the ODB. Return [`None`] if this is a version 1 packet
+    /// (these don't contain this field).
+    ///
+    /// [`aw16_prompt`]: TrgV3Packet::aw16_prompt
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.satisfied_mlu(), Some(true));
+    /// # Ok(())
+    /// # }
+    pub fn satisfied_mlu(&self) -> Option<bool> {
+        match self {
+            Self::V3(packet) => Some(packet.satisfied_mlu()),
+        }
+    }
+    /// Return the bit pattern (1 bit per preamp) of the signals collected
+    /// during the MLU prompt window. Return [`None`] if this is a version 1
+    /// packet (these don't contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.aw16_prompt(), Some(8));
+    /// # Ok(())
+    /// # }
+    pub fn aw16_prompt(&self) -> Option<u16> {
+        match self {
+            Self::V3(packet) => Some(packet.aw16_prompt()),
+        }
+    }
+    /// Return the counter of signals that passed the drift time veto. Return
+    /// [`None`] if this is a version 1 packet (these don't contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.drift_veto_counter(), Some(2));
+    /// # Ok(())
+    /// # }
+    pub fn drift_veto_counter(&self) -> Option<u32> {
+        match self {
+            Self::V3(packet) => Some(packet.drift_veto_counter()),
+        }
+    }
+    /// Return the counter of signals that passed the scaledown. Return [`None`]
+    /// if this is a version 1 packet (these don't contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.scaledown_counter(), Some(1));
+    /// # Ok(())
+    /// # }
+    pub fn scaledown_counter(&self) -> Option<u32> {
+        match self {
+            Self::V3(packet) => Some(packet.scaledown_counter()),
+        }
+    }
+    /// Return the `aw16_mult`. These are bits `[16..24]` from the word with
+    /// index 13 of the data packet. I don't understand what this field means
+    /// exactly. Return [`None`] if this is a version 1 packet (these don't
+    /// contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.aw16_multiplicity(), Some(10));
+    /// # Ok(())
+    /// # }
+    pub fn aw16_multiplicity(&self) -> Option<u8> {
+        match self {
+            Self::V3(packet) => Some(packet.aw16_multiplicity()),
+        }
+    }
+    /// Return the `aw16_bus`. These are bits `[0..16]` from the word with
+    /// index 13 of the data packet. I don't understand what this field means
+    /// exactly. Return [`None`] if this is a version 1 packet (these don't
+    /// contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.aw16_bus(), Some(9));
+    /// # Ok(())
+    /// # }
+    pub fn aw16_bus(&self) -> Option<u16> {
+        match self {
+            Self::V3(packet) => Some(packet.aw16_bus()),
+        }
+    }
+    /// Return the `bsc64_bus`. This corresponds to the words with indices 14
+    /// and 15 as a little endian u64. I don't understand what this field means
+    /// exactly. Return [`None`] if this is a version 1 packet (these don't
+    /// contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.bsc64_bus(), Some(11));
+    /// # Ok(())
+    /// # }
+    pub fn bsc64_bus(&self) -> Option<u64> {
+        match self {
+            Self::V3(packet) => Some(packet.bsc64_bus()),
+        }
+    }
+    /// Return the `bsc64_mult`. These are bits `[0..8]` from the word with
+    /// index 16 of the data packet. I don't understand what this field means
+    /// exactly. Return [`None`] if this is a version 1 packet (these don't
+    /// contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.bsc64_multiplicity(), Some(12));
+    /// # Ok(())
+    /// # }
+    pub fn bsc64_multiplicity(&self) -> Option<u8> {
+        match self {
+            Self::V3(packet) => Some(packet.bsc64_multiplicity()),
+        }
+    }
+    /// Return the `coinc_latch`. These are bits `[0..8]` from the word with
+    /// index 17 of the data packet. I don't understand what this field means
+    /// exactly. Return [`None`] if this is a version 1 packet (these don't
+    /// contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.coincidence_latch(), Some(13));
+    /// # Ok(())
+    /// # }
+    pub fn coincidence_latch(&self) -> Option<u8> {
+        match self {
+            Self::V3(packet) => Some(packet.coincidence_latch()),
+        }
+    }
+    /// Return the firmware revision of the TRG board. Return [`None`] if this
+    /// is a version 1 or 2 packet (these don't contain this field).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert_eq!(packet.firmware_revision(), Some(14));
+    /// # Ok(())
+    /// # }
+    pub fn firmware_revision(&self) -> Option<u32> {
+        match self {
+            Self::V3(packet) => Some(packet.firmware_revision()),
+        }
+    }
+    /// Return [`true`] if this is a [`TrgV3Packet`], and [`false`] otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+    /// # fn main() -> Result<(), TryTrgPacketFromSliceError> {
+    /// use alpha_g_detector::trigger::TrgPacket;
+    ///
+    /// let buffer = [255, 0, 0, 0, 0, 0, 0, 128, 254, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 128, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 10, 0, 11, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 13, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 224];
+    /// let packet = TrgPacket::try_from(&buffer[..])?;
+    ///
+    /// assert!(packet.is_v3());
+    /// # Ok(())
+    /// # }
+    pub fn is_v3(&self) -> bool {
+        matches!(self, Self::V3(_))
+    }
+}
+
+impl TryFrom<&[u8]> for TrgPacket {
+    type Error = TryTrgPacketFromSliceError;
+
+    fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+        Ok(TrgPacket::V3(TrgV3Packet::try_from(slice)?))
+    }
+}
+
 #[cfg(test)]
 mod tests;
