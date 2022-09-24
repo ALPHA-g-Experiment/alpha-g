@@ -19,5 +19,12 @@ pub mod padwing;
 /// specific characteristics to simplify interpreting MIDAS files.
 pub mod midas;
 
+/// Trigger DAQ board.
+///
+/// There is a single Trigger board which collects information from the anode
+/// wires and SiPMs to make real-time decisions about recording an event to
+/// disk.
+pub mod trigger;
+
 #[cfg(test)]
 mod tests;

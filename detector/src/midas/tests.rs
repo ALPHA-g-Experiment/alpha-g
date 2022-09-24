@@ -568,3 +568,42 @@ fn padwing_bank_name_valid() {
         );
     }
 }
+
+#[test]
+fn trigger_bank_name_pattern_mismatch() {
+    match TriggerBankName::try_from("atat") {
+        Err(ParseTriggerBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "atat");
+        }
+        _ => unreachable!(),
+    }
+    match TriggerBankName::try_from("Atat") {
+        Err(ParseTriggerBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "Atat");
+        }
+        _ => unreachable!(),
+    }
+    match TriggerBankName::try_from("aTat") {
+        Err(ParseTriggerBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "aTat");
+        }
+        _ => unreachable!(),
+    }
+    match TriggerBankName::try_from("atAt") {
+        Err(ParseTriggerBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "atAt");
+        }
+        _ => unreachable!(),
+    }
+    match TriggerBankName::try_from("ataT") {
+        Err(ParseTriggerBankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "ataT");
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn trigger_bank_name_valid() {
+    assert!(TriggerBankName::try_from("ATAT").is_ok());
+}

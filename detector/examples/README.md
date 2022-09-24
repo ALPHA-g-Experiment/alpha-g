@@ -11,3 +11,4 @@ SiPMs.
 ADC waveforms from the anode wires.
 - [tpc_pads](./tpc_pads.rs): Iterate over all the radial Time Projection Chamber 
 cathode pad waveforms.
+- [trg](./trg.rs): Iterate over all the trigger data packets from the TRG board.
