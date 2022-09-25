@@ -1,5 +1,5 @@
+use alpha_g_detector::midas::{EventId, TriggerBankName};
 use alpha_g_detector::trigger::TrgPacket;
-use alpha_g_detector::midas::{TriggerBankName, EventId};
 use midasio::read::file::FileView;
 use std::error::Error;
 

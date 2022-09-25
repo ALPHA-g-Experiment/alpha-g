@@ -792,7 +792,10 @@ fn trg_packet_drift_veto_counter() {
             packet[16] += 1;
 
             let packet = TrgPacket::try_from(&packet[..]).unwrap();
-            assert_eq!(packet.drift_veto_counter().unwrap(), (j as u32) << (8 * (i - 40)));
+            assert_eq!(
+                packet.drift_veto_counter().unwrap(),
+                (j as u32) << (8 * (i - 40))
+            );
         }
     }
 }
@@ -815,7 +818,10 @@ fn trg_packet_scaledown_counter() {
             packet[40] += 1;
 
             let packet = TrgPacket::try_from(&packet[..]).unwrap();
-            assert_eq!(packet.scaledown_counter().unwrap(), (j as u32) << (8 * (i - 44)));
+            assert_eq!(
+                packet.scaledown_counter().unwrap(),
+                (j as u32) << (8 * (i - 44))
+            );
         }
     }
 }
@@ -887,7 +893,10 @@ fn trg_packet_firmware_revision() {
             packet[i] = j;
 
             let packet = TrgPacket::try_from(&packet[..]).unwrap();
-            assert_eq!(packet.firmware_revision().unwrap(), (j as u32) << (8 * (i - 72)));
+            assert_eq!(
+                packet.firmware_revision().unwrap(),
+                (j as u32) << (8 * (i - 72))
+            );
         }
     }
 }

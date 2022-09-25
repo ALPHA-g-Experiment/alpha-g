@@ -1,5 +1,4 @@
-use alpha_g_detector::midas::EventId;
-use alpha_g_detector::midas::PadwingBankName;
+use alpha_g_detector::midas::{EventId, PadwingBankName};
 use alpha_g_detector::padwing::{
     ChannelId, Chunk, PwbPacket, TryChunkFromSliceError, TryPwbPacketFromChunksError,
 };
