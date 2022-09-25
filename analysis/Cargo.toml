@@ -2,9 +2,15 @@
 name = "alpha-g-analysis"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Executables that perform common post-processing/offline analysis on the data of the ALPHA-g experiment"
+readme = "README.md"
+repository = "https://github.com/DJDuque/alpha-g"
+keywords = ["alpha", "alpha-g", "cern", "physics", "antimatter"]
+categories = ["science", "command-line-utilities"]
 
 [dependencies]
-alpha_g_detector = { path = "../detector" }
+alpha_g_detector = { version = "0.1",  path = "../detector" }
 clap = { version = "3", features = ["derive"] }
 cursive = "0.18"
 glob = "0.3"
