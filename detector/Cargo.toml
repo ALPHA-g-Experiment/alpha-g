@@ -1,7 +1,14 @@
 [package]
 name = "alpha_g_detector"
-version = "0.1.0"
+version = "0.1.0" # Remember to also change this in the README.md
 edition = "2021"
+license = "MIT"
+description = "A Rust library to handle the raw output of the ALPHA-g detectors"
+readme = "README.md"
+repository = "https://github.com/DJDuque/alpha-g"
+keywords = ["alpha", "alpha-g", "cern", "physics", "antimatter"]
+categories = ["science"]
+documentation = "https://docs.rs/alpha_g_detector"
 
 [dependencies]
 crc32c = "0.6"
