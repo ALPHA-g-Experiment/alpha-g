@@ -1,7 +1,7 @@
-# ALPHA-g-Postana
+# ALPHA-g-Analysis
 
 [![Test Status](https://github.com/DJDuque/alpha-g/actions/workflows/rust.yml/badge.svg)](https://github.com/DJDuque/alpha-g/actions/workflows/rust.yml)
-[![Crates.io](https://img.shields.io/crates/v/alpha-g-postana?labelColor=383f47)](https://crates.io/crates/alpha-g-postana)
+[![Crates.io](https://img.shields.io/crates/v/alpha-g-analysis?labelColor=383f47)](https://crates.io/crates/alpha-g-analysis)
 
 Rust package with multiple binary crates. Each executable is a useful tool to 
 perform common post-processing/offline analysis on the data of the ALPHA-g 
@@ -12,7 +12,7 @@ experiment at CERN.
 The package can be installed with `cargo`
 
 ```bash
-cargo install alpha-g-postana
+cargo install alpha-g-analysis
 ```
 
 ## Binaries

@@ -1,14 +1,14 @@
-# `alpha-g-padwing-viewer`
+# `alpha-g-alpha16-viewer`
 
-Iterate through a MIDAS file, and visualize the individual cathode pad waveforms
-from the radial Time Projection Chamber. Run the `alpha-g-padwing-viewer --help`
-command to make sure you have installed the `alpha-g-postana` package and print 
-help information.
+Iterate through a MIDAS file, and visualize the individual ADC waveforms from
+the Barrel Veto and the radial Time Projection Chamber. Run the
+`alpha-g-alpha16-viewer --help` command to make sure you have installed the 
+`alpha-g-analysis` package and print help information.
 
 ## Requirements
 
 Please make sure you have all the following installed in your system, otherwise
-`alpha-g-padwing-viewer` may not work as expected:
+`alpha-g-alpha16-viewer` may not work as expected:
 
 - ncurses: This is the default backend used for the TUI. In the very unlikely
  scenario that you don't have this already, see [how to install
