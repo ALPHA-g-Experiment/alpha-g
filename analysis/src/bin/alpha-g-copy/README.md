@@ -2,7 +2,7 @@
 
 Make local copies of the MIDAS files from specific runs of the ALPHA-g
 experiment. Run the `alpha-g-copy --help` command to make sure you have 
-installed the `alpha-g-postana` package and print help information.
+installed the `alpha-g-analysis` package and print help information.
 
 ## Requirements
 
