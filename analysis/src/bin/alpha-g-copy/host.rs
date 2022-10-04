@@ -1,11 +1,11 @@
 use crate::Extension;
-use clap::ArgEnum;
+use clap::ValueEnum;
 use glob::Pattern;
 use std::fmt;
 use std::path::Path;
 
 /// Known hosts for ALPHA-g MIDAS files
-#[derive(Clone, Copy, Debug, ArgEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum Host {
     Lxplus,
     Alpha03,

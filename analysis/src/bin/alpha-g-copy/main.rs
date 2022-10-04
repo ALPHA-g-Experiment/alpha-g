@@ -16,25 +16,26 @@ mod host;
 mod extension;
 
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
+#[command(author, version)]
+#[command(about = "Make local copies of MIDAS files from remote hosts", long_about = None)]
 struct Args {
     /// Run numbers for which you want to copy all MIDAS files locally
-    #[clap(required = true)]
+    #[arg(required = true)]
     run_numbers: Vec<u32>,
     /// User at remote host
-    #[clap(short, long)]
+    #[arg(short, long)]
     user: String,
     /// Host from which the files will be copied
-    #[clap(arg_enum, short, long)]
+    #[arg(value_enum, short, long)]
     source: Host,
     /// Path where the MIDAS files will be copied into
-    #[clap(short, long, default_value="./", parse(try_from_str=is_directory))]
+    #[arg(short, long, default_value = "./", value_parser(is_directory))]
     output_path: PathBuf,
     /// Extension i.e. compression of remote files
-    #[clap(arg_enum, short, long)]
+    #[arg(value_enum, short, long)]
     extension: Option<Extension>,
     /// Decompress the copied MIDAS file (requires --extension)
-    #[clap(short, long, requires("extension"))]
+    #[arg(short, long, requires("extension"))]
     decompress: bool,
 }
 
