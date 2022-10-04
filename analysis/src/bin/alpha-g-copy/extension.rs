@@ -1,11 +1,11 @@
-use clap::ArgEnum;
+use clap::ValueEnum;
 use lz4::Decoder;
 use std::fmt;
 use std::fs::File;
 use std::path::Path;
 
 /// Extension i.e. compression of MIDAS files
-#[derive(Clone, Copy, Debug, ArgEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum Extension {
     Lz4,
 }

@@ -32,10 +32,11 @@ mod filter;
 mod plot;
 
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
+#[command(author, version)]
+#[command(about = "Visualize the cathode pad waveforms from the rTPC", long_about = None)]
 struct Args {
     /// MIDAS files that you want to inspect
-    #[clap(required = true)]
+    #[arg(required = true)]
     files: Vec<PathBuf>,
 }
 
