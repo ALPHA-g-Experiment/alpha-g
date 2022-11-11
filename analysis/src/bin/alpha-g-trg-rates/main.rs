@@ -154,10 +154,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             // respect to t=0. There is some small offset introduced by this
             // "jump exact amount of seconds"
             cumulative_timestamp += u64::from(seconds_between_files) * (TRG_CLOCK_FREQ as u64);
+            if cumulative_timestamp >= args.min_timestamp {
+                figures.push(Figure::new(cumulative_timestamp, args.time_step));
+            }
             previous_packet = None;
-        }
-        if previous_packet.is_none() {
-            figures.push(Figure::new(cumulative_timestamp, args.time_step));
         }
 
         for event in file
@@ -181,6 +181,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if packet.output_counter() <= args.skip {
                     continue;
                 }
+                if figures.is_empty() && cumulative_timestamp >= args.min_timestamp {
+                    figures.push(Figure::new(cumulative_timestamp, args.time_step));
+                }
                 if let Some(previous) = &previous_packet {
                     match DeltaPacket::try_from(&packet, previous) {
                         Ok(delta) => {
@@ -190,7 +193,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     break 'outer;
                                 }
                             }
-                            figures.last_mut().unwrap().update(&delta);
+                            if !figures.is_empty() {
+                                figures.last_mut().unwrap().update(&delta);
+                            }
                         }
                         Err(error) => {
                             count_errors += 1;
