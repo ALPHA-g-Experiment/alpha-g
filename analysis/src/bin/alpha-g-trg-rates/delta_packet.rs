@@ -7,7 +7,7 @@ use alpha_g_detector::trigger::TrgPacket;
 // That way I don't need to care about signed differences (they should all be
 // treated as errors).
 #[derive(Clone, Copy, Debug)]
-pub struct DeltaPacket {
+pub(crate) struct DeltaPacket {
     pub timestamp: u32,
     pub output_counter: u32,
     pub input_counter: u32,
@@ -20,7 +20,10 @@ impl DeltaPacket {
     // Return an error if `previous` happens AFTER `current` or if they are
     // equal. DeltaPacket is only meant to represent differences against a
     // previous packet (from BEFORE).
-    pub fn try_from(current: &TrgPacket, previous: &TrgPacket) -> Result<DeltaPacket, String> {
+    pub(crate) fn try_from(
+        current: &TrgPacket,
+        previous: &TrgPacket,
+    ) -> Result<DeltaPacket, String> {
         let timestamp = current.timestamp().wrapping_sub(previous.timestamp());
         let output_counter = current
             .output_counter()

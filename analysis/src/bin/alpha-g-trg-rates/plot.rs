@@ -1,8 +1,45 @@
 use crate::delta_packet::DeltaPacket;
+use crate::Args;
 use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
+use pgfplots::axis::plot::{Plot2D, PlotKey, Type2D::ConstRight};
+use pgfplots::axis::{Axis, AxisKey};
+use std::io::Write;
+use std::path::Path;
+use std::process::{Command, ExitStatus, Stdio};
+use tempfile::NamedTempFile;
 
+/// Jobname for pdflatex.
+pub const JOBNAME: &str = "figure";
+
+/// Control the style of each histogram in a plot.
+#[derive(Clone, Copy, Debug)]
+enum HistoStyle {
+    Output,
+    Scaledown,
+    DriftVeto,
+    Input,
+    Pulser,
+}
+
+impl HistoStyle {
+    fn type_2d(&self) -> PlotKey {
+        PlotKey::Type2D(ConstRight)
+    }
+    fn color(&self) -> PlotKey {
+        match self {
+            HistoStyle::Output => PlotKey::Custom("black".to_string()),
+            HistoStyle::Scaledown => PlotKey::Custom("red!40!gray".to_string()),
+            HistoStyle::DriftVeto => PlotKey::Custom("blue!40!gray".to_string()),
+            HistoStyle::Input => PlotKey::Custom("gray!50".to_string()),
+            HistoStyle::Pulser => PlotKey::Custom("green!40!gray".to_string()),
+        }
+    }
+}
+
+/// Data for an individual counter.
+// Automatically bin incoming data by the appropriate `time-step`.
 #[derive(Clone, Debug)]
-pub struct Histogram {
+struct Histogram {
     // Corresponds to t=0 (in clock units) of the histogram
     initial_timestamp: u64,
     // Bin size (in seconds)
@@ -13,18 +50,24 @@ pub struct Histogram {
     // histogram. This is basically the `current left edge` but in clock units
     // with respect to the `initial_timestamp`
     last_timestamp: u64,
+    // Style of how to draw the histogram
+    style: HistoStyle,
 }
 
 impl Histogram {
     /// Create a new empty histogram.
     // `initial_timestamp` is in clock units, and `time_step` is in seconds.
-    pub fn new(initial_timestamp: u64, time_step: f64) -> Histogram {
+    fn new(initial_timestamp: u64, time_step: f64, style: HistoStyle) -> Histogram {
         Histogram {
             initial_timestamp,
             time_step,
             data: vec![0.0],
             last_timestamp: 0,
+            style,
         }
+    }
+    fn initial_time(&self) -> f64 {
+        self.initial_timestamp as f64 / TRG_CLOCK_FREQ
     }
     fn current_left_edge(&self) -> f64 {
         self.last_timestamp as f64 / TRG_CLOCK_FREQ
@@ -38,7 +81,7 @@ impl Histogram {
     /// Update the histogram data.
     // `delta_X` represents the difference between this and the previous data
     // that was added to the histogram.
-    pub fn update(&mut self, delta_timestamp: u32, delta_count: u32) {
+    fn update(&mut self, delta_timestamp: u32, delta_count: u32) {
         let current_timestamp = self.last_timestamp + u64::from(delta_timestamp);
         let current_time = current_timestamp as f64 / TRG_CLOCK_FREQ;
         let delta_time = f64::from(delta_timestamp) / TRG_CLOCK_FREQ;
@@ -63,8 +106,69 @@ impl Histogram {
     }
 }
 
+/// Define the default conversion from Histogram to a Plot2D.
+impl From<Histogram> for Plot2D {
+    fn from(hist: Histogram) -> Self {
+        let mut plot = Plot2D::new();
+        // The last bin needs to be normalized differently because it doesn't
+        // have the same length (time_step) as all the others.
+        let last_bin_length = hist.current_left_edge() - hist.previous_right_edge();
+        // Duplicate the t=`time_step` point at t=0 to draw the first bin
+        // correctly starting at 0 (due to the `ConstRight` type plot).
+        plot.coordinates.push(
+            (
+                hist.initial_time(),
+                hist.data[0] / {
+                    // Need to check that the first bin is not the last bin.
+                    if hist.data.len() != 1 {
+                        hist.time_step
+                    } else if hist.data[0] != 0.0 {
+                        last_bin_length
+                    } else {
+                        // Nan from 0.0 / 0.0 causes the PDF compilation to fail
+                        // If there are 0 counts, this just means 0 Hz; hence
+                        // divide by infinity instead of 0.
+                        f64::INFINITY
+                    }
+                },
+            )
+                .into(),
+        );
+        // Push every point assuming the same `time_step` normalization.
+        // The last point will be "renormalized" again at the end; this is just
+        // easier than stop iteration before last point.
+        (1u32..)
+            .zip(hist.data.iter())
+            .map(|(i, &v)| {
+                (
+                    f64::from(i) * hist.time_step + hist.initial_time(),
+                    v / hist.time_step,
+                )
+                    .into()
+            })
+            .for_each(|point| plot.coordinates.push(point));
+
+        *plot.coordinates.last_mut().unwrap() = (
+            hist.initial_time() + hist.current_left_edge(),
+            hist.data.last().unwrap() / {
+                if hist.data.last().unwrap() == &0.0 {
+                    // Same as above. 0/0 is just be 0 Hz. Avoid Nan
+                    f64::INFINITY
+                } else {
+                    last_bin_length
+                }
+            },
+        )
+            .into();
+
+        plot.add_key(hist.style.type_2d());
+        plot.add_key(hist.style.color());
+        plot
+    }
+}
+
 #[derive(Clone, Debug)]
-pub struct Figure {
+pub(crate) struct Figure {
     output: Histogram,
     input: Histogram,
     pulser: Histogram,
@@ -73,16 +177,16 @@ pub struct Figure {
 }
 
 impl Figure {
-    pub fn new(initial_timestamp: u64, time_step: f64) -> Figure {
+    pub(crate) fn new(initial_timestamp: u64, time_step: f64) -> Figure {
         Figure {
-            output: Histogram::new(initial_timestamp, time_step),
-            input: Histogram::new(initial_timestamp, time_step),
-            pulser: Histogram::new(initial_timestamp, time_step),
-            drift_veto: Histogram::new(initial_timestamp, time_step),
-            scaledown: Histogram::new(initial_timestamp, time_step),
+            output: Histogram::new(initial_timestamp, time_step, HistoStyle::Output),
+            input: Histogram::new(initial_timestamp, time_step, HistoStyle::Input),
+            pulser: Histogram::new(initial_timestamp, time_step, HistoStyle::Pulser),
+            drift_veto: Histogram::new(initial_timestamp, time_step, HistoStyle::DriftVeto),
+            scaledown: Histogram::new(initial_timestamp, time_step, HistoStyle::Scaledown),
         }
     }
-    pub fn update(&mut self, delta_packet: &DeltaPacket) {
+    pub(crate) fn update(&mut self, delta_packet: &DeltaPacket) {
         let delta_timestamp = delta_packet.timestamp;
 
         self.output
@@ -96,6 +200,83 @@ impl Figure {
         self.scaledown
             .update(delta_timestamp, delta_packet.scaledown_counter);
     }
+}
+
+// Create the `JOBNAME.pdf` in the `dir` directory.
+pub(crate) fn create_plot<P: AsRef<Path>>(
+    dir: P,
+    figures: Vec<Figure>,
+    args: &Args,
+) -> Result<ExitStatus, std::io::Error> {
+    // By default I will only show the `input` and `output` counter.
+    // I think these are the most relevant, and keeps the plot "clean".
+    // Any other counter can be brought (or removed) with a flag.
+    let mut axis = Axis::new();
+    axis.set_title(format!("TRG Scalers. Time step of {} s", args.time_step));
+    axis.set_x_label("Time~[s]");
+    axis.set_y_label("Rate~[Hz]");
+    axis.add_key(AxisKey::Custom("ymin=0".to_string()));
+
+    for fig in figures {
+        // Add them in the order from higher to lower counts. It helps to make
+        // it easier to understand in case of equal counts (lower count e.g.
+        // output is more important, so this should overwrite the previous one).
+        if !args.remove_input_counter {
+            axis.plots.push(fig.input.into());
+        }
+        if args.include_drift_veto_counter {
+            axis.plots.push(fig.drift_veto.into());
+        }
+        if args.include_scaledown_counter {
+            axis.plots.push(fig.scaledown.into());
+        }
+        if args.include_pulser_counter {
+            axis.plots.push(fig.pulser.into());
+        }
+        if !args.remove_output_counter {
+            axis.plots.push(fig.output.into());
+        }
+    }
+
+    let mut legend = Vec::new();
+    if !args.remove_input_counter {
+        legend.push("Input counter".to_string());
+    }
+    if args.include_drift_veto_counter {
+        legend.push("Drift veto counter".to_string());
+    }
+    if args.include_scaledown_counter {
+        legend.push("Scaledown counter".to_string());
+    }
+    if args.include_pulser_counter {
+        legend.push("Pulser counter".to_string());
+    }
+    if !args.remove_output_counter {
+        legend.push("Output counter".to_string());
+    }
+
+    axis.add_key(AxisKey::Custom(format!(
+        "legend entries={{{}}}",
+        legend.join(",")
+    )));
+    axis.add_key(AxisKey::Custom("legend pos=outer north east".to_string()));
+    axis.add_key(AxisKey::Custom("legend style={font=\\tiny}".to_string()));
+
+    // Copy the tex code into a file instead of passing it directly into
+    // pdflatex. This avoids the "Argument list too long" error in case there
+    // are many points.
+    let (mut temp_file, temp_path) = NamedTempFile::new_in(&dir)?.into_parts();
+    temp_file.write_all(axis.standalone_string().as_bytes())?;
+
+    Command::new("pdflatex")
+        .current_dir(dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .arg("-interaction=batchmode")
+        .arg("-halt-on-error")
+        .arg("-jobname=".to_string() + JOBNAME)
+        .arg(temp_path.file_name().unwrap())
+        .status()
 }
 
 #[cfg(test)]
