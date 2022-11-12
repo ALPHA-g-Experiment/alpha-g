@@ -6,6 +6,8 @@ use alpha_g_detector::midas::{EventId, TriggerBankName};
 use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
 use clap::Parser;
+use indicatif::ProgressIterator;
+use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
 use midasio::read::file::FileView;
 use std::error::Error;
@@ -113,6 +115,9 @@ impl Hash for Args {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
+    let spinner = ProgressBar::new_spinner()
+        .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
+    spinner.enable_steady_tick(std::time::Duration::from_millis(100));
     // Creating and checking all FileViews at the start is significantly
     // (2-3 times) slower than creating, validating, and sorting on the fly.
     // Each file is loaded into RAM more than once.
@@ -123,9 +128,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // current implementation is not fast enough), then sort and validate the
     // raw memory-mapped buffers and just create the FileViews on the fly. If it
     // is clean enough, consider pushing upstream to `midasio` crate.
+    spinner.set_message("Memory mapping files...");
     let mmaps = try_mmaps(args.files.clone())?;
-    let file_views = try_file_views(mmaps.iter())?;
+    spinner.set_message("Sorting input files...");
+    let file_views = try_sort_file_views(mmaps.iter())?;
+    spinner.set_message("Checking correctness...");
     check_input_file_views(&file_views)?;
+    spinner.finish_and_clear();
 
     let mut previous_packet = None;
     let mut cumulative_timestamp: u64 = 0;
@@ -308,10 +317,12 @@ fn try_mmaps(file_names: impl IntoIterator<Item = PathBuf>) -> Result<Vec<Mmap>,
         .collect()
 }
 
-/// Try to get a vector of MIDAS file views from a collection of memory maps.
-/// Return an error if there is a problem creating a FileView from the memory
-/// map.
-fn try_file_views<'a>(mmaps: impl Iterator<Item = &'a Mmap>) -> Result<Vec<FileView<'a>>, String> {
+/// Try to get a vector of sorted  MIDAS file views from a collection of
+/// memory maps. Return an error if there is a problem creating a FileView from
+/// the memory map.
+fn try_sort_file_views<'a>(
+    mmaps: impl Iterator<Item = &'a Mmap>,
+) -> Result<Vec<FileView<'a>>, String> {
     let mut file_views = mmaps
         .enumerate() // Include index to give some information about which file
         // failed to create a FileView

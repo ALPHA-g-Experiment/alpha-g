@@ -62,14 +62,10 @@ fn main() {
         .expect("failed to execute rsync");
 
     if status.success() && args.decompress {
-        let spinner = ProgressBar::new_spinner();
+        let spinner = ProgressBar::new_spinner()
+            .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
+        spinner.enable_steady_tick(std::time::Duration::from_millis(100));
         spinner.println("Decompressing...");
-        spinner.set_style(
-            ProgressStyle::default_spinner()
-                .template("{spinner} {wide_msg}")
-                .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "),
-        );
-        spinner.enable_steady_tick(100);
 
         let local_filenames = filenames
             .iter()
