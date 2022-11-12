@@ -6,7 +6,6 @@ use alpha_g_detector::midas::{EventId, TriggerBankName};
 use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
 use clap::Parser;
-use indicatif::ProgressIterator;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
 use midasio::read::file::FileView;
@@ -136,6 +135,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     check_input_file_views(&file_views)?;
     spinner.finish_and_clear();
 
+    let bar = ProgressBar::new(file_views.len().try_into().unwrap()).with_style(
+        ProgressStyle::with_template("  Analysing [{bar:25}] {percent}%,  ETA: {eta}")
+            .unwrap()
+            .progress_chars("=> "),
+    );
+    bar.tick();
+
     let mut previous_packet = None;
     let mut cumulative_timestamp: u64 = 0;
     let mut figures = Vec::new();
@@ -154,10 +160,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         if seconds_between_files != 0 {
             count_errors += 1;
             if args.verbose {
-                eprintln!(
+                bar.println(format!(
                     "Warning: missing file(s) between `{previous_file_timestamp}` and `{}`. Timestamp is no longer exact.",
                     file.initial_timestamp()
-                );
+                ));
             }
             // The cumulative timestamp is no longer an absolute/exact time with
             // respect to t=0. There is some small offset introduced by this
@@ -182,7 +188,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Err(error) => {
                         count_errors += 1;
                         if args.verbose {
-                            eprintln!("Error: event `{}`; {error}", event.id());
+                            bar.println(format!("Error: event `{}`; {error}", event.id()));
                         }
                         continue;
                     }
@@ -209,7 +215,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         Err(error) => {
                             count_errors += 1;
                             if args.verbose {
-                                eprintln!("Error: event `{}`; {error}", event.id());
+                                bar.println(format!("Error: event `{}`; {error}", event.id()));
                             }
                             continue;
                         }
@@ -219,7 +225,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         previous_file_timestamp = file.final_timestamp();
+        bar.inc(1);
     }
+    bar.finish_and_clear();
+
+    let spinner = ProgressBar::new_spinner()
+        .with_message("Compiling PDF...")
+        .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
+    spinner.enable_steady_tick(std::time::Duration::from_millis(100));
+
     // The final name of the plot should be a unique name based on the input
     // arguments given to the CLI. This prevents overwriting different plots.
     let output_name = format!("trg_rates_{}.pdf", {
@@ -250,8 +264,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if count_errors != 0 {
-        eprintln!("Warning: found {count_errors} error(s)/warning(s)");
+        spinner.println("Warning: found {count_errors} error(s)/warning(s)");
     }
+
+    spinner.finish_and_clear();
     Ok(())
 }
 
