@@ -264,7 +264,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if count_errors != 0 {
-        spinner.println("Warning: found {count_errors} error(s)/warning(s)");
+        spinner.println(format!("Warning: found {count_errors} error(s)/warning(s)"));
     }
 
     spinner.finish_and_clear();
