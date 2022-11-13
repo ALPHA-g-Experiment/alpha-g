@@ -236,7 +236,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // The final name of the plot should be a unique name based on the input
     // arguments given to the CLI. This prevents overwriting different plots.
-    let output_name = format!("trg_rates_{}.pdf", {
+    let output_name = format!("trg_scalers_{}.pdf", {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         args.hash(&mut hasher);
         hasher.finish()
