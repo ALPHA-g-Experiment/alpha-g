@@ -62,14 +62,9 @@ fn main() {
         .expect("failed to execute rsync");
 
     if status.success() && args.decompress {
-        let spinner = ProgressBar::new_spinner();
-        spinner.println("Decompressing...");
-        spinner.set_style(
-            ProgressStyle::default_spinner()
-                .template("{spinner} {wide_msg}")
-                .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "),
-        );
-        spinner.enable_steady_tick(100);
+        let spinner = ProgressBar::new_spinner()
+            .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
+        spinner.enable_steady_tick(std::time::Duration::from_millis(100));
 
         let local_filenames = filenames
             .iter()
@@ -77,14 +72,14 @@ fn main() {
         for pattern in local_filenames {
             for entry in glob(pattern.to_str().unwrap()).unwrap() {
                 let path = entry.unwrap();
-                spinner.set_message(format!("{}", path.display()));
+                spinner.set_message(format!("Decompressing {}...", path.display()));
                 match args.extension.unwrap() {
                     Extension::Lz4 => decompress_lz4(&path, &path.with_extension("")).unwrap(),
                 }
                 fs::remove_file(path).unwrap();
             }
         }
-        spinner.finish_with_message("Done");
+        spinner.finish_and_clear();
     }
 }
 

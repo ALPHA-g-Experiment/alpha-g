@@ -11,10 +11,10 @@ of the ALPHA-g experiment at CERN.
 
 Read the individual README.md file of each package to obtain more information.
 
-- [Detector](detector/README.md): Library crate to handle the raw output of the
- ALPHA-g detectors.
 - [Analysis](analysis/README.md): Set of executables that perform common 
 post-processing/offline analysis.
+- [Detector](detector/README.md): Library crate to handle the raw output of the
+ ALPHA-g detectors.
 
 ## Want to contribute?
 

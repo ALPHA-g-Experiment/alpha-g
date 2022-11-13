@@ -23,6 +23,8 @@ files from remote hosts.
 Visualize the ADC waveforms from the BV and the rTPC.
 - [`alpha-g-padwing-viewer`](src/bin/alpha-g-padwing-viewer/README.md):
 Visualize the cathode pad waveforms from the rTPC.
+- [`alpha-g-trg-scalers`](src/bin/alpha-g-trg-scalers/README.md):
+Visualize the rate of the TRG scalers for a single run.
 
 ## Want to contribute?
 
