@@ -11,7 +11,7 @@ pub const JOBNAME: &str = "figure";
 /// Create an empty plot.
 pub fn empty_plot<P: AsRef<Path>>(dir: P) {
     let axis = Axis::new();
-    let argument = axis.standalone_string().replace('\n', "").replace('\t', "");
+    let argument = axis.standalone_string().replace(['\n', '\t'], "");
     Command::new("pdflatex")
         .current_dir(dir)
         .stdout(Stdio::null())
@@ -84,7 +84,7 @@ pub fn create_plot<P: AsRef<Path>>(dir: P, packet: &Packet) {
         axis.add_key(AxisKey::Custom("legend style={font=\\tiny}".to_string()));
     }
 
-    let argument = axis.standalone_string().replace('\n', "").replace('\t', "");
+    let argument = axis.standalone_string().replace(['\n', '\t'], "");
     Command::new("pdflatex")
         .current_dir(dir)
         .stdout(Stdio::null())

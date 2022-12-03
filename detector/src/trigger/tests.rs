@@ -105,7 +105,7 @@ fn trg_v3_packet_slice_length_mismatch() {
     }
 
     let bad_packet = &TRG_V3_PACKET[..79];
-    match TrgV3Packet::try_from(&bad_packet[..]) {
+    match TrgV3Packet::try_from(bad_packet) {
         Err(TryTrgPacketFromSliceError::SliceLengthMismatch { found, expected }) => {
             assert_eq!(found, 79);
             assert_eq!(expected, 80);

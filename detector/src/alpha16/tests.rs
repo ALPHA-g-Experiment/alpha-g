@@ -43,11 +43,10 @@ fn try_module_id_from_u8() {
 
 #[test]
 fn alpha_16_boards() {
-    for i in 0..ALPHA16BOARDS.len() {
-        let next = i + 1;
-        for j in next..ALPHA16BOARDS.len() {
-            assert_ne!(ALPHA16BOARDS[i].0, ALPHA16BOARDS[j].0);
-            assert_ne!(ALPHA16BOARDS[i].1, ALPHA16BOARDS[j].1);
+    for (i, board) in ALPHA16BOARDS.iter().enumerate() {
+        for other_board in ALPHA16BOARDS.iter().skip(i + 1) {
+            assert_ne!(board.0, other_board.0);
+            assert_ne!(board.1, other_board.1);
         }
     }
 }
@@ -260,7 +259,7 @@ fn adc_v3_packet_incomplete_slice() {
     }
 
     let bad_packet = &SHORT_ADC_V3_PACKET[..10];
-    match AdcV3Packet::try_from(&bad_packet[..]) {
+    match AdcV3Packet::try_from(bad_packet) {
         Err(TryAdcPacketFromSliceError::IncompleteSlice {
             found,
             min_expected,
@@ -272,7 +271,7 @@ fn adc_v3_packet_incomplete_slice() {
     }
 
     let bad_packet = &LONG_ADC_V3_PACKET[..30];
-    match AdcV3Packet::try_from(&bad_packet[..]) {
+    match AdcV3Packet::try_from(bad_packet) {
         Err(TryAdcPacketFromSliceError::IncompleteSlice {
             found,
             min_expected,
@@ -390,7 +389,7 @@ fn adc_v3_packet_unknown_module_id() {
 fn adc_v3_packet_unknown_channel_id() {
     let mut bad_packet = SHORT_ADC_V3_PACKET;
     for i in 0..=255 {
-        if (i <= 15) || (i >= 128 && i <= 159) {
+        if (i <= 15) || (128..=159).contains(&i) {
             continue;
         }
         bad_packet[5] = i;
@@ -402,7 +401,7 @@ fn adc_v3_packet_unknown_channel_id() {
 
     let mut bad_packet = LONG_ADC_V3_PACKET;
     for i in 0..=255 {
-        if (i <= 15) || (i >= 128 && i <= 159) {
+        if (i <= 15) || (128..=159).contains(&i) {
             continue;
         }
         bad_packet[5] = i;
@@ -518,7 +517,7 @@ fn adc_v3_packet_keep_bit_mismatch() {
     bad_packet[12] = 240;
     match AdcV3Packet::try_from(&bad_packet[..]) {
         Err(TryAdcPacketFromSliceError::KeepBitMismatch { found }) => {
-            assert_eq!(found, true);
+            assert!(found);
         }
         _ => unreachable!(),
     }
@@ -527,7 +526,7 @@ fn adc_v3_packet_keep_bit_mismatch() {
     bad_packet[162] = 224;
     match AdcV3Packet::try_from(&bad_packet[..]) {
         Err(TryAdcPacketFromSliceError::KeepBitMismatch { found }) => {
-            assert_eq!(found, false);
+            assert!(!found);
         }
         _ => unreachable!(),
     }
