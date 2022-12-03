@@ -48,7 +48,6 @@ fn packet_overflow() {
 fn packet_passes_overflow_filter() {
     let filter = Filter {
         overflow: Some(Overflow::Positive),
-        ..Filter::default()
     };
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
@@ -81,7 +80,6 @@ fn packet_passes_overflow_filter() {
 
     let filter = Filter {
         overflow: Some(Overflow::Negative),
-        ..Filter::default()
     };
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
@@ -114,7 +112,6 @@ fn packet_passes_overflow_filter() {
 
     let filter = Filter {
         overflow: Some(Overflow::Both),
-        ..Filter::default()
     };
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),
@@ -147,7 +144,6 @@ fn packet_passes_overflow_filter() {
 
     let filter = Filter {
         overflow: Some(Overflow::Neither),
-        ..Filter::default()
     };
     let packet = Packet {
         pwb_packet: PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).unwrap(),

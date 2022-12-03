@@ -1,5 +1,5 @@
 use alpha_g_detector::midas::{EventId, PadwingBankName};
-use alpha_g_detector::padwing::{Chunk, PwbPacket};
+use alpha_g_detector::padwing::{AfterId, BoardId, Chunk, PwbPacket};
 use midasio::read::file::FileView;
 use std::collections::HashMap;
 use std::error::Error;
@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)));
     for event_view in main_events {
         // Need to group chunks by board and chip.
-        let mut pwb_chunks_map = HashMap::new();
+        let mut pwb_chunks_map: HashMap<(BoardId, AfterId), Vec<Chunk>> = HashMap::new();
 
         let padwing_banks = event_view
             .into_iter()
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         for bank_view in padwing_banks {
             let chunk = Chunk::try_from(bank_view.data_slice())?;
             let key = (chunk.board_id(), chunk.after_id());
-            pwb_chunks_map.entry(key).or_insert(Vec::new()).push(chunk);
+            pwb_chunks_map.entry(key).or_default().push(chunk);
         }
 
         for chunks in pwb_chunks_map.into_values() {

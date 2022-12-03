@@ -8,12 +8,11 @@ fn padwing_rate() {
 
 #[test]
 fn padwing_boards() {
-    for i in 0..PADWINGBOARDS.len() {
-        let next = i + 1;
-        for j in next..PADWINGBOARDS.len() {
-            assert_ne!(PADWINGBOARDS[i].0, PADWINGBOARDS[j].0);
-            assert_ne!(PADWINGBOARDS[i].1, PADWINGBOARDS[j].1);
-            assert_ne!(PADWINGBOARDS[i].2, PADWINGBOARDS[j].2);
+    for (i, board) in PADWINGBOARDS.iter().enumerate() {
+        for other_board in PADWINGBOARDS.iter().skip(i + 1) {
+            assert_ne!(board.0, other_board.0);
+            assert_ne!(board.1, other_board.1);
+            assert_ne!(board.2, other_board.2);
         }
     }
 }
@@ -62,10 +61,10 @@ fn try_from_char_after() {
     assert!(matches!(AfterId::try_from('C').unwrap(), AfterId::C));
     assert!(matches!(AfterId::try_from('D').unwrap(), AfterId::D));
 
-    for i in 'a'..'z' {
+    for i in 'a'..='z' {
         assert!(AfterId::try_from(i).is_err());
     }
-    for i in 'E'..'Z' {
+    for i in 'E'..='Z' {
         assert!(AfterId::try_from(i).is_err());
     }
 }
@@ -127,7 +126,7 @@ fn chunk_incomplete_slice() {
     }
 
     let bad_chunk = &CHUNK[..10];
-    match Chunk::try_from(&bad_chunk[..]) {
+    match Chunk::try_from(bad_chunk) {
         Err(TryChunkFromSliceError::IncompleteSlice {
             found,
             min_expected,
@@ -622,7 +621,7 @@ fn pwb_v2_packet_incomplete_slice() {
     }
 
     let bad_packet = &ODD_PWB_V2_PACKET[..10];
-    match PwbV2Packet::try_from(&bad_packet[..]) {
+    match PwbV2Packet::try_from(bad_packet) {
         Err(TryPwbPacketFromSliceError::IncompleteSlice {
             found,
             min_expected,
@@ -655,7 +654,7 @@ fn pwb_v2_packet_unknown_version() {
 fn pwb_v2_packet_unknown_after_id() {
     let mut bad_packet = ODD_PWB_V2_PACKET;
     for i in 0..=u8::MAX {
-        if i >= 65 && i <= 68 {
+        if (65..=68).contains(&i) {
             continue;
         }
         bad_packet[1] = i;
@@ -1119,7 +1118,7 @@ fn pwb_v2_packet_from_chunks_ok() {
     let chunks = vec![chunk_two.clone(), chunk_zero.clone(), chunk_one.clone()];
     assert!(PwbV2Packet::try_from(chunks).is_ok());
 
-    let chunks = vec![chunk_two.clone(), chunk_one.clone(), chunk_zero.clone()];
+    let chunks = vec![chunk_two, chunk_one, chunk_zero];
     assert!(PwbV2Packet::try_from(chunks).is_ok());
 
     let chunk = Chunk::try_from(&CHUNK_ALONE[..]).unwrap();
@@ -1276,7 +1275,7 @@ fn pwb_v2_packet_from_chunks_missing_chunk() {
         _ => unreachable!(),
     }
 
-    let chunks = vec![chunk_two.clone(), chunk_one.clone()];
+    let chunks = vec![chunk_two.clone(), chunk_one];
     match PwbV2Packet::try_from(chunks) {
         Err(TryPwbPacketFromChunksError::MissingChunk { position }) => {
             assert_eq!(position, 0);
@@ -1292,7 +1291,7 @@ fn pwb_v2_packet_from_chunks_missing_chunk() {
         _ => unreachable!(),
     }
 
-    let chunks = vec![chunk_two.clone(), chunk_zero.clone()];
+    let chunks = vec![chunk_two, chunk_zero];
     match PwbV2Packet::try_from(chunks) {
         Err(TryPwbPacketFromChunksError::MissingChunk { position }) => {
             assert_eq!(position, 1);
@@ -1306,13 +1305,13 @@ fn pwb_v2_packet_from_chunks_missing_end_of_message_chunk() {
     let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
     let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
 
-    let chunks = vec![chunk_zero.clone(), chunk_one.clone()];
+    let chunks = vec![chunk_zero.clone(), chunk_one];
     assert!(matches!(
         PwbV2Packet::try_from(chunks),
         Err(TryPwbPacketFromChunksError::MissingEndOfMessageChunk)
     ));
 
-    let chunks = vec![chunk_zero.clone()];
+    let chunks = vec![chunk_zero];
     assert!(matches!(
         PwbV2Packet::try_from(chunks),
         Err(TryPwbPacketFromChunksError::MissingEndOfMessageChunk)
@@ -1329,7 +1328,7 @@ fn pwb_v2_packet_from_chunks_misplaced_end_of_message_chunk() {
     let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
     let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
 
-    let chunks = vec![chunk_zero.clone(), chunk_one.clone(), chunk_two.clone()];
+    let chunks = vec![chunk_zero, chunk_one, chunk_two];
     match PwbV2Packet::try_from(chunks) {
         Err(TryPwbPacketFromChunksError::MisplacedEndOfMessageChunk { position }) => {
             assert_eq!(position, 0);
@@ -1345,7 +1344,7 @@ fn pwb_v2_packet_from_chunks_misplaced_end_of_message_chunk() {
     let chunk_zero = Chunk::try_from(&CHUNK_ZERO[..]).unwrap();
     let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
 
-    let chunks = vec![chunk_zero.clone(), chunk_one.clone(), chunk_two.clone()];
+    let chunks = vec![chunk_zero, chunk_one, chunk_two];
     match PwbV2Packet::try_from(chunks) {
         Err(TryPwbPacketFromChunksError::MisplacedEndOfMessageChunk { position }) => {
             assert_eq!(position, 1);
@@ -1404,7 +1403,7 @@ fn pwb_packet_good() {
     let chunk_one = Chunk::try_from(&CHUNK_ONE[..]).unwrap();
     let chunk_two = Chunk::try_from(&CHUNK_TWO[..]).unwrap();
 
-    let chunks = vec![chunk_zero.clone(), chunk_one.clone(), chunk_two.clone()];
+    let chunks = vec![chunk_zero, chunk_one, chunk_two];
     assert!(PwbPacket::try_from(chunks).is_ok());
 
     assert!(PwbPacket::try_from(&ODD_PWB_V2_PACKET[..]).is_ok());

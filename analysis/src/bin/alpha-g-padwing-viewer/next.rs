@@ -1,6 +1,7 @@
 use alpha_g_detector::midas::{EventId, PadwingBankName};
 use alpha_g_detector::padwing::{
-    ChannelId, Chunk, PwbPacket, TryChunkFromSliceError, TryPwbPacketFromChunksError,
+    AfterId, BoardId, ChannelId, Chunk, PwbPacket, TryChunkFromSliceError,
+    TryPwbPacketFromChunksError,
 };
 use memmap2::Mmap;
 use midasio::read::file::{FileView, TryFileViewFromSliceError};
@@ -99,7 +100,7 @@ pub fn worker<P>(
             .into_iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)));
         for event_view in main_events {
-            let mut pwb_chunks_map = HashMap::new();
+            let mut pwb_chunks_map: HashMap<(BoardId, AfterId), Vec<Chunk>> = HashMap::new();
 
             let padwing_banks = event_view
                 .into_iter()
@@ -116,7 +117,7 @@ pub fn worker<P>(
                 };
 
                 let key = (chunk.board_id(), chunk.after_id());
-                pwb_chunks_map.entry(key).or_insert(Vec::new()).push(chunk);
+                pwb_chunks_map.entry(key).or_default().push(chunk);
             }
 
             for chunks in pwb_chunks_map.into_values() {
