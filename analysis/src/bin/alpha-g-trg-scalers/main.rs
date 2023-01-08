@@ -187,7 +187,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Err(error) => {
                         count_errors += 1;
                         if args.verbose {
-                            bar.println(format!("Error: event `{}`; {error}", event.id()));
+                            bar.println(format!(
+                                "Error: event `{}`; {error}",
+                                event.serial_number()
+                            ));
                         }
                         continue;
                     }
@@ -214,7 +217,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                         Err(error) => {
                             count_errors += 1;
                             if args.verbose {
-                                bar.println(format!("Error: event `{}`; {error}", event.id()));
+                                bar.println(format!(
+                                    "Error: event `{}`; {error}",
+                                    event.serial_number()
+                                ));
                             }
                             continue;
                         }
