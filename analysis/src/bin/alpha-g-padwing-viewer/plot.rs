@@ -1,31 +1,19 @@
 use crate::Packet;
 use alpha_g_detector::padwing::ChannelId::{Fpn, Pad, Reset};
 use alpha_g_detector::padwing::{suppression_baseline, PADWING_RATE};
-use pgfplots::axis::{plot::*, *};
-use std::path::Path;
-use std::process::{Command, Stdio};
+use pgfplots::{
+    axis::{plot::*, *},
+    Picture,
+};
 
-/// Jobname for pdflatex.
-pub const JOBNAME: &str = "figure";
-
-/// Create an empty plot.
-pub fn empty_plot<P: AsRef<Path>>(dir: P) {
+/// Create an empty axis environment.
+pub fn empty_picture() -> Picture {
     let axis = Axis::new();
-    let argument = axis.standalone_string().replace(['\n', '\t'], "");
-    Command::new("pdflatex")
-        .current_dir(dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .arg("-interaction=batchmode")
-        .arg("-halt-on-error")
-        .arg("-jobname=".to_string() + JOBNAME)
-        .arg(argument)
-        .status()
-        .expect("failed to run pdflatex");
+    Picture::from(axis)
 }
 
-/// Create a plot based on an input Packet.
-pub fn create_plot<P: AsRef<Path>>(dir: P, packet: &Packet) {
+/// Create a [`Picture`] based on an input Packet.
+pub fn create_picture(packet: &Packet) -> Picture {
     let mut legend = Vec::new();
     let mut axis = Axis::new();
     axis.set_title(format!(
@@ -81,15 +69,6 @@ pub fn create_plot<P: AsRef<Path>>(dir: P, packet: &Packet) {
     )));
     axis.add_key(AxisKey::Custom("legend pos=south east".to_string()));
     axis.add_key(AxisKey::Custom("legend style={font=\\tiny}".to_string()));
-    let argument = axis.standalone_string().replace(['\n', '\t'], "");
-    Command::new("pdflatex")
-        .current_dir(dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .arg("-interaction=batchmode")
-        .arg("-halt-on-error")
-        .arg("-jobname=".to_string() + JOBNAME)
-        .arg(argument)
-        .status()
-        .expect("failed to run pdflatex");
+
+    Picture::from(axis)
 }

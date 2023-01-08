@@ -3,11 +3,12 @@
 
 use crate::filter::{Filter, Overflow};
 use crate::next::{worker, Packet, TryNextPacketError};
-use crate::plot::{create_plot, empty_plot, JOBNAME};
+use crate::plot::{create_picture, empty_picture};
 use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, LinearLayout, ListView, RadioGroup, TextView};
 use cursive::{Cursive, With};
+use pgfplots::Engine;
 use std::error::Error;
 use std::fmt::Write;
 use std::path::PathBuf;
@@ -44,26 +45,28 @@ struct Args {
 /// the layout.
 struct UserData {
     receiver: mpsc::Receiver<Result<Packet, TryNextPacketError>>,
+    jobname: String,
     dir: TempDir,
     filter: Filter,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     // Unbuffered channel that blocks until receive.
     let (sender, receiver) = mpsc::sync_channel(0);
     std::thread::spawn(move || worker(sender, &args.files));
 
-    let dir = tempdir().expect("unable to create temporary directory");
-    empty_plot(&dir);
-    opener::open(dir.path().join(JOBNAME.to_string() + ".pdf"))
-        .expect("unable to open temporary plot");
+    let dir = tempdir()?;
+    let jobname = String::from("padwing_viewer");
+    let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
+    opener::open(pdf_path)?;
 
     let mut siv = cursive::default();
     siv.set_window_title("Padwing Waveform Viewer");
     siv.set_autohide_menu(false);
     siv.set_user_data(UserData {
         receiver,
+        jobname,
         dir,
         filter: Filter::default(),
     });
@@ -83,6 +86,8 @@ fn main() {
     );
 
     siv.run();
+
+    Ok(())
 }
 
 /// Create the radio buttons for a group.
@@ -170,11 +175,18 @@ fn iterate(s: &mut Cursive) {
         }
     };
     update_packet_metadata(s, &result);
+    let jobname = s
+        .with_user_data(|user_data: &mut UserData| user_data.jobname.clone())
+        .unwrap();
     let dir = &s.user_data::<UserData>().unwrap().dir;
     match result {
-        Ok(packet) => create_plot(dir, &packet),
-        Err(_) => empty_plot(dir),
-    }
+        Ok(packet) => create_picture(&packet)
+            .to_pdf(dir, &jobname, Engine::PdfLatex)
+            .expect("failed to compile pdf"),
+        Err(_) => empty_picture()
+            .to_pdf(dir, &jobname, Engine::PdfLatex)
+            .expect("failed to compile empty picture"),
+    };
 }
 
 /// Update the Metadata text box with information about the last received packet.
