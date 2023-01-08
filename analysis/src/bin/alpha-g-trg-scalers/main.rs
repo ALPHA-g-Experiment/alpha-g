@@ -1,7 +1,7 @@
 //! Visualize the rate of TRG signals for a single run.
 
 use crate::delta_packet::DeltaPacket;
-use crate::plot::{create_plot, Figure, JOBNAME};
+use crate::plot::{create_picture, Figure};
 use alpha_g_detector::midas::{EventId, TriggerBankName};
 use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
@@ -13,7 +13,6 @@ use std::error::Error;
 use std::fs::{copy, File};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
-use tempfile::tempdir;
 
 /// Difference between TRG packets.
 mod delta_packet;
@@ -188,7 +187,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Err(error) => {
                         count_errors += 1;
                         if args.verbose {
-                            bar.println(format!("Error: event `{}`; {error}", event.id()));
+                            bar.println(format!(
+                                "Error: event `{}`; {error}",
+                                event.serial_number()
+                            ));
                         }
                         continue;
                     }
@@ -215,7 +217,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                         Err(error) => {
                             count_errors += 1;
                             if args.verbose {
-                                bar.println(format!("Error: event `{}`; {error}", event.id()));
+                                bar.println(format!(
+                                    "Error: event `{}`; {error}",
+                                    event.serial_number()
+                                ));
                             }
                             continue;
                         }
@@ -236,31 +241,22 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // The final name of the plot should be a unique name based on the input
     // arguments given to the CLI. This prevents overwriting different plots.
-    let output_name = format!("trg_scalers_{}.pdf", {
+    let output_name = format!("trg_scalers_{}", {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         args.hash(&mut hasher);
         hasher.finish()
     });
-    // Compile the plot in a temporary directory. This automatically cleans all
-    // the auxiliary files, and handles the security vulnerability of executing
-    // a file with a fixed name.
-    let rand_temp_dir = tempdir()?;
-    if !create_plot(&rand_temp_dir, figures, &args)?.success() {
-        return Err(
-            "PDF compilation failed (most likely too many points). Try a larger `time_step`".into(),
-        );
-    }
+    let tmp_pdf = create_picture(figures, &args).to_pdf(
+        std::env::temp_dir(),
+        &output_name,
+        pgfplots::Engine::PdfLatex,
+    )?;
 
-    let rand_temp_plot = rand_temp_dir.path().join(JOBNAME.to_string() + ".pdf");
     if args.batch_mode {
-        copy(rand_temp_plot, args.output_path.join(output_name))?;
+        // Leave the `.aux` and `.log` files in the temporary directory.
+        copy(tmp_pdf, args.output_path.join(output_name + ".pdf"))?;
     } else {
-        // My `rand_temp_dir` above will delete everything in it once it gets
-        // dropped. Need to move the final plot to /tmp (to keep it alive
-        // and open it).
-        let output_file = std::env::temp_dir().join(output_name);
-        copy(rand_temp_plot, &output_file)?;
-        opener::open(output_file)?;
+        opener::open(tmp_pdf)?;
     }
 
     if count_errors != 0 {

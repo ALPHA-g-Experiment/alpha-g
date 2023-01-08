@@ -2,14 +2,10 @@ use crate::delta_packet::DeltaPacket;
 use crate::Args;
 use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
 use pgfplots::axis::plot::{Plot2D, PlotKey, Type2D::ConstRight};
-use pgfplots::axis::{Axis, AxisKey};
-use std::io::Write;
-use std::path::Path;
-use std::process::{Command, ExitStatus, Stdio};
-use tempfile::NamedTempFile;
-
-/// Jobname for pdflatex.
-pub const JOBNAME: &str = "figure";
+use pgfplots::{
+    axis::{Axis, AxisKey},
+    Picture,
+};
 
 /// Control the style of each histogram in a plot.
 #[derive(Clone, Copy, Debug)]
@@ -202,12 +198,8 @@ impl Figure {
     }
 }
 
-// Create the `JOBNAME.pdf` in the `dir` directory.
-pub(crate) fn create_plot<P: AsRef<Path>>(
-    dir: P,
-    figures: Vec<Figure>,
-    args: &Args,
-) -> Result<ExitStatus, std::io::Error> {
+// Create the final `Picture` that will be used to generate the PDF.
+pub(crate) fn create_picture(figures: Vec<Figure>, args: &Args) -> Picture {
     // By default I will only show the `input` and `output` counter.
     // I think these are the most relevant, and keeps the plot "clean".
     // Any other counter can be brought (or removed) with a flag.
@@ -262,21 +254,7 @@ pub(crate) fn create_plot<P: AsRef<Path>>(
     axis.add_key(AxisKey::Custom("legend pos=outer north east".to_string()));
     axis.add_key(AxisKey::Custom("legend style={font=\\tiny}".to_string()));
 
-    // Copy the tex code into a file instead of passing it directly into
-    // pdflatex. This avoids the "Argument list too long" error in case there
-    // are many points.
-    let (mut temp_file, temp_path) = NamedTempFile::new_in(&dir)?.into_parts();
-    temp_file.write_all(axis.standalone_string().as_bytes())?;
-
-    Command::new("pdflatex")
-        .current_dir(dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .arg("-interaction=batchmode")
-        .arg("-halt-on-error")
-        .arg("-jobname=".to_string() + JOBNAME)
-        .arg(temp_path.file_name().unwrap())
-        .status()
+    Picture::from(axis)
 }
 
 #[cfg(test)]
