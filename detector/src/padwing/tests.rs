@@ -445,46 +445,96 @@ fn try_from_unsigned_trigger() {
 }
 
 #[test]
+fn try_from_unsigned_reset_channel_id() {
+    assert!(ResetChannelId::try_from(0).is_err());
+    for i in 1..=3 {
+        assert!(ResetChannelId::try_from(i).is_ok());
+    }
+    for i in 4..=u16::MAX {
+        assert!(ResetChannelId::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn try_from_unsigned_fpn_channel_id() {
+    assert!(FpnChannelId::try_from(0).is_err());
+    for i in 1..=4 {
+        assert!(FpnChannelId::try_from(i).is_ok());
+    }
+    for i in 5..=u16::MAX {
+        assert!(FpnChannelId::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn try_from_unsigned_pad_channel_id() {
+    assert!(PadChannelId::try_from(0).is_err());
+    for i in 1..=72 {
+        assert!(PadChannelId::try_from(i).is_ok());
+    }
+    for i in 73..=u16::MAX {
+        assert!(PadChannelId::try_from(i).is_err());
+    }
+}
+
+#[test]
 fn try_from_unsigned_channel_id() {
     assert!(ChannelId::try_from(0).is_err());
     for i in 1..=3 {
-        assert!(matches!(
+        assert_eq!(
             ChannelId::try_from(i).unwrap(),
-            ChannelId::Reset(_)
-        ));
+            ChannelId::Reset(ResetChannelId::try_from(i).unwrap())
+        );
     }
     for i in 4..=15 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 3).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(16).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(1).unwrap())
+    );
     for i in 17..=28 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 4).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(29).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(2).unwrap())
+    );
     for i in 30..=53 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 5).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(54).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(3).unwrap())
+    );
     for i in 55..=66 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 6).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(67).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(4).unwrap())
+    );
     for i in 68..=79 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 7).unwrap())
+        );
     }
-    assert!(ChannelId::try_from(80).is_err());
+    for i in 80..=u16::MAX {
+        assert!(ChannelId::try_from(i).is_err());
+    }
 }
 
 const ODD_PWB_V2_PACKET: [u8; 104] = [

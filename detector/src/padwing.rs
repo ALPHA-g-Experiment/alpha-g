@@ -726,25 +726,61 @@ pub struct TryChannelIdFromUnsignedError {
 /// even suppressed from the PWB output. They are added here for completeness,
 /// in case they are ever used in the future.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// The internal u16 corresponds to the readout index. Guaranteed by the
-// ChannelId::try_from(u16)
+// The internal u16 does NOT correspond to the readout index.
+// It corresponds to the channel index 1, 2, or 3.
 pub struct ResetChannelId(u16);
+impl TryFrom<u16> for ResetChannelId {
+    type Error = TryChannelIdFromUnsignedError;
+
+    /// Convert from the integer representation of the channel index i.e. `1`,
+    /// `2`, or `3` (NOT the readout index) to a [`ResetChannelId`].
+    fn try_from(num: u16) -> Result<Self, Self::Error> {
+        match num {
+            1 | 2 | 3 => Ok(Self(num)),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
 
 /// Channel ID that corresponds to Fixed Pattern Noise channels.
 ///
 /// Every AFTER chip has 4 FPN channels, with readout indices 16, 29, 54, and
 /// 67.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// The internal u16 corresponds to the readout index. Guaranteed by the
-// ChannelId::try_from(u16)
+// The internal u16 does NOT correspond to the readout index.
+// It corresponds to the channel index 1, 2, 3, or 4.
 pub struct FpnChannelId(u16);
+impl TryFrom<u16> for FpnChannelId {
+    type Error = TryChannelIdFromUnsignedError;
+
+    /// Convert from the integer representation of the channel index i.e. `1`,
+    /// `2`, `3`, or `4` (NOT the readout index) to a [`FpnChannelId`].
+    fn try_from(num: u16) -> Result<Self, Self::Error> {
+        match num {
+            1 | 2 | 3 | 4 => Ok(Self(num)),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
 
 /// Channel ID that corresponds to cathode pads in the radial Time Projection
 /// Chamber.
-// The internal u16 corresponds to the readout index. Guaranteed by the
-// ChannelId::try_from(u16)
+// The internal u16 does NOT correspond to the readout index.
+// It corresponds to the channel index 1, 2, 3, ..., 72.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PadChannelId(u16);
+impl TryFrom<u16> for PadChannelId {
+    type Error = TryChannelIdFromUnsignedError;
+
+    /// Convert from the integer representation of the channel index i.e. `1`,
+    /// `2`, `3`, ..., `72` (NOT the readout index) to a [`PadChannelId`].
+    fn try_from(num: u16) -> Result<Self, Self::Error> {
+        match num {
+            1..=72 => Ok(Self(num)),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
 
 /// Channel ID in a PadWing board.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -755,22 +791,33 @@ pub enum ChannelId {
     /// Cathode pad channel.
     Pad(PadChannelId),
 }
+// This TryFrom implementation is possible because all revisions of the boards
+// have the same conversion from readout_index -> channel_index
+// If this changes with some future revision you will need to do the following:
+// Remove this TryFrom implementation for ChannelId.
+// The TryFrom implementation for the Reset, FPN, and Pad channels should still
+// hold.
+// You will need to handle each readout_index -> channel_index conversion in
+// the PwbPacket::try_from() implementations directly depending on the
+// revision.
 impl TryFrom<u16> for ChannelId {
     type Error = TryChannelIdFromUnsignedError;
 
     /// Perform the conversion from readout index of PWB channel (`1..=79`).
     fn try_from(readout_index: u16) -> Result<Self, Self::Error> {
-        // Cannot fail in [1-79]. Because PwbPacket::try_from unwraps in this
-        // range
-        if readout_index == 0 || readout_index > 79 {
-            return Err(TryChannelIdFromUnsignedError {
-                input: readout_index,
-            });
-        }
         match readout_index {
-            1 | 2 | 3 => Ok(ChannelId::Reset(ResetChannelId(readout_index))),
-            16 | 29 | 54 | 67 => Ok(ChannelId::Fpn(FpnChannelId(readout_index))),
-            _ => Ok(ChannelId::Pad(PadChannelId(readout_index))),
+            1 | 2 | 3 => Ok(ChannelId::Reset(ResetChannelId::try_from(readout_index)?)),
+            16 => Ok(ChannelId::Fpn(FpnChannelId::try_from(1)?)),
+            29 => Ok(ChannelId::Fpn(FpnChannelId::try_from(2)?)),
+            54 => Ok(ChannelId::Fpn(FpnChannelId::try_from(3)?)),
+            67 => Ok(ChannelId::Fpn(FpnChannelId::try_from(4)?)),
+            1..=79 => Ok(ChannelId::Pad(PadChannelId::try_from({
+                let i = readout_index;
+                i - (i > 16) as u16 - (i > 29) as u16 - (i > 54) as u16 - (i > 67) as u16 - 3
+            })?)),
+            _ => Err(TryChannelIdFromUnsignedError {
+                input: readout_index,
+            }),
         }
     }
 }
