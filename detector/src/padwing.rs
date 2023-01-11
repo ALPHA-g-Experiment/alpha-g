@@ -1,6 +1,12 @@
 use std::fmt;
 use thiserror::Error;
 
+/// Pad and PWB map.
+///
+/// There are a total of 64 Padwing boards (8 columns and 8 rows). Each PWB
+/// has 4 columns and 72 rows of pads, for a total of 32 columns and 576 rows.
+pub mod map;
+
 /// Sampling rate (samples per second) of the channels that receive the radial
 /// Time Projection Chamber cathode pad signals.
 pub const PADWING_RATE: f64 = 62.5e6;
@@ -35,7 +41,7 @@ pub struct TryBoardIdFromUnsignedError {
 // Note: The device ID is just the first 4 bytes of the MAC address as
 // little endian u32. Maybe remove the last u32 in the future, and just get it
 // from the MAC address.
-const PADWINGBOARDS: [(&str, [u8; 6], u32); 64] = [
+const PADWING_BOARDS: [(&str, [u8; 6], u32); 64] = [
     ("00", [236, 40, 255, 135, 84, 2], 2281646316),
     ("01", [236, 40, 250, 162, 84, 2], 2734303468),
     ("02", [236, 40, 136, 108, 84, 2], 1820862700),
@@ -120,7 +126,7 @@ impl TryFrom<&str> for BoardId {
     type Error = ParseBoardIdError;
 
     fn try_from(name: &str) -> Result<Self, Self::Error> {
-        for triplet in PADWINGBOARDS {
+        for triplet in PADWING_BOARDS {
             if name == triplet.0 {
                 return Ok(BoardId {
                     name: triplet.0,
@@ -138,7 +144,7 @@ impl TryFrom<[u8; 6]> for BoardId {
     type Error = TryBoardIdFromMacAddressError;
 
     fn try_from(mac: [u8; 6]) -> Result<Self, Self::Error> {
-        for triplet in PADWINGBOARDS {
+        for triplet in PADWING_BOARDS {
             if mac == triplet.1 {
                 return Ok(BoardId {
                     name: triplet.0,
@@ -154,7 +160,7 @@ impl TryFrom<u32> for BoardId {
     type Error = TryBoardIdFromUnsignedError;
 
     fn try_from(device_id: u32) -> Result<Self, Self::Error> {
-        for triplet in PADWINGBOARDS {
+        for triplet in PADWING_BOARDS {
             if device_id == triplet.2 {
                 return Ok(BoardId {
                     name: triplet.0,

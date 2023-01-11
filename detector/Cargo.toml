@@ -12,6 +12,7 @@ documentation = "https://docs.rs/alpha_g_detector"
 
 [dependencies]
 crc32c = "0.6"
+lazy_static = "1.4"
 thiserror = "1.0"
 
 [dev-dependencies]
