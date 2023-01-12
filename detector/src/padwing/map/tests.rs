@@ -101,7 +101,7 @@ fn tpc_pwb_position_missing_map() {
     for i in 0..4418 {
         for (name, _mac, _id) in PADWING_BOARDS {
             let board_id = BoardId::try_from(name).unwrap();
-            match tpc_pwb_position(i, board_id) {
+            match TpcPwbPosition::try_new(i, board_id) {
                 Err(MapTpcPwbPositionError::MissingMap { run_number }) => assert_eq!(run_number, i),
                 _ => unreachable!(),
             }
@@ -119,7 +119,8 @@ fn inverse_map_tpc_pwb_position_4418() {
                     row: TpcPwbRow(j),
                 };
                 assert_eq!(
-                    tpc_pwb_position(run_number, BoardId::try_from(*board).unwrap()).unwrap(),
+                    TpcPwbPosition::try_new(run_number, BoardId::try_from(*board).unwrap())
+                        .unwrap(),
                     position
                 );
             }
@@ -173,7 +174,7 @@ fn pwb_pad_position_row() {
 fn pwb_pad_position_all_exist() {
     for after in 'A'..='D' {
         for channel in 1..=72 {
-            assert!(pwb_pad_position(
+            assert!(PwbPadPosition::try_new(
                 0,
                 AfterId::try_from(after).unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -187,7 +188,7 @@ fn pwb_pad_position_all_exist() {
 fn pwb_pad_position_correctness() {
     for (row, channel) in (19..=36).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('A').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -201,7 +202,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (37..=54).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('A').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -215,7 +216,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (19..=36).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('B').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -229,7 +230,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (37..=54).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('B').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -243,7 +244,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (1..=18).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('A').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -257,7 +258,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (55..=72).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('A').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -271,7 +272,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (1..=18).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('B').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -285,7 +286,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (55..=72).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('B').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -299,7 +300,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (55..=72).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('D').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -313,7 +314,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (1..=18).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('D').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -327,7 +328,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (55..=72).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('C').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -341,7 +342,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (1..=18).rev().enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('C').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -355,7 +356,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (37..=54).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('D').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -369,7 +370,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (19..=36).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('D').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -383,7 +384,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (37..=54).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('C').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -397,7 +398,7 @@ fn pwb_pad_position_correctness() {
     }
     for (row, channel) in (19..=36).enumerate() {
         assert_eq!(
-            pwb_pad_position(
+            PwbPadPosition::try_new(
                 0,
                 AfterId::try_from('C').unwrap(),
                 PadChannelId::try_from(channel).unwrap()
@@ -408,5 +409,76 @@ fn pwb_pad_position_correctness() {
                 row: PwbPadRow(row + 54),
             }
         );
+    }
+}
+
+#[test]
+fn try_from_index_tpc_pad_column() {
+    for i in 0..=31 {
+        assert_eq!(TpcPadColumn::try_from(i).unwrap(), TpcPadColumn(i));
+    }
+    for i in 32..=19000 {
+        assert!(TpcPadColumn::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn try_from_index_tpc_pad_row() {
+    for i in 0..=575 {
+        assert_eq!(TpcPadRow::try_from(i).unwrap(), TpcPadRow(i));
+    }
+    for i in 576..=19000 {
+        assert!(TpcPadRow::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn tpc_pad_position_new() {
+    for column in 0..=31 {
+        let board_column = TpcPwbColumn::try_from(column / 4).unwrap();
+        let pad_column = PwbPadColumn::try_from(column % 4).unwrap();
+        for row in 0..=575 {
+            let board_row = TpcPwbRow::try_from(row / 72).unwrap();
+            let pad_row = PwbPadRow::try_from(row % 72).unwrap();
+
+            let board = TpcPwbPosition {
+                column: board_column,
+                row: board_row,
+            };
+            let pad = PwbPadPosition {
+                column: pad_column,
+                row: pad_row,
+            };
+
+            assert_eq!(
+                TpcPadPosition::new(board, pad),
+                TpcPadPosition {
+                    column: TpcPadColumn(column),
+                    row: TpcPadRow(row),
+                }
+            );
+        }
+    }
+}
+
+#[test]
+fn tpc_pad_position_column() {
+    for i in 0..=31 {
+        let position = TpcPadPosition {
+            column: TpcPadColumn(i),
+            row: TpcPadRow(0),
+        };
+        assert_eq!(position.column(), TpcPadColumn(i));
+    }
+}
+
+#[test]
+fn tpc_pad_position_row() {
+    for i in 0..=575 {
+        let position = TpcPadPosition {
+            column: TpcPadColumn(0),
+            row: TpcPadRow(i),
+        };
+        assert_eq!(position.row(), TpcPadRow(i));
     }
 }
