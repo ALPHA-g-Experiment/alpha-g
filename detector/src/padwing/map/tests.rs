@@ -126,3 +126,287 @@ fn inverse_map_tpc_pwb_position_4418() {
         }
     }
 }
+
+#[test]
+fn try_from_index_pwb_pad_column() {
+    for i in 0..=3 {
+        assert_eq!(PwbPadColumn::try_from(i).unwrap(), PwbPadColumn(i));
+    }
+    for i in 4..=19000 {
+        assert!(PwbPadColumn::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn try_from_index_pwb_pad_row() {
+    for i in 0..=71 {
+        assert_eq!(PwbPadRow::try_from(i).unwrap(), PwbPadRow(i));
+    }
+    for i in 72..=19000 {
+        assert!(PwbPadRow::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn pwb_pad_position_column() {
+    for i in 0..=3 {
+        let position = PwbPadPosition {
+            column: PwbPadColumn(i),
+            row: PwbPadRow(0),
+        };
+        assert_eq!(position.column(), PwbPadColumn(i));
+    }
+}
+
+#[test]
+fn pwb_pad_position_row() {
+    for i in 0..=71 {
+        let position = PwbPadPosition {
+            column: PwbPadColumn(0),
+            row: PwbPadRow(i),
+        };
+        assert_eq!(position.row(), PwbPadRow(i));
+    }
+}
+
+#[test]
+fn pwb_pad_position_all_exist() {
+    for after in 'A'..='D' {
+        for channel in 1..=72 {
+            assert!(pwb_pad_position(
+                0,
+                AfterId::try_from(after).unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .is_ok());
+        }
+    }
+}
+
+#[test]
+fn pwb_pad_position_correctness() {
+    for (row, channel) in (19..=36).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('A').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(0),
+                row: PwbPadRow(row),
+            }
+        );
+    }
+    for (row, channel) in (37..=54).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('A').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(0),
+                row: PwbPadRow(row + 18),
+            }
+        );
+    }
+    for (row, channel) in (19..=36).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('B').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(0),
+                row: PwbPadRow(row + 36),
+            }
+        );
+    }
+    for (row, channel) in (37..=54).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('B').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(0),
+                row: PwbPadRow(row + 54),
+            }
+        );
+    }
+    for (row, channel) in (1..=18).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('A').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(1),
+                row: PwbPadRow(row),
+            }
+        );
+    }
+    for (row, channel) in (55..=72).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('A').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(1),
+                row: PwbPadRow(row + 18),
+            }
+        );
+    }
+    for (row, channel) in (1..=18).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('B').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(1),
+                row: PwbPadRow(row + 36),
+            }
+        );
+    }
+    for (row, channel) in (55..=72).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('B').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(1),
+                row: PwbPadRow(row + 54),
+            }
+        );
+    }
+    for (row, channel) in (55..=72).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('D').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(2),
+                row: PwbPadRow(row),
+            }
+        );
+    }
+    for (row, channel) in (1..=18).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('D').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(2),
+                row: PwbPadRow(row + 18),
+            }
+        );
+    }
+    for (row, channel) in (55..=72).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('C').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(2),
+                row: PwbPadRow(row + 36),
+            }
+        );
+    }
+    for (row, channel) in (1..=18).rev().enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('C').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(2),
+                row: PwbPadRow(row + 54),
+            }
+        );
+    }
+    for (row, channel) in (37..=54).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('D').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(3),
+                row: PwbPadRow(row),
+            }
+        );
+    }
+    for (row, channel) in (19..=36).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('D').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(3),
+                row: PwbPadRow(row + 18),
+            }
+        );
+    }
+    for (row, channel) in (37..=54).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('C').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(3),
+                row: PwbPadRow(row + 36),
+            }
+        );
+    }
+    for (row, channel) in (19..=36).enumerate() {
+        assert_eq!(
+            pwb_pad_position(
+                0,
+                AfterId::try_from('C').unwrap(),
+                PadChannelId::try_from(channel).unwrap()
+            )
+            .unwrap(),
+            PwbPadPosition {
+                column: PwbPadColumn(3),
+                row: PwbPadRow(row + 54),
+            }
+        );
+    }
+}

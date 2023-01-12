@@ -773,7 +773,7 @@ impl TryFrom<u16> for FpnChannelId {
 /// Chamber.
 // The internal u16 does NOT correspond to the readout index.
 // It corresponds to the channel index 1, 2, 3, ..., 72.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PadChannelId(u16);
 impl TryFrom<u16> for PadChannelId {
     type Error = TryChannelIdFromUnsignedError;

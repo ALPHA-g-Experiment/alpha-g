@@ -1,4 +1,4 @@
-use crate::padwing::BoardId;
+use crate::padwing::{AfterId, BoardId, PadChannelId};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -55,9 +55,6 @@ impl TpcPwbPosition {
     /// # Examples
     ///
     /// ```
-    /// # use alpha_g_detector::padwing::ParseBoardIdError;
-    /// # use alpha_g_detector::padwing::map::MapTpcPwbPositionError;
-    /// # use alpha_g_detector::padwing::map::TryPositionFromIndexError;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use alpha_g_detector::padwing::map::{tpc_pwb_position, TpcPwbColumn};
     /// use alpha_g_detector::padwing::BoardId;
@@ -77,9 +74,6 @@ impl TpcPwbPosition {
     /// # Examples
     ///
     /// ```
-    /// # use alpha_g_detector::padwing::ParseBoardIdError;
-    /// # use alpha_g_detector::padwing::map::MapTpcPwbPositionError;
-    /// # use alpha_g_detector::padwing::map::TryPositionFromIndexError;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use alpha_g_detector::padwing::map::{tpc_pwb_position, TpcPwbRow};
     /// use alpha_g_detector::padwing::BoardId;
@@ -105,6 +99,9 @@ impl TpcPwbPosition {
 //     - Uniqueness of all &str.
 //     - Validity of all &str.
 //     - Test inverse map.
+//
+// Also remember to add the inverse (actually needed) map to the lazy_static
+// below.
 const PADWING_BOARDS_4418: [[&str; 8]; 8] = [
     ["12", "13", "14", "02", "11", "17", "18", "19"],
     ["20", "21", "22", "23", "24", "25", "26", "27"],
@@ -134,6 +131,7 @@ fn inverse_pwb_map(map: [[&str; 8]; 8]) -> HashMap<BoardId, TpcPwbPosition> {
 }
 
 lazy_static! {
+    // Whenever a new map is added, just add it to this list.
     static ref INV_PADWING_BOARDS_4418: HashMap<BoardId, TpcPwbPosition> =
         inverse_pwb_map(PADWING_BOARDS_4418);
 }
@@ -143,7 +141,7 @@ lazy_static! {
 #[derive(Debug, Error)]
 pub enum MapTpcPwbPositionError {
     /// There is no mapping available for the given `run_number`.
-    #[error("no mapping available for run number {run_number}")]
+    #[error("no rTPC PWB mapping available for run number {run_number}")]
     MissingMap { run_number: u32 },
     /// The given [`BoardId`] is not in the map for the given `run_number`.
     #[error("pwb `{}` not found in map for run number {run_number}", board_id.name())]
@@ -152,15 +150,12 @@ pub enum MapTpcPwbPositionError {
 
 /// Map a [`BoardId`] to a [`TpcPwbPosition`] for a given `run_number`.
 /// Returns an error if there is no map available for the given `run_number` or
-/// if the given [`BoardId`] is not in installed in the rTPC for the given
+/// if the given [`BoardId`] is not in installed in the rTPC for that
 /// `run_number`.
 ///
 /// # Examples
 ///
 /// ```
-/// # use alpha_g_detector::padwing::ParseBoardIdError;
-/// # use alpha_g_detector::padwing::map::MapTpcPwbPositionError;
-/// # use alpha_g_detector::padwing::map::TryPositionFromIndexError;
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use alpha_g_detector::padwing::map::{tpc_pwb_position, TpcPwbColumn, TpcPwbRow};
 /// use alpha_g_detector::padwing::BoardId;
@@ -190,6 +185,185 @@ pub fn tpc_pwb_position(
             run_number,
             board_id,
         })
+}
+
+/// Column of a pad in a Padwing Board.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PwbPadColumn(usize);
+impl TryFrom<usize> for PwbPadColumn {
+    type Error = TryPositionFromIndexError;
+
+    /// Convert from a `usize` (`0..=3`) to a [`PwbPadColumn`].
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        if value < 4 {
+            Ok(Self(value))
+        } else {
+            Err(TryPositionFromIndexError { input: value })
+        }
+    }
+}
+
+/// Row of a pad in a Padwing Board.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PwbPadRow(usize);
+impl TryFrom<usize> for PwbPadRow {
+    type Error = TryPositionFromIndexError;
+
+    /// Convert from a `usize` (`0..=71`) to a [`PwbPadRow`].
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        if value < 72 {
+            Ok(Self(value))
+        } else {
+            Err(TryPositionFromIndexError { input: value })
+        }
+    }
+}
+
+/// Position of a pad in a Padwing Board.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PwbPadPosition {
+    column: PwbPadColumn,
+    row: PwbPadRow,
+}
+impl PwbPadPosition {
+    /// Return the column of the pad within the Padwing Board.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use alpha_g_detector::padwing::map::{pwb_pad_position, PwbPadColumn};
+    /// use alpha_g_detector::padwing::{AfterId, PadChannelId};
+    ///
+    /// let run_number = 5000;
+    /// let after_id = AfterId::try_from('A')?;
+    /// let pad_channel_id = PadChannelId::try_from(1)?;
+    ///
+    /// let position = pwb_pad_position(run_number, after_id, pad_channel_id)?;
+    ///
+    /// assert_eq!(position.column(), PwbPadColumn::try_from(1)?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn column(&self) -> PwbPadColumn {
+        self.column
+    }
+    /// Return the row of the pad within the Padwing Board.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use alpha_g_detector::padwing::map::{pwb_pad_position, PwbPadRow};
+    /// use alpha_g_detector::padwing::{AfterId, PadChannelId};
+    ///
+    /// let run_number = 5000;
+    /// let after_id = AfterId::try_from('A')?;
+    /// let pad_channel_id = PadChannelId::try_from(1)?;
+    ///
+    /// let position = pwb_pad_position(run_number, after_id, pad_channel_id)?;
+    ///
+    /// assert_eq!(position.row(), PwbPadRow::try_from(0)?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn row(&self) -> PwbPadRow {
+        self.row
+    }
+}
+
+lazy_static! {
+    // Map copied directly from agana/Feam.hh written by K.O.
+    static ref INV_PADS_0: HashMap<(AfterId, PadChannelId), PwbPadPosition> = {
+        let mut inverse = HashMap::new();
+        for after in 0..=3u8 {
+            let offset = (after % 2) * 36;
+            for channel in 1..=72u8 {
+                let mut col: u8;
+                let mut row: u8;
+                match channel {
+                    0..=18 => {
+                        col = 1;
+                        row = channel - 1 + offset;
+                    },
+                    19..=36 => {
+                        col = 0;
+                        row = 36 - channel + offset;
+                    },
+                    37..=54 => {
+                        col = 0;
+                        row = 72 - channel + offset;
+                    },
+                    55..=72 => {
+                        col = 1;
+                        row = channel - 37 + offset;
+                    }
+                    _ => unreachable!(),
+                }
+                if after > 1 {
+                    col = 3 - col;
+                    row = 71 - row;
+                }
+                inverse.insert(
+                    (
+                        AfterId::try_from(after).unwrap(),
+                        PadChannelId::try_from(u16::from(channel)).unwrap(),
+                    ),
+                    PwbPadPosition {
+                        column: PwbPadColumn::try_from(usize::from(col)).unwrap(),
+                        row: PwbPadRow::try_from(usize::from(row)).unwrap(),
+                    },
+                );
+            }
+        }
+        inverse
+    };
+}
+
+// I don't see the above mapping between (AFTER, channel) -> Position
+// changing or being updated any time soon. It would imply an excessive amount
+// of hardware work. Nonetheless, I am leaving this mapping as a function of
+// `run_number` to be consistent with the anode wire mapping. If it changes at
+// some point, just do the same as the above PWB mapping or the anode wire
+// mapping.
+
+/// The error type returned when mapping an [`AfterId`] and [`PadChannelId`] to a
+/// [`PwbPadPosition`] fails.
+#[derive(Debug, Error)]
+#[error("no PWB pad mapping available for run number {run_number}")]
+pub struct MapPwbPadPositionError {
+    run_number: u32,
+}
+
+/// Map an [`AfterId`] and [`PadChannelId`] to a [`PwbPadPosition`] for a given
+/// `run_number`. Returns an error if there is no map available for that
+/// `run_number`.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use alpha_g_detector::padwing::map::{pwb_pad_position, PwbPadColumn, PwbPadRow};
+/// use alpha_g_detector::padwing::{AfterId, PadChannelId};
+///
+/// let run_number = 5000;
+/// let after_id = AfterId::try_from('A')?;
+/// let pad_channel_id = PadChannelId::try_from(1)?;
+///
+/// let position = pwb_pad_position(run_number, after_id, pad_channel_id)?;
+///
+/// assert_eq!(position.column(), PwbPadColumn::try_from(1)?);
+/// assert_eq!(position.row(), PwbPadRow::try_from(0)?);
+/// # Ok(())
+/// # }
+/// ```
+pub fn pwb_pad_position(
+    _run_number: u32,
+    after_id: AfterId,
+    pad_channel_id: PadChannelId,
+) -> Result<PwbPadPosition, MapPwbPadPositionError> {
+    let position_map = &INV_PADS_0;
+    Ok(*position_map.get(&(after_id, pad_channel_id)).unwrap())
 }
 
 #[cfg(test)]
