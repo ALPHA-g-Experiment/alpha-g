@@ -1,6 +1,11 @@
 use std::fmt;
 use thiserror::Error;
 
+// Only imported for documentation. If you notice that this is no longer the
+// case, please open an issue/PR.
+#[allow(unused_imports)]
+use crate::padwing::map::TpcPwbPosition;
+
 /// Pad and PWB map.
 ///
 /// There are a total of 64 Padwing boards (8 columns and 8 rows). Each PWB
@@ -110,12 +115,11 @@ const PADWING_BOARDS: [(&str, [u8; 6], u32); 64] = [
 
 /// Identity of a physical PadWing board.
 ///
-/// It is important to notice that a [`BoardId`] is different to a [`ModuleId`].
-/// The former identifies a physical PadWing board, while the latter is a fixed
-/// ID that maps a module to cathode pads. The mapping between
-/// [`BoardId`] and [`ModuleId`] depends on the run number e.g. we switch an old
-/// board for a new board. You can see the [`ModuleId`] as the slot in which a
-/// board is plugged, which always maps to the same cathode pads.
+/// It is important to notice that a [`BoardId`] is different to a
+/// [`TpcPwbPosition`]. The former identifies a physical PadWing board, while
+/// the latter is a fixed position that maps a location in the rTPC. The mapping
+/// between [`BoardId`] and [`TpcPwbPosition`] depends on the run number e.g. we
+/// switch an old board for a new board.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BoardId {
     name: &'static str,
