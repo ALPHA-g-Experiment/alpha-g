@@ -386,6 +386,20 @@ impl TryFrom<usize> for TpcPadRow {
     }
 }
 
+/// The error type returned when mapping a [`BoardId`], [`AfterId`], and
+/// [`PadChannelId`] to a [`TpcPadPosition`] fails.
+#[derive(Debug, Error)]
+pub enum MapTpcPadPositionError {
+    /// For the given `run_number`, it was not possible to map the [`BoardId`]
+    /// to a [`TpcPwbPosition`].
+    #[error("unable to map PWB in the rTPC")]
+    BadTpcPwbPosition(#[from] MapTpcPwbPositionError),
+    /// For the given `run_number`, it was not possible to map the [`AfterId`]
+    /// and [`PadChannelId`] to a [`PwbPadPosition`].
+    #[error("unable to map pad in the PWB")]
+    BadPwbPadPosition(#[from] MapPwbPadPositionError),
+}
+
 /// Position of a pad in the rTPC.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TpcPadPosition {
@@ -423,6 +437,35 @@ impl TpcPadPosition {
         let column = TpcPadColumn::try_from(column.0 * 4 + pad_column.0).unwrap();
         let row = TpcPadRow::try_from(row.0 * 72 + pad_row.0).unwrap();
         TpcPadPosition { column, row }
+    }
+    /// Map a [`BoardId`], [`AfterId`], and [`PadChannelId`] to a
+    /// [`TpcPadPosition`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use alpha_g_detector::padwing::map::TpcPadPosition;
+    /// use alpha_g_detector::padwing::{AfterId, PadChannelId, BoardId};
+    ///
+    /// let run_number = 5000;
+    /// let board = BoardId::try_from("26")?;
+    /// let after = AfterId::try_from('A')?;
+    /// let pad_channel = PadChannelId::try_from(1)?;
+    ///
+    /// let tpc_pad_position = TpcPadPosition::try_new(run_number, board, after, pad_channel)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn try_new(
+        run_number: u32,
+        board_id: BoardId,
+        after_id: AfterId,
+        pad_channel_id: PadChannelId,
+    ) -> Result<Self, MapTpcPadPositionError> {
+        let board_position = TpcPwbPosition::try_new(run_number, board_id)?;
+        let pad_position = PwbPadPosition::try_new(run_number, after_id, pad_channel_id)?;
+        Ok(TpcPadPosition::new(board_position, pad_position))
     }
     /// Return the column of the pad within the rTPC.
     ///

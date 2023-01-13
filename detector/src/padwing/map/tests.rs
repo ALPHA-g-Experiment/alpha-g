@@ -482,3 +482,71 @@ fn tpc_pad_position_row() {
         assert_eq!(position.row(), TpcPadRow(i));
     }
 }
+
+#[test]
+fn tpc_pad_position_bad_tpc_pwb_position() {
+    for run_number in 0..=4417 {
+        let board_id = BoardId::try_from("26").unwrap();
+        let after_id = AfterId::try_from('A').unwrap();
+        let channel_id = PadChannelId::try_from(1).unwrap();
+
+        assert!(matches!(
+            TpcPadPosition::try_new(run_number, board_id, after_id, channel_id),
+            Err(MapTpcPadPositionError::BadTpcPwbPosition(_))
+        ));
+    }
+}
+
+#[test]
+fn tpc_pad_position_try_new() {
+    let run_number = 4418;
+    for (column, row) in REGRESSION_GATE_KEEPER_4418.into_iter().enumerate() {
+        for (row, name) in row.into_iter().enumerate() {
+            let board_id = BoardId::try_from(name).unwrap();
+
+            let bottom_left_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4),
+                row: TpcPadRow(row * 72),
+            };
+            let after_a = AfterId::try_from('A').unwrap();
+            let channel_36 = PadChannelId::try_from(36).unwrap();
+            assert_eq!(
+                TpcPadPosition::try_new(run_number, board_id, after_a, channel_36).unwrap(),
+                bottom_left_pad_position
+            );
+
+            let top_left_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4),
+                row: TpcPadRow(row * 72 + 71),
+            };
+            let after_b = AfterId::try_from('B').unwrap();
+            let channel_37 = PadChannelId::try_from(37).unwrap();
+            assert_eq!(
+                TpcPadPosition::try_new(run_number, board_id, after_b, channel_37).unwrap(),
+                top_left_pad_position
+            );
+
+            let bottom_right_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4 + 3),
+                row: TpcPadRow(row * 72),
+            };
+            let after_d = AfterId::try_from('D').unwrap();
+            let channel_37 = PadChannelId::try_from(37).unwrap();
+            assert_eq!(
+                TpcPadPosition::try_new(run_number, board_id, after_d, channel_37).unwrap(),
+                bottom_right_pad_position
+            );
+
+            let top_right_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4 + 3),
+                row: TpcPadRow(row * 72 + 71),
+            };
+            let after_c = AfterId::try_from('C').unwrap();
+            let channel_36 = PadChannelId::try_from(36).unwrap();
+            assert_eq!(
+                TpcPadPosition::try_new(run_number, board_id, after_c, channel_36).unwrap(),
+                top_right_pad_position
+            );
+        }
+    }
+}
