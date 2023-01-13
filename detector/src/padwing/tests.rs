@@ -8,8 +8,8 @@ fn padwing_rate() {
 
 #[test]
 fn padwing_boards() {
-    for (i, board) in PADWINGBOARDS.iter().enumerate() {
-        for other_board in PADWINGBOARDS.iter().skip(i + 1) {
+    for (i, board) in PADWING_BOARDS.iter().enumerate() {
+        for other_board in PADWING_BOARDS.iter().skip(i + 1) {
             assert_ne!(board.0, other_board.0);
             assert_ne!(board.1, other_board.1);
             assert_ne!(board.2, other_board.2);
@@ -19,7 +19,7 @@ fn padwing_boards() {
 
 #[test]
 fn bank_names_from_padwing_boards() {
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         let bank_name = format!("PC{}", triplet.0);
         let bank_name = PadwingBankName::try_from(&bank_name[..]).unwrap();
         assert_eq!(bank_name.board_id(), BoardId::try_from(triplet.1).unwrap());
@@ -28,7 +28,7 @@ fn bank_names_from_padwing_boards() {
 
 #[test]
 fn board_id() {
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         let from_name = BoardId::try_from(triplet.0).unwrap();
         let from_mac = BoardId::try_from(triplet.1).unwrap();
         let from_id = BoardId::try_from(triplet.2).unwrap();
@@ -94,7 +94,7 @@ Payload CRC-32C: 2677759098"
 #[test]
 fn chunk_good() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
         let crc = !crc32c::crc32c(&good_chunk[0..16]);
         good_chunk[16..20].copy_from_slice(&crc.to_le_bytes()[..]);
@@ -263,7 +263,7 @@ fn chunk_payload_crc_mismatch() {
 #[test]
 fn chunk_board_id() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -280,7 +280,7 @@ fn chunk_board_id() {
 #[test]
 fn chunk_packet_sequence() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -297,7 +297,7 @@ fn chunk_packet_sequence() {
 #[test]
 fn chunk_channel_sequence() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -314,7 +314,7 @@ fn chunk_channel_sequence() {
 #[test]
 fn chunk_after_id() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -331,7 +331,7 @@ fn chunk_after_id() {
 #[test]
 fn chunk_is_end_of_message() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -344,7 +344,7 @@ fn chunk_is_end_of_message() {
     }
 
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -372,7 +372,7 @@ fn chunk_chunk_id() {
 #[test]
 fn chunk_header_crc() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -389,7 +389,7 @@ fn chunk_header_crc() {
 #[test]
 fn chunk_payload() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -403,7 +403,7 @@ fn chunk_payload() {
 #[test]
 fn chunk_payload_crc() {
     let mut good_chunk = CHUNK;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         for num in 0..4 {
             good_chunk[0..4].copy_from_slice(&triplet.2.to_le_bytes()[..]);
             good_chunk[10] = num;
@@ -445,46 +445,96 @@ fn try_from_unsigned_trigger() {
 }
 
 #[test]
+fn try_from_unsigned_reset_channel_id() {
+    assert!(ResetChannelId::try_from(0).is_err());
+    for i in 1..=3 {
+        assert!(ResetChannelId::try_from(i).is_ok());
+    }
+    for i in 4..=u16::MAX {
+        assert!(ResetChannelId::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn try_from_unsigned_fpn_channel_id() {
+    assert!(FpnChannelId::try_from(0).is_err());
+    for i in 1..=4 {
+        assert!(FpnChannelId::try_from(i).is_ok());
+    }
+    for i in 5..=u16::MAX {
+        assert!(FpnChannelId::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn try_from_unsigned_pad_channel_id() {
+    assert!(PadChannelId::try_from(0).is_err());
+    for i in 1..=72 {
+        assert!(PadChannelId::try_from(i).is_ok());
+    }
+    for i in 73..=u16::MAX {
+        assert!(PadChannelId::try_from(i).is_err());
+    }
+}
+
+#[test]
 fn try_from_unsigned_channel_id() {
     assert!(ChannelId::try_from(0).is_err());
     for i in 1..=3 {
-        assert!(matches!(
+        assert_eq!(
             ChannelId::try_from(i).unwrap(),
-            ChannelId::Reset(_)
-        ));
+            ChannelId::Reset(ResetChannelId::try_from(i).unwrap())
+        );
     }
     for i in 4..=15 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 3).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(16).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(1).unwrap())
+    );
     for i in 17..=28 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 4).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(29).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(2).unwrap())
+    );
     for i in 30..=53 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 5).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(54).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(3).unwrap())
+    );
     for i in 55..=66 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 6).unwrap())
+        );
     }
-    assert!(matches!(
+    assert_eq!(
         ChannelId::try_from(67).unwrap(),
-        ChannelId::Fpn(_)
-    ));
+        ChannelId::Fpn(FpnChannelId::try_from(4).unwrap())
+    );
     for i in 68..=79 {
-        assert!(matches!(ChannelId::try_from(i).unwrap(), ChannelId::Pad(_)));
+        assert_eq!(
+            ChannelId::try_from(i).unwrap(),
+            ChannelId::Pad(PadChannelId::try_from(i - 7).unwrap())
+        );
     }
-    assert!(ChannelId::try_from(80).is_err());
+    for i in 80..=u16::MAX {
+        assert!(ChannelId::try_from(i).is_err());
+    }
 }
 
 const ODD_PWB_V2_PACKET: [u8; 104] = [
@@ -528,7 +578,7 @@ fn pwb_v2_good() {
         good_packet[3] = i;
         assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
     }
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         good_packet[4..10].copy_from_slice(&triplet.1[..]);
         assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
     }
@@ -572,7 +622,7 @@ fn pwb_v2_good() {
         good_packet[3] = i;
         assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
     }
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         good_packet[4..10].copy_from_slice(&triplet.1[..]);
         assert!(PwbV2Packet::try_from(&good_packet[..]).is_ok());
     }
@@ -1129,7 +1179,7 @@ fn pwb_v2_packet_from_chunks_ok() {
 #[test]
 fn pwb_v2_packet_from_chunks_device_id_mismatch() {
     let mut chunk_zero = CHUNK_ZERO;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         if BoardId::try_from(triplet.2).unwrap() == BoardId::try_from("00").unwrap() {
             continue;
         }
@@ -1151,7 +1201,7 @@ fn pwb_v2_packet_from_chunks_device_id_mismatch() {
     }
 
     let mut chunk_one = CHUNK_ONE;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         if BoardId::try_from(triplet.2).unwrap() == BoardId::try_from("00").unwrap() {
             continue;
         }
@@ -1173,7 +1223,7 @@ fn pwb_v2_packet_from_chunks_device_id_mismatch() {
     }
 
     let mut chunk_two = CHUNK_TWO;
-    for triplet in PADWINGBOARDS {
+    for triplet in PADWING_BOARDS {
         if BoardId::try_from(triplet.2).unwrap() == BoardId::try_from("00").unwrap() {
             continue;
         }

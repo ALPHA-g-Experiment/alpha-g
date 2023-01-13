@@ -49,6 +49,7 @@ name = "alpha_g_detector"
 version = "0.1.0"
 dependencies = [
  "crc32c",
+ "lazy_static",
  "midasio",
  "thiserror",
 ]

@@ -1,6 +1,17 @@
 use std::fmt;
 use thiserror::Error;
 
+// Only imported for documentation. If you notice that this is no longer the
+// case, please open an issue/PR.
+#[allow(unused_imports)]
+use crate::padwing::map::TpcPwbPosition;
+
+/// Pad and PWB map.
+///
+/// There are a total of 64 Padwing boards (8 columns and 8 rows). Each PWB
+/// has 4 columns and 72 rows of pads, for a total of 32 columns and 576 rows.
+pub mod map;
+
 /// Sampling rate (samples per second) of the channels that receive the radial
 /// Time Projection Chamber cathode pad signals.
 pub const PADWING_RATE: f64 = 62.5e6;
@@ -35,7 +46,7 @@ pub struct TryBoardIdFromUnsignedError {
 // Note: The device ID is just the first 4 bytes of the MAC address as
 // little endian u32. Maybe remove the last u32 in the future, and just get it
 // from the MAC address.
-const PADWINGBOARDS: [(&str, [u8; 6], u32); 64] = [
+const PADWING_BOARDS: [(&str, [u8; 6], u32); 64] = [
     ("00", [236, 40, 255, 135, 84, 2], 2281646316),
     ("01", [236, 40, 250, 162, 84, 2], 2734303468),
     ("02", [236, 40, 136, 108, 84, 2], 1820862700),
@@ -104,12 +115,11 @@ const PADWINGBOARDS: [(&str, [u8; 6], u32); 64] = [
 
 /// Identity of a physical PadWing board.
 ///
-/// It is important to notice that a [`BoardId`] is different to a [`ModuleId`].
-/// The former identifies a physical PadWing board, while the latter is a fixed
-/// ID that maps a module to cathode pads. The mapping between
-/// [`BoardId`] and [`ModuleId`] depends on the run number e.g. we switch an old
-/// board for a new board. You can see the [`ModuleId`] as the slot in which a
-/// board is plugged, which always maps to the same cathode pads.
+/// It is important to notice that a [`BoardId`] is different to a
+/// [`TpcPwbPosition`]. The former identifies a physical PadWing board, while
+/// the latter is a fixed position that maps a location in the rTPC. The mapping
+/// between [`BoardId`] and [`TpcPwbPosition`] depends on the run number e.g. we
+/// switch an old board for a new board.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BoardId {
     name: &'static str,
@@ -120,7 +130,7 @@ impl TryFrom<&str> for BoardId {
     type Error = ParseBoardIdError;
 
     fn try_from(name: &str) -> Result<Self, Self::Error> {
-        for triplet in PADWINGBOARDS {
+        for triplet in PADWING_BOARDS {
             if name == triplet.0 {
                 return Ok(BoardId {
                     name: triplet.0,
@@ -138,7 +148,7 @@ impl TryFrom<[u8; 6]> for BoardId {
     type Error = TryBoardIdFromMacAddressError;
 
     fn try_from(mac: [u8; 6]) -> Result<Self, Self::Error> {
-        for triplet in PADWINGBOARDS {
+        for triplet in PADWING_BOARDS {
             if mac == triplet.1 {
                 return Ok(BoardId {
                     name: triplet.0,
@@ -154,7 +164,7 @@ impl TryFrom<u32> for BoardId {
     type Error = TryBoardIdFromUnsignedError;
 
     fn try_from(device_id: u32) -> Result<Self, Self::Error> {
-        for triplet in PADWINGBOARDS {
+        for triplet in PADWING_BOARDS {
             if device_id == triplet.2 {
                 return Ok(BoardId {
                     name: triplet.0,
@@ -726,25 +736,61 @@ pub struct TryChannelIdFromUnsignedError {
 /// even suppressed from the PWB output. They are added here for completeness,
 /// in case they are ever used in the future.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// The internal u16 corresponds to the readout index. Guaranteed by the
-// ChannelId::try_from(u16)
+// The internal u16 does NOT correspond to the readout index.
+// It corresponds to the channel index 1, 2, or 3.
 pub struct ResetChannelId(u16);
+impl TryFrom<u16> for ResetChannelId {
+    type Error = TryChannelIdFromUnsignedError;
+
+    /// Convert from the integer representation of the channel index i.e. `1`,
+    /// `2`, or `3` (NOT the readout index) to a [`ResetChannelId`].
+    fn try_from(num: u16) -> Result<Self, Self::Error> {
+        match num {
+            1 | 2 | 3 => Ok(Self(num)),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
 
 /// Channel ID that corresponds to Fixed Pattern Noise channels.
 ///
 /// Every AFTER chip has 4 FPN channels, with readout indices 16, 29, 54, and
 /// 67.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// The internal u16 corresponds to the readout index. Guaranteed by the
-// ChannelId::try_from(u16)
+// The internal u16 does NOT correspond to the readout index.
+// It corresponds to the channel index 1, 2, 3, or 4.
 pub struct FpnChannelId(u16);
+impl TryFrom<u16> for FpnChannelId {
+    type Error = TryChannelIdFromUnsignedError;
+
+    /// Convert from the integer representation of the channel index i.e. `1`,
+    /// `2`, `3`, or `4` (NOT the readout index) to a [`FpnChannelId`].
+    fn try_from(num: u16) -> Result<Self, Self::Error> {
+        match num {
+            1 | 2 | 3 | 4 => Ok(Self(num)),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
 
 /// Channel ID that corresponds to cathode pads in the radial Time Projection
 /// Chamber.
-// The internal u16 corresponds to the readout index. Guaranteed by the
-// ChannelId::try_from(u16)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// The internal u16 does NOT correspond to the readout index.
+// It corresponds to the channel index 1, 2, 3, ..., 72.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PadChannelId(u16);
+impl TryFrom<u16> for PadChannelId {
+    type Error = TryChannelIdFromUnsignedError;
+
+    /// Convert from the integer representation of the channel index i.e. `1`,
+    /// `2`, `3`, ..., `72` (NOT the readout index) to a [`PadChannelId`].
+    fn try_from(num: u16) -> Result<Self, Self::Error> {
+        match num {
+            1..=72 => Ok(Self(num)),
+            _ => Err(Self::Error { input: num }),
+        }
+    }
+}
 
 /// Channel ID in a PadWing board.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -755,22 +801,33 @@ pub enum ChannelId {
     /// Cathode pad channel.
     Pad(PadChannelId),
 }
+// This TryFrom implementation is possible because all revisions of the boards
+// have the same conversion from readout_index -> channel_index
+// If this changes with some future revision you will need to do the following:
+// Remove this TryFrom implementation for ChannelId.
+// The TryFrom implementation for the Reset, FPN, and Pad channels should still
+// hold.
+// You will need to handle each readout_index -> channel_index conversion in
+// the PwbPacket::try_from() implementations directly depending on the
+// revision.
 impl TryFrom<u16> for ChannelId {
     type Error = TryChannelIdFromUnsignedError;
 
     /// Perform the conversion from readout index of PWB channel (`1..=79`).
     fn try_from(readout_index: u16) -> Result<Self, Self::Error> {
-        // Cannot fail in [1-79]. Because PwbPacket::try_from unwraps in this
-        // range
-        if readout_index == 0 || readout_index > 79 {
-            return Err(TryChannelIdFromUnsignedError {
-                input: readout_index,
-            });
-        }
         match readout_index {
-            1 | 2 | 3 => Ok(ChannelId::Reset(ResetChannelId(readout_index))),
-            16 | 29 | 54 | 67 => Ok(ChannelId::Fpn(FpnChannelId(readout_index))),
-            _ => Ok(ChannelId::Pad(PadChannelId(readout_index))),
+            1 | 2 | 3 => Ok(ChannelId::Reset(ResetChannelId::try_from(readout_index)?)),
+            16 => Ok(ChannelId::Fpn(FpnChannelId::try_from(1)?)),
+            29 => Ok(ChannelId::Fpn(FpnChannelId::try_from(2)?)),
+            54 => Ok(ChannelId::Fpn(FpnChannelId::try_from(3)?)),
+            67 => Ok(ChannelId::Fpn(FpnChannelId::try_from(4)?)),
+            1..=79 => Ok(ChannelId::Pad(PadChannelId::try_from({
+                let i = readout_index;
+                i - (i > 16) as u16 - (i > 29) as u16 - (i > 54) as u16 - (i > 67) as u16 - 3
+            })?)),
+            _ => Err(TryChannelIdFromUnsignedError {
+                input: readout_index,
+            }),
         }
     }
 }
