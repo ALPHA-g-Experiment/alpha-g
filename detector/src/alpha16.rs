@@ -1,6 +1,11 @@
 use std::fmt;
 use thiserror::Error;
 
+// Only imported for documentation. If you notice that this is no longer the
+// case, please open an issue/PR.
+#[allow(unused_imports)]
+use crate::alpha16::aw_map::TpcWirePosition;
+
 /// Anode wire map.
 pub mod aw_map;
 
@@ -78,12 +83,9 @@ pub struct TryModuleIdFromUnsignedError {
 
 /// Module ID of an Alpha16 board.
 ///
-/// It is important to notice that a [`BoardId`] is different to a [`ModuleId`].
-/// The former identifies a physical Alpha16 board, while the latter is a fixed
-/// ID that maps a module to BV and TPC channels. The mapping between
-/// [`BoardId`] and [`ModuleId`] depends on the run number e.g. we switch an old
-/// board for a new board. You can see the [`ModuleId`] as the slot in which a
-/// board is plugged, which always maps to the same BV and TPC channels.
+/// I don't know how this is useful, the mapping to anode wires is independent
+/// from the module ID (see [`TpcWirePosition`]). This is included for
+/// completeness.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ModuleId(u8);
 impl TryFrom<u8> for ModuleId {
@@ -132,12 +134,11 @@ const ALPHA16BOARDS: [(&str, [u8; 6]); 8] = [
 
 /// Identity of a physical Alpha16 board.
 ///
-/// It is important to notice that a [`BoardId`] is different to a [`ModuleId`].
-/// The former identifies a physical Alpha16 board, while the latter is a fixed
-/// ID that maps a module to BV and TPC channels. The mapping between
-/// [`BoardId`] and [`ModuleId`] depends on the run number e.g. we switch an old
-/// board for a new board. You can see the [`ModuleId`] as the slot in which a
-/// board is plugged, which always maps to the same BV and TPC channels.
+/// It is important to notice that a [`BoardId`] is different to a
+/// [`TpcWirePosition`]. The former identifies a physical Alpha16 board, while
+/// the latter is a fixed position that maps a location in the rTPC. The mapping
+/// between [`BoardId`] and [`TpcWirePosition`] depends on the run number e.g.
+/// we switch an old board for a new board.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BoardId {
     name: &'static str,
