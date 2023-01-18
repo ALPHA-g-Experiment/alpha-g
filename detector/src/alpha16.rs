@@ -1,6 +1,9 @@
 use std::fmt;
 use thiserror::Error;
 
+/// Anode wire map.
+pub mod aw_map;
+
 /// Sampling rate (samples per second) of the ADC channels that receive the
 /// Barrel Veto SiPM signals.
 pub const ADC16_RATE: f64 = 100e6;
@@ -135,7 +138,7 @@ const ALPHA16BOARDS: [(&str, [u8; 6]); 8] = [
 /// [`BoardId`] and [`ModuleId`] depends on the run number e.g. we switch an old
 /// board for a new board. You can see the [`ModuleId`] as the slot in which a
 /// board is plugged, which always maps to the same BV and TPC channels.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BoardId {
     name: &'static str,
     mac_address: [u8; 6],
