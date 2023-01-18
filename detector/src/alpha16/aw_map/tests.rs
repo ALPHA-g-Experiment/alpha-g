@@ -89,56 +89,56 @@ fn tpc_wire_position_correctness_2941() {
     ];
 
     let board_id = BoardId::try_from("09").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire);
     }
 
     let board_id = BoardId::try_from("10").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire + 32);
     }
 
     let board_id = BoardId::try_from("11").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire + 64);
     }
 
     let board_id = BoardId::try_from("12").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire + 96);
     }
 
     let board_id = BoardId::try_from("13").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire + 128);
     }
 
     let board_id = BoardId::try_from("14").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire + 160);
     }
 
     let board_id = BoardId::try_from("18").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire + 192);
     }
 
     let board_id = BoardId::try_from("16").unwrap();
-    for wire in 0..=31 {
+    for (wire, _) in chan_map.iter().enumerate() {
         let channel_id = Adc32ChannelId::try_from(chan_map[wire]).unwrap();
         let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id).unwrap();
         assert_eq!(wire_position.0, wire + 224);
