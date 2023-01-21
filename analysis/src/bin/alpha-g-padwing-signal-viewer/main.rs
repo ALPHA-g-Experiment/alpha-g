@@ -77,8 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     siv.add_layer(
         Dialog::around(
-            TextView::new("Press <Next> to jump to the next Padwing signal.")
-                .with_name("metadata"),
+            TextView::new("Press <Next> to jump to the next Padwing signal.").with_name("metadata"),
         )
         .title("Packet Metadata")
         .button("Quit", Cursive::quit)
