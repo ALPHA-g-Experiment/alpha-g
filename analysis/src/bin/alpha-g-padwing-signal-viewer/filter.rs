@@ -1,5 +1,4 @@
 use crate::Packet;
-use std::mem::discriminant;
 
 // Only imported for documentation. If you notice that this is no longer the
 // case, please change it.
@@ -44,7 +43,7 @@ impl Packet {
     /// Return [`true`] if the [`Packet`] satisfies a user-defined [`Filter`].
     pub fn passes_filter(&self, filter: &Filter) -> bool {
         if let Some(overflow) = filter.overflow {
-            if discriminant(&overflow) != discriminant(&self.overflow()) {
+            if overflow != self.overflow() {
                 return false;
             }
         }
