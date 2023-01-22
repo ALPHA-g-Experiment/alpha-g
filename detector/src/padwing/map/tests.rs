@@ -550,3 +550,82 @@ fn tpc_pad_position_try_new() {
         }
     }
 }
+
+#[test]
+fn tpc_pad_position_z() {
+    const DETECTOR_HALF_LENGTH: f64 = 0.5 * DETECTOR_LENGTH;
+    for column in 0..=7 {
+        for row in 0..=7 {
+            let bottom_left_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4),
+                row: TpcPadRow(row * 72),
+            };
+            let z = (row as f64 * 72.0 + 0.5) * 4e-3 - DETECTOR_HALF_LENGTH;
+            let abs_difference = (z - bottom_left_pad_position.z()).abs();
+            assert!(abs_difference < 1e-10);
+
+            let top_left_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4),
+                row: TpcPadRow(row * 72 + 71),
+            };
+            let z = (row as f64 * 72.0 + 71.5) * 4e-3 - DETECTOR_HALF_LENGTH;
+            let abs_difference = (z - top_left_pad_position.z()).abs();
+            assert!(abs_difference < 1e-10);
+
+            let bottom_right_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4 + 3),
+                row: TpcPadRow(row * 72),
+            };
+            let z = (row as f64 * 72.0 + 0.5) * 4e-3 - DETECTOR_HALF_LENGTH;
+            let abs_difference = (z - bottom_right_pad_position.z()).abs();
+            assert!(abs_difference < 1e-10);
+
+            let top_right_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4 + 3),
+                row: TpcPadRow(row * 72 + 71),
+            };
+            let z = (row as f64 * 72.0 + 71.5) * 4e-3 - DETECTOR_HALF_LENGTH;
+            let abs_difference = (z - top_right_pad_position.z()).abs();
+            assert!(abs_difference < 1e-10);
+        }
+    }
+}
+
+#[test]
+fn tpc_pad_position_phi() {
+    for column in 0..=7 {
+        for row in 0..=7 {
+            let bottom_left_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4),
+                row: TpcPadRow(row * 72),
+            };
+            let phi = (column as f64 * 4.0) * 2.0 * PI / 32.0;
+            let abs_difference = (phi - bottom_left_pad_position.phi()).abs();
+            assert!(abs_difference < 1e-10);
+
+            let top_left_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4),
+                row: TpcPadRow(row * 72 + 71),
+            };
+            let phi = (column as f64 * 4.0) * 2.0 * PI / 32.0;
+            let abs_difference = (phi - top_left_pad_position.phi()).abs();
+            assert!(abs_difference < 1e-10);
+
+            let bottom_right_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4 + 3),
+                row: TpcPadRow(row * 72),
+            };
+            let phi = (column as f64 * 4.0 + 3.0) * 2.0 * PI / 32.0;
+            let abs_difference = (phi - bottom_right_pad_position.phi()).abs();
+            assert!(abs_difference < 1e-10);
+
+            let top_right_pad_position = TpcPadPosition {
+                column: TpcPadColumn(column * 4 + 3),
+                row: TpcPadRow(row * 72 + 71),
+            };
+            let phi = (column as f64 * 4.0 + 3.0) * 2.0 * PI / 32.0;
+            let abs_difference = (phi - top_right_pad_position.phi()).abs();
+            assert!(abs_difference < 1e-10);
+        }
+    }
+}

@@ -1,11 +1,9 @@
 use alpha_g_detector::midas::{EventId, PadwingBankName};
 use alpha_g_detector::padwing::{
-    AfterId, BoardId, ChannelId, Chunk, PwbPacket, TryChunkFromSliceError,
-    TryPwbPacketFromChunksError,
+    AfterId, BoardId, Chunk, PwbPacket, TryChunkFromSliceError, TryPwbPacketFromChunksError,
 };
 use memmap2::Mmap;
 use midasio::read::file::{FileView, TryFileViewFromSliceError};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
@@ -18,13 +16,13 @@ pub enum TryNextPacketError {
     /// Error opening an input file.
     #[error("failed to open input file")]
     FailedOpen(#[from] std::io::Error),
-    /// Input file is not a MIDAS file.
-    #[error("not a MIDAS file")]
+    /// Input file is not a valid MIDAS file.
+    #[error("not a valid MIDAS file")]
     FailedFileView(#[from] TryFileViewFromSliceError),
-    /// Data bank doesn't make a [`Chunk`].
+    /// Data bank doesn't make a correct [`Chunk`].
     #[error("bad data bank")]
     BadDataBank(#[from] TryChunkFromSliceError),
-    /// [`Chunk`]s don't make a [`PwbPacket`].
+    /// [`Chunk`]s don't make a correct [`PwbPacket`].
     #[error("bad chunks")]
     BadChunks(#[from] TryPwbPacketFromChunksError),
     /// All input files have been consumed.
@@ -38,18 +36,12 @@ pub enum TryNextPacketError {
 // user_data.
 #[derive(Clone, Debug)]
 pub struct Packet {
-    /// PWB packet from a single AFTER chip.
-    pub pwb_packet: PwbPacket,
-    /// Current channel sent, for which to display the waveform.
-    // This was done to delegate the "iterating" over sent channels to the
-    // worker thread rather than the Cursive user_data.
-    // It just makes everything simpler.
-    pub channel_id: ChannelId,
-    /// Run number, required to get the appropriate suppression baseline.
+    /// All the [`PwbPacket`]s from the event.
+    pub pwb_packets: Vec<PwbPacket>,
+    /// Serial number of the MIDAS event.
+    pub serial_number: u32,
+    /// Run number, required to map the pads.
     pub run_number: u32,
-    /// Data suppression threshold.
-    // Value is the same for all channels (reset, FPN, and pads)
-    pub suppression_threshold: Option<f64>,
 }
 
 /// Worker function that iterates through MIDAS files and tries to send
@@ -88,13 +80,6 @@ pub fn worker<P>(
                 continue;
             }
         };
-        let odb = serde_json::from_slice::<Value>(file_view.initial_odb());
-        let suppression_threshold = if let Ok(odb) = odb {
-            odb.pointer("/Equipment/CTRL/Settings/PWB/ch_threshold")
-                .and_then(|v| v.as_f64())
-        } else {
-            None
-        };
 
         let main_events = file_view
             .into_iter()
@@ -120,6 +105,7 @@ pub fn worker<P>(
                 pwb_chunks_map.entry(key).or_default().push(chunk);
             }
 
+            let mut pwb_packets = Vec::new();
             for chunks in pwb_chunks_map.into_values() {
                 let pwb_packet = match PwbPacket::try_from(chunks) {
                     Ok(packet) => packet,
@@ -130,21 +116,17 @@ pub fn worker<P>(
                         continue;
                     }
                 };
-                // The main point of this application is to iterate over
-                // waveforms. Delegate the waveform iteration to the worker
-                // thread rather than the Cursive user_data. It simplifies all
-                // the filter logic, next logic, etc.
-                for &channel_id in pwb_packet.channels_sent() {
-                    let packet = Packet {
-                        pwb_packet: pwb_packet.clone(),
-                        channel_id,
-                        run_number: file_view.run_number(),
-                        suppression_threshold,
-                    };
-                    if sender.send(Ok(packet)).is_err() {
-                        return;
-                    }
-                }
+                pwb_packets.push(pwb_packet);
+            }
+            if sender
+                .send(Ok(Packet {
+                    pwb_packets,
+                    serial_number: event_view.serial_number(),
+                    run_number: file_view.run_number(),
+                }))
+                .is_err()
+            {
+                return;
             }
         }
     }
