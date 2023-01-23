@@ -121,6 +121,14 @@ pub fn create_picture(packet: &Packet) -> Picture {
 
     let mut pads_plot = Plot2D::new();
     pads_plot.add_key(PlotKey::Type2D(Type2D::OnlyMarks));
+    pads_plot.add_key(PlotKey::Custom(String::from("mark=square*")));
+    // Guessed by trial and error to match the size of the pads in the
+    // TPC. There is no way in PGFPlots to set the size of the marks in units
+    // of the plot.
+    pads_plot.add_key(PlotKey::Custom(format!(
+        "mark options={{xscale=1.45, yscale=0.1}}"
+    )));
+    pads_plot.add_key(PlotKey::Custom(String::from("draw=black!90")));
     for pwb_packet in &packet.pwb_packets {
         let board_id = pwb_packet.board_id();
         let after_id = pwb_packet.after_id();
