@@ -3,6 +3,64 @@ use crate::padwing::BoardId;
 use crate::padwing::PADWING_BOARDS;
 
 #[test]
+fn detector_length() {
+    let detector_length = 2.304;
+    let abs_diff = (detector_length - DETECTOR_LENGTH).abs();
+    assert!(abs_diff < 1e-10);
+}
+
+#[test]
+fn cathode_pads_radius() {
+    let cathode_pads_radius = 0.19;
+    let abs_diff = (cathode_pads_radius - CATHODE_PADS_RADIUS).abs();
+    assert!(abs_diff < 1e-10);
+}
+
+#[test]
+fn pwb_pad_columns() {
+    assert_eq!(PWB_PAD_COLUMNS, 4);
+}
+
+#[test]
+fn pwb_pad_rows() {
+    assert_eq!(PWB_PAD_ROWS, 72);
+}
+
+#[test]
+fn tpc_pwb_columns() {
+    assert_eq!(TPC_PWB_COLUMNS, 8);
+}
+
+#[test]
+fn tpc_pwb_rows() {
+    assert_eq!(TPC_PWB_ROWS, 8);
+}
+
+#[test]
+fn tpc_pad_columns() {
+    assert_eq!(TPC_PAD_COLUMNS, 32);
+}
+
+#[test]
+fn tpc_pad_rows() {
+    assert_eq!(TPC_PAD_ROWS, 576);
+}
+
+#[test]
+fn pad_pitch_z() {
+    let pad_pitch_z = 4e-3;
+    let abs_diff = (pad_pitch_z - PAD_PITCH_Z).abs();
+    assert!(abs_diff < 1e-10);
+}
+
+#[test]
+fn pad_pitch_phi() {
+    let pad_pitch_phi = 2.0 * std::f64::consts::PI / 32.0;
+    let abs_diff = (pad_pitch_phi - PAD_PITCH_PHI).abs();
+    assert!(abs_diff < 1e-10);
+}
+
+#[test]
 fn try_from_index_tpc_pwb_column() {
     for i in 0..=7 {
         assert_eq!(TpcPwbColumn::try_from(i).unwrap(), TpcPwbColumn(i));
@@ -19,6 +77,21 @@ fn try_from_index_tpc_pwb_row() {
     }
     for i in 8..=19000 {
         assert!(TpcPwbRow::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn tpc_pwb_position_new() {
+    for i in 0..=7 {
+        for j in 0..=7 {
+            assert_eq!(
+                TpcPwbPosition::new(TpcPwbColumn(i), TpcPwbRow(j)),
+                TpcPwbPosition {
+                    column: TpcPwbColumn(i),
+                    row: TpcPwbRow(j)
+                }
+            );
+        }
     }
 }
 
@@ -145,6 +218,21 @@ fn try_from_index_pwb_pad_row() {
     }
     for i in 72..=19000 {
         assert!(PwbPadRow::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn pwb_pad_position_new() {
+    for i in 0..=3 {
+        for j in 0..=71 {
+            assert_eq!(
+                PwbPadPosition::new(PwbPadColumn(i), PwbPadRow(j)),
+                PwbPadPosition {
+                    column: PwbPadColumn(i),
+                    row: PwbPadRow(j)
+                }
+            );
+        }
     }
 }
 

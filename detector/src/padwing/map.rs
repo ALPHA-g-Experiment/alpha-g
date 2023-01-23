@@ -9,23 +9,23 @@ pub const DETECTOR_LENGTH: f64 = 2.304;
 /// Radius (in meters) of the position of the cathode pads.
 pub const CATHODE_PADS_RADIUS: f64 = 0.190;
 /// Number of pad columns in a Padwing board.
-const PWB_PAD_COLUMNS: usize = 4;
+pub const PWB_PAD_COLUMNS: usize = 4;
 /// Number of pad rows in a Padwing board.
-const PWB_PAD_ROWS: usize = 72;
+pub const PWB_PAD_ROWS: usize = 72;
 /// Number of PWB columns in the rTPC.
-const TPC_PWB_COLUMNS: usize = 8;
+pub const TPC_PWB_COLUMNS: usize = 8;
 /// Number of PWB rows in the rTPC.
-const TPC_PWB_ROWS: usize = 8;
+pub const TPC_PWB_ROWS: usize = 8;
 /// Number of pad columns in the rTPC.
-const TPC_PAD_COLUMNS: usize = TPC_PWB_COLUMNS * PWB_PAD_COLUMNS;
+pub const TPC_PAD_COLUMNS: usize = TPC_PWB_COLUMNS * PWB_PAD_COLUMNS;
 /// Number of pad rows in the rTPC.
-const TPC_PAD_ROWS: usize = TPC_PWB_ROWS * PWB_PAD_ROWS;
+pub const TPC_PAD_ROWS: usize = TPC_PWB_ROWS * PWB_PAD_ROWS;
 /// Distance (in meters) between the center of two adjacent pads in the Z
 /// direction.
-const PAD_PITCH_Z: f64 = DETECTOR_LENGTH / (TPC_PAD_ROWS as f64);
+pub const PAD_PITCH_Z: f64 = DETECTOR_LENGTH / (TPC_PAD_ROWS as f64);
 /// Angle (in radians) between the center of two adjacent pads in the
 /// azimuthal direction.
-const PAD_PITCH_PHI: f64 = 2.0 * PI / (TPC_PAD_COLUMNS as f64);
+pub const PAD_PITCH_PHI: f64 = 2.0 * PI / (TPC_PAD_COLUMNS as f64);
 
 /// The error type returned when conversion from [`usize`] to Row or Column
 /// fails.
@@ -133,6 +133,22 @@ pub struct TpcPwbPosition {
     row: TpcPwbRow,
 }
 impl TpcPwbPosition {
+    /// Create a new [`TpcPwbPosition`] from a [`TpcPwbColumn`] and a
+    /// [`TpcPwbRow`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alpha_g_detector::padwing::map::{TpcPwbColumn, TpcPwbPosition, TpcPwbRow};
+    ///
+    /// let column = TpcPwbColumn::try_from(0).unwrap();
+    /// let row = TpcPwbRow::try_from(0).unwrap();
+    ///
+    /// let position = TpcPwbPosition::new(column, row);
+    /// ```
+    pub fn new(column: TpcPwbColumn, row: TpcPwbRow) -> Self {
+        Self { column, row }
+    }
     /// Map a [`BoardId`] to a [`TpcPwbPosition`] for a given `run_number`.
     /// Returns an error if there is no map available for the given `run_number`
     /// or if the given [`BoardId`] is not installed in the rTPC for that
@@ -307,6 +323,22 @@ pub struct PwbPadPosition {
     row: PwbPadRow,
 }
 impl PwbPadPosition {
+    /// Create a new [`PwbPadPosition`] from a [`PwbPadColumn`] and a
+    /// [`PwbPadRow`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alpha_g_detector::padwing::map::{PwbPadPosition, PwbPadColumn, PwbPadRow};
+    ///
+    /// let column = PwbPadColumn::try_from(0).unwrap();
+    /// let row = PwbPadRow::try_from(0).unwrap();
+    ///
+    /// let position = PwbPadPosition::new(column, row);
+    /// ```
+    pub fn new(column: PwbPadColumn, row: PwbPadRow) -> Self {
+        Self { column, row }
+    }
     /// Map an [`AfterId`] and [`PadChannelId`] to a [`PwbPadPosition`] for a
     /// given `run_number`. Returns an error if there is no map available for
     /// that `run_number`.
