@@ -687,7 +687,7 @@ fn tpc_pad_position_phi() {
                 column: TpcPadColumn(column * 4),
                 row: TpcPadRow(row * 72),
             };
-            let phi = (column as f64 * 4.0) * 2.0 * PI / 32.0;
+            let phi = (column as f64 * 4.0 + 0.5) * 2.0 * PI / 32.0;
             let abs_difference = (phi - bottom_left_pad_position.phi()).abs();
             assert!(abs_difference < 1e-10);
 
@@ -695,7 +695,7 @@ fn tpc_pad_position_phi() {
                 column: TpcPadColumn(column * 4),
                 row: TpcPadRow(row * 72 + 71),
             };
-            let phi = (column as f64 * 4.0) * 2.0 * PI / 32.0;
+            let phi = (column as f64 * 4.0 + 0.5) * 2.0 * PI / 32.0;
             let abs_difference = (phi - top_left_pad_position.phi()).abs();
             assert!(abs_difference < 1e-10);
 
@@ -703,7 +703,7 @@ fn tpc_pad_position_phi() {
                 column: TpcPadColumn(column * 4 + 3),
                 row: TpcPadRow(row * 72),
             };
-            let phi = (column as f64 * 4.0 + 3.0) * 2.0 * PI / 32.0;
+            let phi = (column as f64 * 4.0 + 3.0 + 0.5) * 2.0 * PI / 32.0;
             let abs_difference = (phi - bottom_right_pad_position.phi()).abs();
             assert!(abs_difference < 1e-10);
 
@@ -711,7 +711,7 @@ fn tpc_pad_position_phi() {
                 column: TpcPadColumn(column * 4 + 3),
                 row: TpcPadRow(row * 72 + 71),
             };
-            let phi = (column as f64 * 4.0 + 3.0) * 2.0 * PI / 32.0;
+            let phi = (column as f64 * 4.0 + 3.0 + 0.5) * 2.0 * PI / 32.0;
             let abs_difference = (phi - top_right_pad_position.phi()).abs();
             assert!(abs_difference < 1e-10);
         }

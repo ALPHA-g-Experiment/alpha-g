@@ -620,14 +620,14 @@ impl TpcPadPosition {
     /// let pad_channel = PadChannelId::try_from(1)?;
     /// let tpc_pad_position = TpcPadPosition::try_new(run_number, board, after, pad_channel)?;
     ///
-    /// let abs_difference = (tpc_pad_position.phi() - 0.98174770424).abs();
+    /// let abs_difference = (tpc_pad_position.phi() - 1.0799224746).abs();
     /// assert!(abs_difference < 1e-10);
     /// # Ok(())
     /// # }
     /// ```
     pub fn phi(&self) -> f64 {
         let TpcPadColumn(column) = self.column;
-        (column as f64) * PAD_PITCH_PHI
+        (column as f64 + 0.5) * PAD_PITCH_PHI
     }
 }
 
