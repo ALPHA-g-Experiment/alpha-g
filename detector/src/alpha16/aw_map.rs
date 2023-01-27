@@ -1,7 +1,14 @@
 use crate::alpha16::{Adc32ChannelId, BoardId};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::f64::consts::PI;
 use thiserror::Error;
+
+/// Number of anode wires in the rTPC.
+pub const TPC_ANODE_WIRES: usize = 256;
+/// Angle (in radians) between two adjacent anode wires in the azimuthal
+/// direction.
+pub const ANODE_WIRE_PITCH_PHI: f64 = 2.0 * PI / (TPC_ANODE_WIRES as f64);
 
 // These maps change whenever an Alpha16 board is replaced/moved.
 //
@@ -67,9 +74,36 @@ pub enum MapTpcWirePositionError {
     MissingWireMap { run_number: u32 },
 }
 
+/// The error type returned when conversion from [`usize`] to a
+/// [`TpcWirePosition`] fails.
+#[derive(Debug, Error)]
+#[error("unknown conversion from {input} to anode wire position")]
+pub struct TryTpcWirePositionFromIndexError {
+    input: usize,
+}
+
 /// Position of an anode wire in the TPC.
+// IMPORTANT: The internal index represents the numbering starting from the
+// first wire in the first anode wire board. This is not the same as the first
+// wire at phi = 0. There is an offset of 8 wires between the first wire in the
+// first board and the first wire at phi = 0.
+//
+// I decided to use this internal index because it is the same as the index
+// used in the raw data. This is what we get from the unpacking of the raw data
+// in the data banks. Positioning the wires at phi is the job of the
+// TpcWirePosition::phi() method.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TpcWirePosition(usize);
+impl TryFrom<usize> for TpcWirePosition {
+    type Error = TryTpcWirePositionFromIndexError;
+    fn try_from(input: usize) -> Result<Self, Self::Error> {
+        if input < TPC_ANODE_WIRES {
+            Ok(Self(input))
+        } else {
+            Err(Self::Error { input })
+        }
+    }
+}
 impl TpcWirePosition {
     /// Map a [`BoardId`] and [`Adc32ChannelId`] to a [`TpcWirePosition`] for a
     /// given run number. Returns an error if the mapping is not available for
@@ -121,6 +155,30 @@ impl TpcWirePosition {
             _ => unreachable!(),
         };
         Ok(Self(wire_position))
+    }
+    /// Return the `phi` coordinate (in radians) of the wire within the rTPC.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use alpha_g_detector::alpha16::aw_map::TpcWirePosition;
+    ///
+    /// let wire_position = TpcWirePosition::try_from(0)?;
+    ///
+    /// let abs_difference = (wire_position.phi() - 6.0991076126).abs();
+    /// assert!(abs_difference < 1e-10);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn phi(&self) -> f64 {
+        // The wire with index 0 is not aligned with phi=0.
+        // Phi=0 goes through the center of AWB0; hence there is an offset of
+        // 8 wires.
+        // self.0 is a number between [0, 255]. Shift it by 8 to the left
+        // keeping it in the range [0, 255].
+        let shifted_index = self.0.wrapping_sub(8) & 0xff;
+        ANODE_WIRE_PITCH_PHI * (shifted_index as f64 + 0.5)
     }
 }
 

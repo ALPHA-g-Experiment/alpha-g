@@ -1,7 +1,31 @@
 use crate::padwing::{AfterId, BoardId, PadChannelId};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::f64::consts::PI;
 use thiserror::Error;
+
+/// Full length (in meters) of the detector along the Z axis.
+pub const DETECTOR_LENGTH: f64 = 2.304;
+/// Radius (in meters) of the position of the cathode pads.
+pub const CATHODE_PADS_RADIUS: f64 = 0.190;
+/// Number of pad columns in a Padwing board.
+pub const PWB_PAD_COLUMNS: usize = 4;
+/// Number of pad rows in a Padwing board.
+pub const PWB_PAD_ROWS: usize = 72;
+/// Number of PWB columns in the rTPC.
+pub const TPC_PWB_COLUMNS: usize = 8;
+/// Number of PWB rows in the rTPC.
+pub const TPC_PWB_ROWS: usize = 8;
+/// Number of pad columns in the rTPC.
+pub const TPC_PAD_COLUMNS: usize = TPC_PWB_COLUMNS * PWB_PAD_COLUMNS;
+/// Number of pad rows in the rTPC.
+pub const TPC_PAD_ROWS: usize = TPC_PWB_ROWS * PWB_PAD_ROWS;
+/// Distance (in meters) between the center of two adjacent pads in the Z
+/// direction.
+pub const PAD_PITCH_Z: f64 = DETECTOR_LENGTH / (TPC_PAD_ROWS as f64);
+/// Angle (in radians) between the center of two adjacent pads in the
+/// azimuthal direction.
+pub const PAD_PITCH_PHI: f64 = 2.0 * PI / (TPC_PAD_COLUMNS as f64);
 
 /// The error type returned when conversion from [`usize`] to Row or Column
 /// fails.
@@ -19,7 +43,7 @@ impl TryFrom<usize> for TpcPwbColumn {
 
     /// Convert from a `usize` (`0..=7`) to a [`TpcPwbColumn`].
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value < 8 {
+        if value < TPC_PWB_COLUMNS {
             Ok(Self(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
@@ -35,7 +59,7 @@ impl TryFrom<usize> for TpcPwbRow {
 
     /// Convert from a `usize` (`0..=7`) to a [`TpcPwbRow`].
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value < 8 {
+        if value < TPC_PWB_ROWS {
             Ok(Self(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
@@ -54,7 +78,7 @@ impl TryFrom<usize> for TpcPwbRow {
 //
 // Also remember to add the inverse (actually needed) map to the lazy_static
 // below and update TpcPwbPosition::try_new.
-const PADWING_BOARDS_4418: [[&str; 8]; 8] = [
+const PADWING_BOARDS_4418: [[&str; TPC_PWB_ROWS]; TPC_PWB_COLUMNS] = [
     ["12", "13", "14", "02", "11", "17", "18", "19"],
     ["20", "21", "22", "23", "24", "25", "26", "27"],
     ["46", "29", "08", "77", "10", "33", "34", "35"],
@@ -65,7 +89,9 @@ const PADWING_BOARDS_4418: [[&str; 8]; 8] = [
     ["68", "69", "70", "71", "72", "73", "74", "75"],
 ];
 
-fn inverse_pwb_map(map: [[&str; 8]; 8]) -> HashMap<BoardId, TpcPwbPosition> {
+fn inverse_pwb_map(
+    map: [[&str; TPC_PWB_ROWS]; TPC_PWB_COLUMNS],
+) -> HashMap<BoardId, TpcPwbPosition> {
     let mut inverse = HashMap::new();
     for (column, row) in map.iter().enumerate() {
         for (row, name) in row.iter().enumerate() {
@@ -107,6 +133,22 @@ pub struct TpcPwbPosition {
     row: TpcPwbRow,
 }
 impl TpcPwbPosition {
+    /// Create a new [`TpcPwbPosition`] from a [`TpcPwbColumn`] and a
+    /// [`TpcPwbRow`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alpha_g_detector::padwing::map::{TpcPwbColumn, TpcPwbPosition, TpcPwbRow};
+    ///
+    /// let column = TpcPwbColumn::try_from(0).unwrap();
+    /// let row = TpcPwbRow::try_from(0).unwrap();
+    ///
+    /// let position = TpcPwbPosition::new(column, row);
+    /// ```
+    pub fn new(column: TpcPwbColumn, row: TpcPwbRow) -> Self {
+        Self { column, row }
+    }
     /// Map a [`BoardId`] to a [`TpcPwbPosition`] for a given `run_number`.
     /// Returns an error if there is no map available for the given `run_number`
     /// or if the given [`BoardId`] is not installed in the rTPC for that
@@ -188,7 +230,7 @@ impl TryFrom<usize> for PwbPadColumn {
 
     /// Convert from a `usize` (`0..=3`) to a [`PwbPadColumn`].
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value < 4 {
+        if value < PWB_PAD_COLUMNS {
             Ok(Self(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
@@ -204,7 +246,7 @@ impl TryFrom<usize> for PwbPadRow {
 
     /// Convert from a `usize` (`0..=71`) to a [`PwbPadRow`].
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value < 72 {
+        if value < PWB_PAD_ROWS {
             Ok(Self(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
@@ -281,6 +323,22 @@ pub struct PwbPadPosition {
     row: PwbPadRow,
 }
 impl PwbPadPosition {
+    /// Create a new [`PwbPadPosition`] from a [`PwbPadColumn`] and a
+    /// [`PwbPadRow`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alpha_g_detector::padwing::map::{PwbPadPosition, PwbPadColumn, PwbPadRow};
+    ///
+    /// let column = PwbPadColumn::try_from(0).unwrap();
+    /// let row = PwbPadRow::try_from(0).unwrap();
+    ///
+    /// let position = PwbPadPosition::new(column, row);
+    /// ```
+    pub fn new(column: PwbPadColumn, row: PwbPadRow) -> Self {
+        Self { column, row }
+    }
     /// Map an [`AfterId`] and [`PadChannelId`] to a [`PwbPadPosition`] for a
     /// given `run_number`. Returns an error if there is no map available for
     /// that `run_number`.
@@ -362,7 +420,7 @@ impl TryFrom<usize> for TpcPadColumn {
 
     /// Convert from a `usize` (`0..=31`) to a [`TpcPadColumn`].
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value < 32 {
+        if value < TPC_PAD_COLUMNS {
             Ok(TpcPadColumn(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
@@ -378,7 +436,7 @@ impl TryFrom<usize> for TpcPadRow {
 
     /// Convert from a `usize` (`0..=575`) to a [`TpcPadRow`].
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value < 576 {
+        if value < TPC_PAD_ROWS {
             Ok(TpcPadRow(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
@@ -434,8 +492,8 @@ impl TpcPadPosition {
             column: pad_column,
             row: pad_row,
         } = pad_position;
-        let column = TpcPadColumn::try_from(column.0 * 4 + pad_column.0).unwrap();
-        let row = TpcPadRow::try_from(row.0 * 72 + pad_row.0).unwrap();
+        let column = TpcPadColumn::try_from(column.0 * PWB_PAD_COLUMNS + pad_column.0).unwrap();
+        let row = TpcPadRow::try_from(row.0 * PWB_PAD_ROWS + pad_row.0).unwrap();
         TpcPadPosition { column, row }
     }
     /// Map a [`BoardId`], [`AfterId`], and [`PadChannelId`] to a
@@ -518,6 +576,58 @@ impl TpcPadPosition {
     /// ```
     pub fn row(&self) -> TpcPadRow {
         self.row
+    }
+    /// Return the `z` coordinate (in meters) of the pad center within the rTPC.
+    /// The `z` coordinate is measured from the center of the rTPC (positive
+    /// upward).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use alpha_g_detector::padwing::map::TpcPadPosition;
+    /// use alpha_g_detector::padwing::{AfterId, PadChannelId, BoardId};
+    ///
+    /// let run_number = 5000;
+    /// let board = BoardId::try_from("26")?;
+    /// let after = AfterId::try_from('A')?;
+    /// let pad_channel = PadChannelId::try_from(1)?;
+    /// let tpc_pad_position = TpcPadPosition::try_new(run_number, board, after, pad_channel)?;
+    ///
+    /// let abs_difference = (tpc_pad_position.z() - 0.578).abs();
+    /// assert!(abs_difference < 1e-10);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn z(&self) -> f64 {
+        let TpcPadRow(row) = self.row;
+        const DETECTOR_HALF_LENGTH: f64 = 0.5 * DETECTOR_LENGTH;
+        (row as f64 + 0.5) * PAD_PITCH_Z - DETECTOR_HALF_LENGTH
+    }
+    /// Return the `phi` coordinate (in radians) of the pad center within the
+    /// rTPC.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use alpha_g_detector::padwing::map::TpcPadPosition;
+    /// use alpha_g_detector::padwing::{AfterId, PadChannelId, BoardId};
+    ///
+    /// let run_number = 5000;
+    /// let board = BoardId::try_from("26")?;
+    /// let after = AfterId::try_from('A')?;
+    /// let pad_channel = PadChannelId::try_from(1)?;
+    /// let tpc_pad_position = TpcPadPosition::try_new(run_number, board, after, pad_channel)?;
+    ///
+    /// let abs_difference = (tpc_pad_position.phi() - 1.0799224746).abs();
+    /// assert!(abs_difference < 1e-10);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn phi(&self) -> f64 {
+        let TpcPadColumn(column) = self.column;
+        (column as f64 + 0.5) * PAD_PITCH_PHI
     }
 }
 

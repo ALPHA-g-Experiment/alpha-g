@@ -1,14 +1,14 @@
-# `alpha-g-padwing-viewer`
+# `alpha-g-padwing-signal-viewer`
 
 Iterate through a MIDAS file, and visualize the individual cathode pad waveforms
-from the radial Time Projection Chamber. Run the `alpha-g-padwing-viewer --help`
+from the radial Time Projection Chamber. Run the `alpha-g-padwing-signal-viewer --help`
 command to make sure you have installed the `alpha-g-analysis` package and print 
 help information.
 
 ## Requirements
 
 Please make sure you have all the following installed in your system, otherwise
-`alpha-g-padwing-viewer` may not work as expected:
+`alpha-g-padwing-signal-viewer` may not work as expected:
 
 - ncurses: This is the default backend used for the TUI. In the very unlikely
  scenario that you don't have this already, see [how to install

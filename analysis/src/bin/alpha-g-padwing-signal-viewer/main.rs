@@ -1,4 +1,4 @@
-//! Iterate through a MIDAS file, and visualize the individual PWB waveforms
+//! Iterate through a MIDAS file and visualize the individual PWB signals
 //! from the cathode pads of the radial Time Projection Chamber.
 
 use crate::filter::{Filter, Overflow};
@@ -29,12 +29,12 @@ mod next;
 /// A user is only interested in seeing [`Packet`]s that pass the filters.
 mod filter;
 
-/// Create and update the waveform plots.
+/// Create and update the signal plots.
 mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
-#[command(about = "Visualize the cathode pad waveforms from the rTPC", long_about = None)]
+#[command(about = "Visualize the cathode pad signals from the rTPC", long_about = None)]
 struct Args {
     /// MIDAS files that you want to inspect
     #[arg(required = true)]
@@ -57,12 +57,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::spawn(move || worker(sender, &args.files));
 
     let dir = tempdir()?;
-    let jobname = String::from("padwing_viewer");
+    let jobname = String::from("padwing_signal_viewer");
     let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
     opener::open(pdf_path)?;
 
     let mut siv = cursive::default();
-    siv.set_window_title("Padwing Waveform Viewer");
+    siv.set_window_title("Padwing Signal Viewer");
     siv.set_autohide_menu(false);
     siv.set_user_data(UserData {
         receiver,
@@ -77,8 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     siv.add_layer(
         Dialog::around(
-            TextView::new("Press <Next> to jump to the next Padwing waveform.")
-                .with_name("metadata"),
+            TextView::new("Press <Next> to jump to the next Padwing signal.").with_name("metadata"),
         )
         .title("Packet Metadata")
         .button("Quit", Cursive::quit)
@@ -199,7 +198,7 @@ fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextP
                 let _ = write!(text, "\nCaused by: {cause}");
             }
             s.add_layer(Dialog::info(text));
-            String::from("Press <Next> to jump to the next Padwing waveform.")
+            String::from("Press <Next> to jump to the next Padwing signal.")
         }
     };
 

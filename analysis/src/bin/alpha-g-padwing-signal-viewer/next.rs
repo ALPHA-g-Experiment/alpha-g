@@ -64,27 +64,27 @@ pub fn worker<P>(
         let file = match File::open(file_name) {
             Ok(file) => file,
             Err(error) => {
-                sender
-                    .send(Err(error.into()))
-                    .expect("receiver disconnected on \"failed to open\"");
+                if sender.send(Err(error.into())).is_err() {
+                    return;
+                }
                 continue;
             }
         };
         let mmap = match unsafe { Mmap::map(&file) } {
             Ok(mmap) => mmap,
             Err(error) => {
-                sender
-                    .send(Err(error.into()))
-                    .expect("receiver disconnected on \"failed to mmap\"");
+                if sender.send(Err(error.into())).is_err() {
+                    return;
+                }
                 continue;
             }
         };
         let file_view = match FileView::try_from(&mmap[..]) {
             Ok(file_view) => file_view,
             Err(error) => {
-                sender
-                    .send(Err(error.into()))
-                    .expect("receiver disconnected on \"failed to FileView\"");
+                if sender.send(Err(error.into())).is_err() {
+                    return;
+                }
                 continue;
             }
         };
@@ -109,9 +109,9 @@ pub fn worker<P>(
                 let chunk = match Chunk::try_from(bank_view.data_slice()) {
                     Ok(chunk) => chunk,
                     Err(error) => {
-                        sender
-                            .send(Err(error.into()))
-                            .expect("receiver disconnected on \"BadDataBank\"");
+                        if sender.send(Err(error.into())).is_err() {
+                            return;
+                        }
                         continue;
                     }
                 };
@@ -124,9 +124,9 @@ pub fn worker<P>(
                 let pwb_packet = match PwbPacket::try_from(chunks) {
                     Ok(packet) => packet,
                     Err(error) => {
-                        sender
-                            .send(Err(error.into()))
-                            .expect("receiver disconnected on \"BadChunks\"");
+                        if sender.send(Err(error.into())).is_err() {
+                            return;
+                        }
                         continue;
                     }
                 };
@@ -135,19 +135,18 @@ pub fn worker<P>(
                 // thread rather than the Cursive user_data. It simplifies all
                 // the filter logic, next logic, etc.
                 for &channel_id in pwb_packet.channels_sent() {
-                    sender
-                        .send(Ok(Packet {
-                            pwb_packet: pwb_packet.clone(),
-                            channel_id,
-                            run_number: file_view.run_number(),
-                            suppression_threshold,
-                        }))
-                        .expect("receiver disconnected on \"data packet\"");
+                    let packet = Packet {
+                        pwb_packet: pwb_packet.clone(),
+                        channel_id,
+                        run_number: file_view.run_number(),
+                        suppression_threshold,
+                    };
+                    if sender.send(Ok(packet)).is_err() {
+                        return;
+                    }
                 }
             }
         }
     }
-    sender
-        .send(Err(TryNextPacketError::AllConsumed))
-        .expect("receiver disconnected on \"all consumed\"");
+    let _ = sender.send(Err(TryNextPacketError::AllConsumed));
 }
