@@ -1,5 +1,5 @@
-//! Iterate through a MIDAS file and visualize the occupancy of the cathode pads
-//! on each event.
+//! Iterate through a MIDAS file and visualize the anode wire and cathode pad
+//! occupancy on each event.
 
 use crate::filter::Filter;
 use crate::next::{worker, Packet, TryNextPacketError};
@@ -38,7 +38,7 @@ mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
-#[command(about = "Visualize the pad occupancy from the rTPC", long_about = None)]
+#[command(about = "Visualize the wire and pad occupancy of the rTPC", long_about = None)]
 struct Args {
     /// MIDAS files that you want to inspect
     #[arg(required = true)]
@@ -61,12 +61,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::spawn(move || worker(sender, &args.files));
 
     let dir = tempdir()?;
-    let jobname = String::from("padwing_occupancy_viewer");
+    let jobname = String::from("tpc_occupancy_viewer");
     let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
     opener::open(pdf_path)?;
 
     let mut siv = cursive::default();
-    siv.set_window_title("Padwing Occupancy Viewer");
+    siv.set_window_title("rTPC Occupancy Viewer");
     siv.set_autohide_menu(false);
     siv.set_user_data(UserData {
         receiver,
@@ -108,6 +108,28 @@ fn select_filters(s: &mut Cursive) {
             .content(
                 ListView::new()
                     .child(
+                        "Min number of anode wires: ",
+                        EditView::new()
+                            .content(
+                                current_filter
+                                    .min_anode_wires
+                                    .map_or(String::new(), |p| p.to_string()),
+                            )
+                            .with_name("min_anode_wires")
+                            .fixed_width(10),
+                    )
+                    .child(
+                        "Max number of anode wires: ",
+                        EditView::new()
+                            .content(
+                                current_filter
+                                    .max_anode_wires
+                                    .map_or(String::new(), |p| p.to_string()),
+                            )
+                            .with_name("max_anode_wires")
+                            .fixed_width(10),
+                    )
+                    .child(
                         "Min number of pads: ",
                         EditView::new()
                             .content(
@@ -131,6 +153,26 @@ fn select_filters(s: &mut Cursive) {
                     ),
             )
             .button("Done", move |s| {
+                let min_anode_wires = s
+                    .call_on_name("min_anode_wires", |view: &mut EditView| {
+                        let text = view.get_content();
+                        if text.is_empty() {
+                            Ok(None)
+                        } else {
+                            text.parse::<usize>().map(Some)
+                        }
+                    })
+                    .unwrap();
+                let max_anode_wires = s
+                    .call_on_name("max_anode_wires", |view: &mut EditView| {
+                        let text = view.get_content();
+                        if text.is_empty() {
+                            Ok(None)
+                        } else {
+                            text.parse::<usize>().map(Some)
+                        }
+                    })
+                    .unwrap();
                 let min_pads = s
                     .call_on_name("min_pads", |view: &mut EditView| {
                         let text = view.get_content();
@@ -152,19 +194,30 @@ fn select_filters(s: &mut Cursive) {
                     })
                     .unwrap();
 
-                match (min_pads, max_pads) {
-                    (Ok(min_pads), Ok(max_pads)) => {
+                match (min_anode_wires, max_anode_wires, min_pads, max_pads) {
+                    (Ok(min_anode_wires), Ok(max_anode_wires), Ok(min_pads), Ok(max_pads)) => {
                         s.with_user_data(|user_data: &mut UserData| {
-                            user_data.filter = Filter { min_pads, max_pads };
+                            user_data.filter = Filter {
+                                min_anode_wires,
+                                max_anode_wires,
+                                min_pads,
+                                max_pads,
+                            };
                         })
                         .unwrap();
                         s.pop_layer();
                         s.set_autohide_menu(false);
                     }
-                    (Err(_), _) => {
+                    (Err(_), _, _, _) => {
+                        s.add_layer(Dialog::info("Invalid minimum number of anode wires"));
+                    }
+                    (_, Err(_), _, _) => {
+                        s.add_layer(Dialog::info("Invalid maximum number of anode wires"));
+                    }
+                    (_, _, Err(_), _) => {
                         s.add_layer(Dialog::info("Invalid minimum number of pads"));
                     }
-                    (_, Err(_)) => {
+                    (_, _, _, Err(_)) => {
                         s.add_layer(Dialog::info("Invalid maximum number of pads"));
                     }
                 }
@@ -200,6 +253,7 @@ fn update_event_metadata(s: &mut Cursive, result: &Result<Packet, TryNextPacketE
     let text = match result {
         Ok(packet) => {
             let mut text = format!("Serial number: {}\n", packet.serial_number);
+            writeln!(text, "Number of anode wires: {}", packet.num_anode_wires()).unwrap();
             write!(text, "Number of pads: {}", packet.num_pads()).unwrap();
             text
         }

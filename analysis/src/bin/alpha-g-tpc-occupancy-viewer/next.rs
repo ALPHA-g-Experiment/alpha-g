@@ -1,4 +1,5 @@
-use alpha_g_detector::midas::{EventId, PadwingBankName};
+use alpha_g_detector::alpha16::{AdcPacket, ChannelId, TryAdcPacketFromSliceError};
+use alpha_g_detector::midas::{Adc32BankName, EventId, PadwingBankName};
 use alpha_g_detector::padwing::{
     AfterId, BoardId, Chunk, PwbPacket, TryChunkFromSliceError, TryPwbPacketFromChunksError,
 };
@@ -19,12 +20,19 @@ pub enum TryNextPacketError {
     /// Input file is not a valid MIDAS file.
     #[error("not a valid MIDAS file")]
     FailedFileView(#[from] TryFileViewFromSliceError),
-    /// Data bank doesn't make a correct [`Chunk`].
-    #[error("bad data bank")]
-    BadDataBank(#[from] TryChunkFromSliceError),
+    /// PWB data bank doesn't make a correct [`Chunk`].
+    #[error("bad pwb data bank")]
+    BadPwbDataBank(#[from] TryChunkFromSliceError),
     /// [`Chunk`]s don't make a correct [`PwbPacket`].
     #[error("bad chunks")]
     BadChunks(#[from] TryPwbPacketFromChunksError),
+    /// ADC data bank doesn't make a correct [`AdcPacket`].
+    #[error("bad adc data bank")]
+    BadAdcDataBank(#[from] TryAdcPacketFromSliceError),
+    /// An [`AdcPacket`] (presumably from the anode wires) contains a BV (A16)
+    /// channel id.
+    #[error("aw packet contains a BV channel id")]
+    BadAdcPacket,
     /// All input files have been consumed.
     #[error("consumed all input files")]
     AllConsumed,
@@ -38,6 +46,8 @@ pub enum TryNextPacketError {
 pub struct Packet {
     /// All the [`PwbPacket`]s from the event.
     pub pwb_packets: Vec<PwbPacket>,
+    /// All the [`AdcPacket`]s from the event.
+    pub adc_packets: Vec<AdcPacket>,
     /// Serial number of the MIDAS event.
     pub serial_number: u32,
     /// Run number, required to map the pads.
@@ -81,28 +91,49 @@ pub fn worker<P>(
             }
         };
 
-        let main_events = file_view
+        for event_view in file_view
             .into_iter()
-            .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)));
-        for event_view in main_events {
+            .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)))
+        {
+            let mut adc_packets = Vec::new();
             let mut pwb_chunks_map: HashMap<(BoardId, AfterId), Vec<Chunk>> = HashMap::new();
 
-            let padwing_banks = event_view
-                .into_iter()
-                .filter(|b| PadwingBankName::try_from(b.name()).is_ok());
-            for bank_view in padwing_banks {
-                let chunk = match Chunk::try_from(bank_view.data_slice()) {
-                    Ok(chunk) => chunk,
-                    Err(error) => {
-                        if sender.send(Err(error.into())).is_err() {
+            for bank_view in event_view {
+                if Adc32BankName::try_from(bank_view.name()).is_ok() {
+                    let adc_packet = match AdcPacket::try_from(bank_view.data_slice()) {
+                        Ok(adc_packet) => adc_packet,
+                        Err(error) => {
+                            if sender.send(Err(error.into())).is_err() {
+                                return;
+                            }
+                            continue;
+                        }
+                    };
+                    // Checked here before sending to allow the main thread to
+                    // assume all packets are from the anode wires (it unwraps
+                    // the channel id).
+                    if let ChannelId::A16(_) = adc_packet.channel_id() {
+                        if sender.send(Err(TryNextPacketError::BadAdcPacket)).is_err() {
                             return;
                         }
                         continue;
                     }
-                };
 
-                let key = (chunk.board_id(), chunk.after_id());
-                pwb_chunks_map.entry(key).or_default().push(chunk);
+                    adc_packets.push(adc_packet);
+                } else if PadwingBankName::try_from(bank_view.name()).is_ok() {
+                    let chunk = match Chunk::try_from(bank_view.data_slice()) {
+                        Ok(chunk) => chunk,
+                        Err(error) => {
+                            if sender.send(Err(error.into())).is_err() {
+                                return;
+                            }
+                            continue;
+                        }
+                    };
+
+                    let key = (chunk.board_id(), chunk.after_id());
+                    pwb_chunks_map.entry(key).or_default().push(chunk);
+                }
             }
 
             let mut pwb_packets = Vec::new();
@@ -118,14 +149,14 @@ pub fn worker<P>(
                 };
                 pwb_packets.push(pwb_packet);
             }
-            if sender
-                .send(Ok(Packet {
-                    pwb_packets,
-                    serial_number: event_view.serial_number(),
-                    run_number: file_view.run_number(),
-                }))
-                .is_err()
-            {
+
+            let packet = Packet {
+                pwb_packets,
+                adc_packets,
+                serial_number: event_view.serial_number(),
+                run_number: file_view.run_number(),
+            };
+            if sender.send(Ok(packet)).is_err() {
                 return;
             }
         }
