@@ -9,7 +9,8 @@ experiment at CERN.
 
 ## Installation
 
-The package can be installed with `cargo`
+The package can be installed with
+[`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
 ```bash
 cargo install alpha-g-analysis
