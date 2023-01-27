@@ -77,3 +77,6 @@ impl Packet {
         true
     }
 }
+
+#[cfg(test)]
+mod tests;
