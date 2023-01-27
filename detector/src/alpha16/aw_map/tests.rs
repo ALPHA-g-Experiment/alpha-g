@@ -174,7 +174,8 @@ fn tpc_wire_position_correctness_2941() {
 fn tpc_wire_position_phi() {
     for i in 0..TPC_ANODE_WIRES {
         let wire_position = TpcWirePosition::try_from(i).unwrap();
-        let phi = (i as f64 + 0.5) * 2.0 * std::f64::consts::PI / 256.0;
+        let shifted_index = if i >= 8 { i - 8 } else { i + 248 };
+        let phi = (shifted_index as f64 + 0.5) * 2.0 * std::f64::consts::PI / 256.0;
         let abs_diff = (wire_position.phi() - phi).abs();
         assert!(abs_diff < 1e-10);
     }

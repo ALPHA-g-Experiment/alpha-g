@@ -83,6 +83,15 @@ pub struct TryTpcWirePositionFromIndexError {
 }
 
 /// Position of an anode wire in the TPC.
+// IMPORTANT: The internal index represents the numbering starting from the
+// first wire in the first anode wire board. This is not the same as the first
+// wire at phi = 0. There is an offset of 8 wires between the first wire in the
+// first board and the first wire at phi = 0.
+//
+// I decided to use this internal index because it is the same as the index
+// used in the raw data. This is what we get from the unpacking of the raw data
+// in the data banks. Positioning the wires at phi is the job of the
+// TpcWirePosition::phi() method.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TpcWirePosition(usize);
 impl TryFrom<usize> for TpcWirePosition {
@@ -157,14 +166,19 @@ impl TpcWirePosition {
     ///
     /// let wire_position = TpcWirePosition::try_from(0)?;
     ///
-    /// let abs_difference = (wire_position.phi() - 0.0122718463).abs();
+    /// let abs_difference = (wire_position.phi() - 6.0991076126).abs();
     /// assert!(abs_difference < 1e-10);
     /// # Ok(())
     /// # }
     /// ```
     pub fn phi(&self) -> f64 {
-        let wire_position = self.0 as f64;
-        ANODE_WIRE_PITCH_PHI * (wire_position + 0.5)
+        // The wire with index 0 is not aligned with phi=0.
+        // Phi=0 goes through the center of AWB0; hence there is an offset of
+        // 8 wires.
+        // self.0 is a number between [0, 255]. Shift it by 8 to the left
+        // keeping it in the range [0, 255].
+        let shifted_index = self.0.wrapping_sub(8) & 0xff;
+        ANODE_WIRE_PITCH_PHI * (shifted_index as f64 + 0.5)
     }
 }
 
