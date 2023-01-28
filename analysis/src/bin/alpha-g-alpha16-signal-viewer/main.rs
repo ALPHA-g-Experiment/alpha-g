@@ -11,6 +11,7 @@ use cursive::views::{Dialog, LinearLayout, ListView, RadioGroup, TextView};
 use cursive::{Cursive, With};
 use pgfplots::Engine;
 use std::error::Error;
+use std::fmt::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use tempfile::{tempdir, TempDir};
@@ -243,7 +244,10 @@ fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextP
             Err(error) => format!("Error: {error}"),
         },
         Err(error) => {
-            let text = format!("Error: {error}");
+            let mut text = format!("Error: {error}");
+            if let Some(cause) = error.source() {
+                let _ = write!(text, "\nCaused by: {cause}");
+            }
             s.add_layer(Dialog::info(text));
             String::from("Press <Next> to jump to the next Alpha16 signal.")
         }

@@ -1,37 +1,24 @@
 use alpha_g_detector::midas::{Alpha16BankName, EventId};
 use memmap2::Mmap;
-use midasio::read::file::FileView;
+use midasio::read::file::{FileView, TryFileViewFromSliceError};
 use serde_json::Value;
-use std::fmt;
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::mpsc::SyncSender;
+use thiserror::Error;
 
 /// The error type returned when obtaining the next [`Packet`] fails.
-#[derive(Clone, Debug)]
+#[derive(Error, Debug)]
 pub enum TryNextPacketError {
     /// Error opening an input file.
-    FailedOpen(PathBuf),
-    /// Error in the underlying system call to memory map the file.
-    FailedMmap(PathBuf),
+    #[error("failed to open input file")]
+    FailedOpen(#[from] std::io::Error),
     /// Input file is not MIDAS file.
-    FailedFileView(PathBuf),
+    #[error("not a valid MIDAS file")]
+    FailedFileView(#[from] TryFileViewFromSliceError),
     /// All input files have been consumed.
+    #[error("no more input files")]
     AllConsumed,
-}
-impl fmt::Display for TryNextPacketError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::FailedOpen(file) => write!(f, "failed to open {}", file.display()),
-            Self::FailedMmap(file) => write!(f, "failed to memory map {}", file.display()),
-            Self::FailedFileView(file) => write!(
-                f,
-                "failed to create a MIDAS FileView from {}",
-                file.display()
-            ),
-            Self::AllConsumed => write!(f, "consumed all input files"),
-        }
-    }
 }
 
 /// Data that the worker thread is trying to collect from the MIDAS file with
@@ -62,35 +49,32 @@ pub fn worker<P>(
     P: AsRef<Path> + std::marker::Copy,
 {
     for file_name in file_names {
-        let file = if let Ok(file) = File::open(file_name) {
-            file
-        } else {
-            sender
-                .send(Err(TryNextPacketError::FailedOpen(
-                    file_name.as_ref().to_path_buf(),
-                )))
-                .expect("receiver disconnected on \"failed to open\"");
-            continue;
+        let file = match File::open(file_name) {
+            Ok(file) => file,
+            Err(error) => {
+                if sender.send(Err(error.into())).is_err() {
+                    return;
+                }
+                continue;
+            }
         };
-        let mmap = if let Ok(mmap) = unsafe { Mmap::map(&file) } {
-            mmap
-        } else {
-            sender
-                .send(Err(TryNextPacketError::FailedMmap(
-                    file_name.as_ref().to_path_buf(),
-                )))
-                .expect("receiver disconnected on \"failed to mmap\"");
-            continue;
+        let mmap = match unsafe { Mmap::map(&file) } {
+            Ok(mmap) => mmap,
+            Err(error) => {
+                if sender.send(Err(error.into())).is_err() {
+                    return;
+                }
+                continue;
+            }
         };
-        let file_view = if let Ok(file_view) = FileView::try_from(&mmap[..]) {
-            file_view
-        } else {
-            sender
-                .send(Err(TryNextPacketError::FailedFileView(
-                    file_name.as_ref().to_path_buf(),
-                )))
-                .expect("receiver disconnected on \"failed to FileView\"");
-            continue;
+        let file_view = match FileView::try_from(&mmap[..]) {
+            Ok(file_view) => file_view,
+            Err(error) => {
+                if sender.send(Err(error.into())).is_err() {
+                    return;
+                }
+                continue;
+            }
         };
         let odb = serde_json::from_slice::<Value>(file_view.initial_odb());
         let (a16_suppression, a32_suppression) = if let Ok(odb) = odb {
@@ -104,26 +88,22 @@ pub fn worker<P>(
             (None, None)
         };
 
-        let main_events = file_view
+        for bank_view in file_view
             .into_iter()
-            .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)));
-        for event_view in main_events {
-            let alpha16_banks = event_view
-                .into_iter()
-                .filter(|b| Alpha16BankName::try_from(b.name()).is_ok());
-            for bank_view in alpha16_banks {
-                sender
-                    .send(Ok(Packet {
-                        adc_packet: bank_view.data_slice().to_owned(),
-                        bank_name: bank_view.name().to_owned(),
-                        a16_suppression,
-                        a32_suppression,
-                    }))
-                    .expect("receiver disconnected on \"data packet\"");
+            .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)))
+            .flatten()
+            .filter(|b| Alpha16BankName::try_from(b.name()).is_ok())
+        {
+            let packet = Packet {
+                adc_packet: bank_view.data_slice().to_owned(),
+                bank_name: bank_view.name().to_owned(),
+                a16_suppression,
+                a32_suppression,
+            };
+            if sender.send(Ok(packet)).is_err() {
+                return;
             }
         }
     }
-    sender
-        .send(Err(TryNextPacketError::AllConsumed))
-        .expect("receiver disconnected on \"all consumed\"");
+    let _ = sender.send(Err(TryNextPacketError::AllConsumed));
 }
