@@ -34,7 +34,7 @@ mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
-#[command(about = "Visualize the ADC waveforms from the BV and the rTPC", long_about = None)]
+#[command(about = "Visualize the ADC signals from the BV and the rTPC", long_about = None)]
 struct Args {
     /// MIDAS files that you want to inspect
     #[arg(required = true)]
@@ -57,12 +57,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::spawn(move || worker(sender, &args.files));
 
     let dir = tempdir()?;
-    let jobname = String::from("alpha16_viewer");
+    let jobname = String::from("alpha16_signal_viewer");
     let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
     opener::open(pdf_path)?;
 
     let mut siv = cursive::default();
-    siv.set_window_title("Alpha16 Packet Viewer");
+    siv.set_window_title("Alpha16 Signal Viewer");
     siv.set_autohide_menu(false);
     siv.set_user_data(UserData {
         receiver,
@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     siv.add_layer(
         Dialog::around(
-            TextView::new("Press <Next> to jump to the next Alpha16 packet.").with_name("metadata"),
+            TextView::new("Press <Next> to jump to the next Alpha16 signal.").with_name("metadata"),
         )
         .title("Packet Metadata")
         .button("Quit", Cursive::quit)
@@ -245,7 +245,7 @@ fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextP
         Err(error) => {
             let text = format!("Error: {error}");
             s.add_layer(Dialog::info(text));
-            String::from("Press <Next> to jump to the next Alpha16 packet.")
+            String::from("Press <Next> to jump to the next Alpha16 signal.")
         }
     };
 

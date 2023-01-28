@@ -18,7 +18,7 @@ cargo install alpha-g-analysis
 
 ## Binaries
 
-- [`alpha-g-alpha16-viewer`](src/bin/alpha-g-alpha16-viewer/README.md): 
+- [`alpha-g-alpha16-signal-viewer`](src/bin/alpha-g-alpha16-signal-viewer/README.md): 
 Visualize the ADC waveforms from the BV and the rTPC.
 - [`alpha-g-copy`](src/bin/alpha-g-copy/README.md): Make local copies of MIDAS 
 files from remote hosts.
