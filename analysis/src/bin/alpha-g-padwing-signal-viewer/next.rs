@@ -1,4 +1,4 @@
-use alpha_g_detector::midas::{EventId, PadwingBankName};
+use alpha_g_detector::midas::{EventId, PadwingBankName, PWB_SUPPRESSION_THRESHOLD_JSON_PTR};
 use alpha_g_detector::padwing::{
     AfterId, BoardId, ChannelId, Chunk, PwbPacket, TryChunkFromSliceError,
     TryPwbPacketFromChunksError,
@@ -90,7 +90,7 @@ pub fn worker<P>(
         };
         let odb = serde_json::from_slice::<Value>(file_view.initial_odb());
         let suppression_threshold = if let Ok(odb) = odb {
-            odb.pointer("/Equipment/CTRL/Settings/PWB/ch_threshold")
+            odb.pointer(PWB_SUPPRESSION_THRESHOLD_JSON_PTR)
                 .and_then(|v| v.as_f64())
         } else {
             None

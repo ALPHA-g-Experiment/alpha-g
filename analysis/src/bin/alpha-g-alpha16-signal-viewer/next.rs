@@ -1,4 +1,7 @@
-use alpha_g_detector::midas::{Alpha16BankName, EventId};
+use alpha_g_detector::midas::{
+    Alpha16BankName, EventId, ADC16_SUPPRESSION_THRESHOLD_JSON_PTR,
+    ADC32_SUPPRESSION_THRESHOLD_JSON_PTR,
+};
 use memmap2::Mmap;
 use midasio::read::file::{FileView, TryFileViewFromSliceError};
 use serde_json::Value;
@@ -79,9 +82,9 @@ pub fn worker<P>(
         let odb = serde_json::from_slice::<Value>(file_view.initial_odb());
         let (a16_suppression, a32_suppression) = if let Ok(odb) = odb {
             (
-                odb.pointer("/Equipment/CTRL/Settings/ADC/adc16_sthreshold")
+                odb.pointer(ADC16_SUPPRESSION_THRESHOLD_JSON_PTR)
                     .and_then(|v| v.as_f64()),
-                odb.pointer("/Equipment/CTRL/Settings/ADC/adc32_sthreshold")
+                odb.pointer(ADC32_SUPPRESSION_THRESHOLD_JSON_PTR)
                     .and_then(|v| v.as_f64()),
             )
         } else {
