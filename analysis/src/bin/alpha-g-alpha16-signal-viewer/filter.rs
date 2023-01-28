@@ -1,7 +1,6 @@
 use crate::Packet;
 use alpha_g_detector::alpha16::AdcPacket;
 use alpha_g_detector::midas::Alpha16BankName::{self, A16, A32};
-use std::mem::discriminant;
 
 /// Correctness of an ADC data packet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,12 +93,12 @@ impl Packet {
     /// Return [`true`] if the [`Packet`] satisfies a user-defined [`Filter`].
     pub fn passes_filter(&self, filter: &Filter) -> bool {
         if let Some(correctness) = filter.correctness {
-            if discriminant(&self.correctness()) != discriminant(&correctness) {
+            if self.correctness() != correctness {
                 return false;
             }
         }
         if let Some(detector) = filter.detector {
-            if discriminant(&self.detector()) != discriminant(&detector) {
+            if self.detector() != detector {
                 return false;
             }
         }
@@ -117,7 +116,7 @@ impl Packet {
             match self.overflow() {
                 None => return false,
                 Some(value) => {
-                    if discriminant(&overflow) != discriminant(&value) {
+                    if overflow != value {
                         return false;
                     }
                 }
