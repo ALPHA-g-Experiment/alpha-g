@@ -3,6 +3,7 @@
 
 use crate::extension::{decompress_lz4, Extension};
 use crate::host::Host;
+use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use glob::{glob, Pattern};
 use indicatif::ProgressBar;
@@ -40,7 +41,7 @@ struct Args {
 }
 
 /// Copy and (if applicable) decompress the MIDAS files
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     let filenames: Vec<Pattern> = args
@@ -59,9 +60,10 @@ fn main() {
         .args(remote_filenames)
         .arg(&args.output_path)
         .status()
-        .expect("failed to execute rsync");
+        .context("failed to execute rsync")?;
+    ensure!(status.success(), "rsync failed with status {status}");
 
-    if status.success() && args.decompress {
+    if args.decompress {
         let spinner = ProgressBar::new_spinner()
             .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
         spinner.enable_steady_tick(std::time::Duration::from_millis(100));
@@ -70,26 +72,32 @@ fn main() {
             .iter()
             .map(|f| args.output_path.join(f.to_string()));
         for pattern in local_filenames {
-            for entry in glob(pattern.to_str().unwrap()).unwrap() {
-                let path = entry.unwrap();
+            for entry in glob(pattern.to_str().unwrap())? {
+                let path = entry?;
                 spinner.set_message(format!("Decompressing {}...", path.display()));
                 match args.extension.unwrap() {
-                    Extension::Lz4 => decompress_lz4(&path, &path.with_extension("")).unwrap(),
+                    Extension::Lz4 => decompress_lz4(&path, &path.with_extension(""))
+                        .context("lz4 decompression failed")?,
                 }
-                fs::remove_file(path).unwrap();
+                fs::remove_file(&path).context(format!(
+                    "failed to remove compressed file {}",
+                    path.display()
+                ))?;
             }
         }
         spinner.finish_and_clear();
     }
+
+    Ok(())
 }
 
 /// Parse `--output-path` flag as valid directory
-fn is_directory(s: &str) -> Result<PathBuf, String> {
+fn is_directory(s: &str) -> Result<PathBuf> {
     let path: PathBuf = s.into();
     if path.is_dir() {
         Ok(path)
     } else {
-        Err(String::from("path is not pointing at a directory on disk"))
+        bail!("{} is not a directory on disk", path.display())
     }
 }
 

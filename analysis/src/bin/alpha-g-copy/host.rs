@@ -2,7 +2,7 @@ use crate::Extension;
 use clap::ValueEnum;
 use glob::Pattern;
 use std::fmt;
-use std::path::Path;
+use std::path::PathBuf;
 
 /// Known hosts for ALPHA-g MIDAS files
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -21,10 +21,10 @@ impl fmt::Display for Host {
 
 impl Host {
     /// Path to MIDAS files in a given host
-    pub fn path_to_data(&self) -> &Path {
+    pub fn path_to_data(&self) -> PathBuf {
         match self {
-            Host::Lxplus => Path::new("/eos/experiment/ALPHAg/midasdata_old"),
-            Host::Alpha03 => Path::new("/daq/alpha_data0/acapra/alphag/midasdata"),
+            Host::Lxplus => PathBuf::from("/eos/experiment/ALPHAg/midasdata_old"),
+            Host::Alpha03 => PathBuf::from("/daq/alpha_data0/acapra/alphag/midasdata"),
         }
     }
     /// Return the Unix shell style pattern of all files from a single run number.

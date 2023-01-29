@@ -10,11 +10,11 @@ fn host_display() {
 fn host_path_to_data() {
     assert_eq!(
         Host::Lxplus.path_to_data(),
-        Path::new("/eos/experiment/ALPHAg/midasdata_old/")
+        PathBuf::from("/eos/experiment/ALPHAg/midasdata_old/")
     );
     assert_eq!(
         Host::Alpha03.path_to_data(),
-        Path::new("/daq/alpha_data0/acapra/alphag/midasdata/")
+        PathBuf::from("/daq/alpha_data0/acapra/alphag/midasdata/")
     );
 }
 
