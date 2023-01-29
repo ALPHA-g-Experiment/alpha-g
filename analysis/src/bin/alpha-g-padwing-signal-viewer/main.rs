@@ -2,15 +2,14 @@
 //! from the cathode pads of the radial Time Projection Chamber.
 
 use crate::filter::{Filter, Overflow};
-use crate::next::{worker, Packet, TryNextPacketError};
+use crate::next::{worker, Packet};
 use crate::plot::{create_picture, empty_picture};
+use anyhow::{Context, Result};
 use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, LinearLayout, ListView, RadioGroup, TextView};
 use cursive::{Cursive, With};
 use pgfplots::Engine;
-use std::error::Error;
-use std::fmt::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use tempfile::{tempdir, TempDir};
@@ -44,22 +43,24 @@ struct Args {
 /// Structure stored in Cursive object that needs to be accessed while modifying
 /// the layout.
 struct UserData {
-    receiver: mpsc::Receiver<Result<Packet, TryNextPacketError>>,
+    receiver: mpsc::Receiver<Result<Packet>>,
     jobname: String,
     dir: TempDir,
     filter: Filter,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
     // Unbuffered channel that blocks until receive.
     let (sender, receiver) = mpsc::sync_channel(0);
     std::thread::spawn(move || worker(sender, &args.files));
 
-    let dir = tempdir()?;
+    let dir = tempdir().context("failed to create temporary file")?;
     let jobname = String::from("padwing_signal_viewer");
-    let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
-    opener::open(pdf_path)?;
+    let pdf_path = empty_picture()
+        .to_pdf(&dir, &jobname, Engine::PdfLatex)
+        .context("failed to compile empty PDF")?;
+    opener::open(&pdf_path).context(format!("failed to open `{}`", pdf_path.display()))?;
 
     let mut siv = cursive::default();
     siv.set_window_title("Padwing Signal Viewer");
@@ -179,24 +180,35 @@ fn iterate(s: &mut Cursive) {
         .unwrap();
     let dir = &s.user_data::<UserData>().unwrap().dir;
     match result {
-        Ok(packet) => create_picture(&packet)
-            .to_pdf(dir, &jobname, Engine::PdfLatex)
-            .expect("failed to compile pdf"),
-        Err(_) => empty_picture()
-            .to_pdf(dir, &jobname, Engine::PdfLatex)
-            .expect("failed to compile empty picture"),
+        Ok(packet) => match create_picture(&packet) {
+            Ok(picture) => {
+                picture
+                    .to_pdf(dir, &jobname, Engine::PdfLatex)
+                    .expect("failed to compile PDF");
+            }
+            Err(error) => {
+                empty_picture()
+                    .to_pdf(dir, &jobname, Engine::PdfLatex)
+                    .expect("failed to compile empty picture");
+
+                let text = format!("Error: {error:?}");
+                s.add_layer(Dialog::info(text));
+            }
+        },
+        Err(_) => {
+            empty_picture()
+                .to_pdf(dir, &jobname, Engine::PdfLatex)
+                .expect("failed to compile empty picture");
+        }
     };
 }
 
 /// Update the Metadata text box with information about the last received packet.
-fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
+fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet>) {
     let text = match next_result {
         Ok(packet) => packet.pwb_packet.to_string(),
         Err(error) => {
-            let mut text = format!("Error: {error}");
-            if let Some(cause) = error.source() {
-                let _ = write!(text, "\nCaused by: {cause}");
-            }
+            let text = format!("Error: {error:?}");
             s.add_layer(Dialog::info(text));
             String::from("Press <Next> to jump to the next Padwing signal.")
         }

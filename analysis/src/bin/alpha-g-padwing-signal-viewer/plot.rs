@@ -1,6 +1,7 @@
 use crate::Packet;
 use alpha_g_detector::padwing::ChannelId::{Fpn, Pad, Reset};
 use alpha_g_detector::padwing::{suppression_baseline, PWB_MAX, PWB_MIN, PWB_RATE};
+use anyhow::{Context, Result};
 use pgfplots::{
     axis::{plot::*, *},
     Picture,
@@ -13,7 +14,7 @@ pub fn empty_picture() -> Picture {
 }
 
 /// Create a [`Picture`] based on an input Packet.
-pub fn create_picture(packet: &Packet) -> Picture {
+pub fn create_picture(packet: &Packet) -> Result<Picture> {
     let mut legend = Vec::new();
     let mut axis = Axis::new();
     axis.set_title(format!(
@@ -34,7 +35,7 @@ pub fn create_picture(packet: &Packet) -> Picture {
         packet.run_number,
         packet.pwb_packet.waveform_at(packet.channel_id).unwrap(),
     )
-    .unwrap()
+    .context("failed to compute suppression baseline)")?
     {
         if let Some(threshold) = packet.suppression_threshold {
             let mut suppression = Plot2D::new();
@@ -70,5 +71,5 @@ pub fn create_picture(packet: &Packet) -> Picture {
     axis.add_key(AxisKey::Custom("legend pos=south east".to_string()));
     axis.add_key(AxisKey::Custom("legend style={font=\\tiny}".to_string()));
 
-    Picture::from(axis)
+    Ok(Picture::from(axis))
 }
