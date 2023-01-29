@@ -1,6 +1,7 @@
 use crate::Packet;
 use alpha_g_detector::padwing::ChannelId::{Fpn, Pad, Reset};
 use alpha_g_detector::padwing::{suppression_baseline, PADWING_RATE};
+use alpha_g_detector::padwing::{PWB_MAX, PWB_MIN};
 use pgfplots::{
     axis::{plot::*, *},
     Picture,
@@ -28,7 +29,7 @@ pub fn create_picture(packet: &Packet) -> Picture {
     ));
     axis.set_x_label(format!("Samples~[{} ns]", 1e9 / PADWING_RATE));
     axis.set_y_label("Amplitude~[a.u.]");
-    axis.add_key(AxisKey::Custom("ymin=-2048, ymax=2047".to_string()));
+    axis.add_key(AxisKey::Custom(format!("ymin={PWB_MIN}, ymax={PWB_MAX}")));
 
     if let Some(baseline) = suppression_baseline(
         packet.run_number,

@@ -1,5 +1,5 @@
 use crate::Packet;
-use alpha_g_detector::alpha16::AdcPacket;
+use alpha_g_detector::alpha16::{AdcPacket, ADC_MAX, ADC_MIN};
 use alpha_g_detector::midas::Alpha16BankName::{self, A16, A32};
 
 /// Correctness of an ADC data packet.
@@ -80,9 +80,9 @@ impl Packet {
                 let min = packet.waveform().iter().min();
                 let max = packet.waveform().iter().max();
                 match (min, max) {
-                    (Some(&i16::MIN), Some(&32764)) => Some(Overflow::Both),
-                    (Some(&i16::MIN), Some(_)) => Some(Overflow::Negative),
-                    (Some(_), Some(&32764)) => Some(Overflow::Positive),
+                    (Some(&ADC_MIN), Some(&ADC_MAX)) => Some(Overflow::Both),
+                    (Some(&ADC_MIN), Some(_)) => Some(Overflow::Negative),
+                    (Some(_), Some(&ADC_MAX)) => Some(Overflow::Positive),
                     (Some(_), Some(_)) => Some(Overflow::Neither),
                     _ => None,
                 }

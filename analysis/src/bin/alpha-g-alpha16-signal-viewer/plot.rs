@@ -1,6 +1,6 @@
 use crate::Packet;
 use alpha_g_detector::alpha16::ChannelId::{A16, A32};
-use alpha_g_detector::alpha16::{AdcPacket, ADC16_RATE, ADC32_RATE};
+use alpha_g_detector::alpha16::{AdcPacket, ADC16_RATE, ADC32_RATE, ADC_MAX, ADC_MIN};
 use pgfplots::{
     axis::{plot::*, *},
     Picture,
@@ -26,7 +26,7 @@ pub fn create_picture(packet: &Packet) -> Picture {
             }
         ));
         axis.set_y_label("Amplitude~[a.u.]");
-        axis.add_key(AxisKey::Custom("ymin=-32768, ymax=32767".to_string()));
+        axis.add_key(AxisKey::Custom(format!("ymin={ADC_MIN}, ymax={ADC_MAX}")));
 
         let last_index = if adc_packet.waveform().is_empty() {
             adc_packet.requested_samples()

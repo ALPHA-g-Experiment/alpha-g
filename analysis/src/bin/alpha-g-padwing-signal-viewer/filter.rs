@@ -1,4 +1,5 @@
 use crate::Packet;
+use alpha_g_detector::padwing::{PWB_MAX, PWB_MIN};
 
 // Only imported for documentation. If you notice that this is no longer the
 // case, please change it.
@@ -33,10 +34,10 @@ impl Packet {
         let waveform = self.pwb_packet.waveform_at(self.channel_id).unwrap();
         let min = waveform.iter().min().unwrap();
         let max = waveform.iter().max().unwrap();
-        match (min, max) {
-            (&-2048, &2047) => Overflow::Both,
-            (&-2048, _) => Overflow::Negative,
-            (_, &2047) => Overflow::Positive,
+        match (*min, *max) {
+            (PWB_MIN, PWB_MAX) => Overflow::Both,
+            (PWB_MIN, _) => Overflow::Negative,
+            (_, PWB_MAX) => Overflow::Positive,
             _ => Overflow::Neither,
         }
     }

@@ -12,10 +12,13 @@ pub mod aw_map;
 /// Sampling rate (samples per second) of the ADC channels that receive the
 /// Barrel Veto SiPM signals.
 pub const ADC16_RATE: f64 = 100e6;
-
 /// Sampling rate (samples per second) of the ADC channels that receive the
 /// radial Time Projection Chamber anode wire signals.
 pub const ADC32_RATE: f64 = 62.5e6;
+/// Maximum value at which the ADC waveforms saturate.
+pub const ADC_MAX: i16 = 32764;
+/// Minimum value at which the ADC waveforms saturate.
+pub const ADC_MIN: i16 = -32768;
 
 /// The error type returned when conversion from unsigned integer to
 /// [`ChannelId`] fails.

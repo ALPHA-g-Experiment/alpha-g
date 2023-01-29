@@ -7,6 +7,16 @@ fn padwing_rate() {
 }
 
 #[test]
+fn pwb_max() {
+    assert_eq!(PWB_MAX, 2047);
+}
+
+#[test]
+fn pwb_min() {
+    assert_eq!(PWB_MIN, -2048);
+}
+
+#[test]
 fn padwing_boards() {
     for (i, board) in PADWING_BOARDS.iter().enumerate() {
         for other_board in PADWING_BOARDS.iter().skip(i + 1) {
