@@ -2,6 +2,7 @@ use crate::next::Packet;
 use alpha_g_detector::alpha16::{self, aw_map::*};
 use alpha_g_detector::padwing::map::*;
 use alpha_g_detector::padwing::ChannelId;
+use anyhow::{Context, Result};
 use pgfplots::{
     axis::{plot::*, *},
     Picture,
@@ -15,7 +16,7 @@ pub fn empty_picture() -> Picture {
 }
 
 /// Create a [`Picture`] based on an input [`Packet`].
-pub fn create_picture(packet: &Packet) -> Picture {
+pub fn create_picture(packet: &Packet) -> Result<Picture> {
     // Shared between both axis environments.
     const X_MIN: f64 = 0.0;
     const X_MAX: f64 = 2.0 * PI;
@@ -50,7 +51,7 @@ pub fn create_picture(packet: &Packet) -> Picture {
             panic!("worker thread checked that only A32 channels are sent");
         };
         let wire_position = TpcWirePosition::try_new(packet.run_number, board_id, channel_id)
-            .expect("wire position mapping failed. Please open an issue on Github.");
+            .context("wire position mapping failed. Please open an issue on Github.")?;
 
         let phi = wire_position.phi();
         wires_plot.coordinates.push((phi, 0.0).into());
@@ -97,7 +98,7 @@ pub fn create_picture(packet: &Packet) -> Picture {
             if let ChannelId::Pad(pad_channel) = channel_id {
                 let pad_position =
                     TpcPadPosition::try_new(packet.run_number, board_id, after_id, pad_channel)
-                        .expect("pad position mapping failed. Please open an issue on GitHub.");
+                        .context("pad position mapping failed. Please open an issue on GitHub.")?;
                 pads_plot
                     .coordinates
                     .push((pad_position.phi(), pad_position.z()).into());
@@ -132,7 +133,7 @@ pub fn create_picture(packet: &Packet) -> Picture {
 
     let mut picture = Picture::new();
     picture.axes = vec![wire_axis, pad_axis];
-    picture
+    Ok(picture)
 }
 
 fn vertical_awb_divisions() -> Vec<Plot2D> {
