@@ -3,7 +3,7 @@ use crate::midas::PadwingBankName;
 
 #[test]
 fn padwing_rate() {
-    assert_eq!(PADWING_RATE, 62.5e6);
+    assert_eq!(PWB_RATE, 62.5e6);
 }
 
 #[test]
