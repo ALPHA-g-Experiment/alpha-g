@@ -2,16 +2,15 @@
 //! from the Barrel Veto and the radial Time Projection Chamber.
 
 use crate::filter::{Correctness, Detector, Filter, Overflow};
-use crate::next::{worker, Packet, TryNextPacketError};
+use crate::next::{worker, Packet};
 use crate::plot::{create_picture, empty_picture};
 use alpha_g_detector::alpha16::AdcPacket;
+use anyhow::{Context, Result};
 use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, LinearLayout, ListView, RadioGroup, TextView};
 use cursive::{Cursive, With};
 use pgfplots::Engine;
-use std::error::Error;
-use std::fmt::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use tempfile::{tempdir, TempDir};
@@ -45,22 +44,24 @@ struct Args {
 /// Structure stored in Cursive object that needs to be accessed while modifying
 /// the layout.
 struct UserData {
-    receiver: mpsc::Receiver<Result<Packet, TryNextPacketError>>,
+    receiver: mpsc::Receiver<Result<Packet>>,
     jobname: String,
     dir: TempDir,
     filter: Filter,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
     // Unbuffered channel that blocks until receive.
     let (sender, receiver) = mpsc::sync_channel(0);
     std::thread::spawn(move || worker(sender, &args.files));
 
-    let dir = tempdir()?;
+    let dir = tempdir().context("failed to create temporary directory")?;
     let jobname = String::from("alpha16_signal_viewer");
-    let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
-    opener::open(pdf_path)?;
+    let pdf_path = empty_picture()
+        .to_pdf(&dir, &jobname, Engine::PdfLatex)
+        .context("failed to compile empty PDF")?;
+    opener::open(&pdf_path).context(format!("failed to open `{}`", pdf_path.display()))?;
 
     let mut siv = cursive::default();
     siv.set_window_title("Alpha16 Signal Viewer");
@@ -237,17 +238,14 @@ fn iterate(s: &mut Cursive) {
 }
 
 /// Update the Metadata text box with information about the last received packet
-fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
+fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet>) {
     let text = match next_result {
         Ok(packet) => match AdcPacket::try_from(&packet.adc_packet[..]) {
             Ok(packet) => packet.to_string(),
             Err(error) => format!("Error: {error}"),
         },
         Err(error) => {
-            let mut text = format!("Error: {error}");
-            if let Some(cause) = error.source() {
-                let _ = write!(text, "\nCaused by: {cause}");
-            }
+            let text = format!("Error: {error:?}");
             s.add_layer(Dialog::info(text));
             String::from("Press <Next> to jump to the next Alpha16 signal.")
         }

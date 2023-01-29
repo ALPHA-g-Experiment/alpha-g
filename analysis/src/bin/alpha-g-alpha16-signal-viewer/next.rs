@@ -2,27 +2,13 @@ use alpha_g_detector::midas::{
     Alpha16BankName, EventId, ADC16_SUPPRESSION_THRESHOLD_JSON_PTR,
     ADC32_SUPPRESSION_THRESHOLD_JSON_PTR,
 };
+use anyhow::{anyhow, Result};
 use memmap2::Mmap;
-use midasio::read::file::{FileView, TryFileViewFromSliceError};
+use midasio::read::file::FileView;
 use serde_json::Value;
 use std::fs::File;
 use std::path::Path;
 use std::sync::mpsc::SyncSender;
-use thiserror::Error;
-
-/// The error type returned when obtaining the next [`Packet`] fails.
-#[derive(Error, Debug)]
-pub enum TryNextPacketError {
-    /// Error opening an input file.
-    #[error("failed to open input file")]
-    FailedOpen(#[from] std::io::Error),
-    /// Input file is not MIDAS file.
-    #[error("not a valid MIDAS file")]
-    FailedFileView(#[from] TryFileViewFromSliceError),
-    /// All input files have been consumed.
-    #[error("no more input files")]
-    AllConsumed,
-}
 
 /// Data that the worker thread is trying to collect from the MIDAS file with
 /// every iteration of "next".
@@ -45,17 +31,21 @@ pub struct Packet {
 
 /// Worker function that iterates through MIDAS files and tries to send
 /// [`Packet`]s to the main thread.
-pub fn worker<P>(
-    sender: SyncSender<Result<Packet, TryNextPacketError>>,
-    file_names: impl IntoIterator<Item = P>,
-) where
+pub fn worker<P>(sender: SyncSender<Result<Packet>>, file_names: impl IntoIterator<Item = P>)
+where
     P: AsRef<Path> + std::marker::Copy,
 {
     for file_name in file_names {
         let file = match File::open(file_name) {
             Ok(file) => file,
             Err(error) => {
-                if sender.send(Err(error.into())).is_err() {
+                if sender
+                    .send(Err(anyhow!(error).context(format!(
+                        "failed to open `{}`",
+                        file_name.as_ref().display()
+                    ))))
+                    .is_err()
+                {
                     return;
                 }
                 continue;
@@ -64,7 +54,13 @@ pub fn worker<P>(
         let mmap = match unsafe { Mmap::map(&file) } {
             Ok(mmap) => mmap,
             Err(error) => {
-                if sender.send(Err(error.into())).is_err() {
+                if sender
+                    .send(Err(anyhow!(error).context(format!(
+                        "failed to memory map `{}`",
+                        file_name.as_ref().display()
+                    ))))
+                    .is_err()
+                {
                     return;
                 }
                 continue;
@@ -73,7 +69,13 @@ pub fn worker<P>(
         let file_view = match FileView::try_from(&mmap[..]) {
             Ok(file_view) => file_view,
             Err(error) => {
-                if sender.send(Err(error.into())).is_err() {
+                if sender
+                    .send(Err(anyhow!(error).context(format!(
+                        "`{}` is not a valid MIDAS file",
+                        file_name.as_ref().display()
+                    ))))
+                    .is_err()
+                {
                     return;
                 }
                 continue;
@@ -108,5 +110,5 @@ pub fn worker<P>(
             }
         }
     }
-    let _ = sender.send(Err(TryNextPacketError::AllConsumed));
+    let _ = sender.send(Err(anyhow!("No more files to process")));
 }
