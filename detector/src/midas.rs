@@ -2,6 +2,18 @@ use crate::alpha16::{Adc16ChannelId, Adc32ChannelId, ChannelId};
 use std::num::ParseIntError;
 use thiserror::Error;
 
+/// JSON pointer that identifies the ADC16 data suppression threshold in the
+/// ODB.
+pub const ADC16_SUPPRESSION_THRESHOLD_JSON_PTR: &str =
+    "/Equipment/CTRL/Settings/ADC/adc16_sthreshold";
+/// JSON pointer that identified the ADC32 data suppression threshold in the
+/// ODB.
+pub const ADC32_SUPPRESSION_THRESHOLD_JSON_PTR: &str =
+    "/Equipment/CTRL/Settings/ADC/adc32_sthreshold";
+/// JSON pointer that identifies the PWB data suppression threshold in the ODB.
+// This is the same for all Reset, FPN, and Pad channels.
+pub const PWB_SUPPRESSION_THRESHOLD_JSON_PTR: &str = "/Equipment/CTRL/Settings/PWB/ch_threshold";
+
 /// The error type returned when conversion from unsigned integer to [`EventId`]
 /// fails.
 #[derive(Error, Debug)]

@@ -14,7 +14,11 @@ pub mod map;
 
 /// Sampling rate (samples per second) of the channels that receive the radial
 /// Time Projection Chamber cathode pad signals.
-pub const PADWING_RATE: f64 = 62.5e6;
+pub const PWB_RATE: f64 = 62.5e6;
+/// Maximum value at which the PWB waveforms saturate.
+pub const PWB_MAX: i16 = 2047;
+/// Minimum value at which the PWB waveforms saturate.
+pub const PWB_MIN: i16 = -2048;
 
 /// The error type returned when parsing a [`BoardId`] fails.
 #[derive(Error, Debug)]

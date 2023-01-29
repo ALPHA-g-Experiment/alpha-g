@@ -12,6 +12,16 @@ fn adc_32_rate() {
 }
 
 #[test]
+fn adc_max() {
+    assert_eq!(ADC_MAX, 32764);
+}
+
+#[test]
+fn adc_min() {
+    assert_eq!(ADC_MIN, -32768);
+}
+
+#[test]
 fn try_adc_16_channel_id_from_u8() {
     for num in 0u8..=15u8 {
         assert_eq!(Adc16ChannelId::try_from(num).unwrap(), Adc16ChannelId(num));

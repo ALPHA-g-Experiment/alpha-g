@@ -1,6 +1,30 @@
 use super::*;
 
 #[test]
+fn adc16_suppression_threshold_json_ptr() {
+    assert_eq!(
+        ADC16_SUPPRESSION_THRESHOLD_JSON_PTR,
+        "/Equipment/CTRL/Settings/ADC/adc16_sthreshold"
+    );
+}
+
+#[test]
+fn adc32_suppression_threshold_json_ptr() {
+    assert_eq!(
+        ADC32_SUPPRESSION_THRESHOLD_JSON_PTR,
+        "/Equipment/CTRL/Settings/ADC/adc32_sthreshold"
+    );
+}
+
+#[test]
+fn pwb_suppression_threshold_json_ptr() {
+    assert_eq!(
+        PWB_SUPPRESSION_THRESHOLD_JSON_PTR,
+        "/Equipment/CTRL/Settings/PWB/ch_threshold"
+    );
+}
+
+#[test]
 fn event_id_try_from_u16() {
     for num in 0..=u16::MAX {
         if num == 1 {
