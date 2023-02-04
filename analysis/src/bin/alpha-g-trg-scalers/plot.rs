@@ -1,9 +1,8 @@
 use crate::delta_packet::DeltaPacket;
 use crate::Args;
 use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
-use pgfplots::axis::plot::{Plot2D, PlotKey, Type2D::ConstRight};
 use pgfplots::{
-    axis::{Axis, AxisKey},
+    axis::{plot::*, *},
     Picture,
 };
 
@@ -19,7 +18,7 @@ enum HistoStyle {
 
 impl HistoStyle {
     fn type_2d(&self) -> PlotKey {
-        PlotKey::Type2D(ConstRight)
+        PlotKey::Type2D(Type2D::ConstRight)
     }
     fn color(&self) -> PlotKey {
         match self {
@@ -78,25 +77,36 @@ impl Histogram {
     // `delta_X` represents the difference between this and the previous data
     // that was added to the histogram.
     fn update(&mut self, delta_timestamp: u32, delta_count: u32) {
+        // The new timestamp corresponds to that of the last count.
+        // All the other counts i.e. `delta_count - 1` are assumed to be
+        // uniformly distributed between the last and the current timestamp.
+        // We have no other information about these counts other than they
+        // happened in this window.
+        //
+        // This counter can be zero e.g. for pulser counters; hence the
+        // satutating subtraction.
+        let spread_count = delta_count.saturating_sub(1);
+
         let current_timestamp = self.last_timestamp + u64::from(delta_timestamp);
         let current_time = current_timestamp as f64 / TRG_CLOCK_FREQ;
         let delta_time = f64::from(delta_timestamp) / TRG_CLOCK_FREQ;
 
         if self.current_right_edge() <= current_time {
             let percentage = (self.current_right_edge() - self.current_left_edge()) / delta_time;
-            *self.data.last_mut().unwrap() += percentage * f64::from(delta_count);
+            *self.data.last_mut().unwrap() += percentage * f64::from(spread_count);
             self.data.push(0.0);
 
             while self.current_right_edge() <= current_time {
                 let percentage = self.time_step / delta_time;
-                *self.data.last_mut().unwrap() += percentage * f64::from(delta_count);
+                *self.data.last_mut().unwrap() += percentage * f64::from(spread_count);
                 self.data.push(0.0);
             }
         }
 
         let left_edge = f64::max(self.previous_right_edge(), self.current_left_edge());
         let percentage = (current_time - left_edge) / delta_time;
-        *self.data.last_mut().unwrap() += percentage * f64::from(delta_count);
+        *self.data.last_mut().unwrap() +=
+            percentage * f64::from(spread_count) + f64::from(delta_count - spread_count);
 
         self.last_timestamp = current_timestamp;
     }
@@ -110,7 +120,7 @@ impl From<Histogram> for Plot2D {
         // have the same length (time_step) as all the others.
         let last_bin_length = hist.current_left_edge() - hist.previous_right_edge();
         // Duplicate the t=`time_step` point at t=0 to draw the first bin
-        // correctly starting at 0 (due to the `ConstRight` type plot).
+        // correctly starting at 0 (needed due to the `ConstRight` type plot).
         plot.coordinates.push(
             (
                 hist.initial_time(),

@@ -44,7 +44,7 @@ impl DeltaPacket {
             // Currently the field is either always Some, or always
             // None. It is not possible to have mixed states within
             // the same version (and they are same version because
-            // they come form the same file).
+            // they come from the same file).
             _ => unreachable!(),
         };
         let scaledown_counter = match (current.scaledown_counter(), previous.scaledown_counter()) {
