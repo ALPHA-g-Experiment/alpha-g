@@ -440,9 +440,9 @@ dependencies = [
 
 [[package]]
 name = "midasio"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0569234093be035b7d350d3116cc442b025356153feacc131c8090b1652a7f55"
+checksum = "5ec0d5013e10e10cd7b480f01d420350d8f941609dd0efbd5c86dc8f6006b610"
 
 [[package]]
 name = "ncurses"
