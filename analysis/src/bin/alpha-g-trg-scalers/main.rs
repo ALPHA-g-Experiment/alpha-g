@@ -113,7 +113,7 @@ impl Hash for Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let input_files = try_valid_mmaps(args.files.clone()).context("invalid input files")?;
+    let input_files = try_valid_mmaps(args.files.clone()).context("invalid input file")?;
 
     let bar = ProgressBar::new(input_files.len().try_into().unwrap()).with_style(
         ProgressStyle::with_template("  Analysing [{bar:25}] {percent}%,  ETA: {eta}")
