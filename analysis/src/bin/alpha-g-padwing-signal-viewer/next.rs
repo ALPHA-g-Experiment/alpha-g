@@ -1,6 +1,6 @@
 use alpha_g_detector::midas::{EventId, PadwingBankName, PWB_SUPPRESSION_THRESHOLD_JSON_PTR};
 use alpha_g_detector::padwing::{AfterId, BoardId, ChannelId, Chunk, PwbPacket};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use memmap2::Mmap;
 use midasio::read::file::FileView;
 use serde_json::Value;
@@ -40,10 +40,9 @@ where
             Ok(file) => file,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "failed to open `{}`",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!("failed to open `{}`", file_name.as_ref().display())
+                    }))
                     .is_err()
                 {
                     return;
@@ -55,10 +54,9 @@ where
             Ok(mmap) => mmap,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "failed to memory map `{}`",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!("failed to memory map `{}`", file_name.as_ref().display())
+                    }))
                     .is_err()
                 {
                     return;
@@ -70,10 +68,12 @@ where
             Ok(file_view) => file_view,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "`{}` is not a valid MIDAS file",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!(
+                            "`{}` is not a valid MIDAS file",
+                            file_name.as_ref().display()
+                        )
+                    }))
                     .is_err()
                 {
                     return;
@@ -103,10 +103,12 @@ where
                     Ok(chunk) => chunk,
                     Err(error) => {
                         if sender
-                            .send(Err(anyhow!(error).context(format!(
-                                "bad data bank at event `{}",
-                                event_view.serial_number()
-                            ))))
+                            .send(Err(error).with_context(|| {
+                                format!(
+                                    "bad padwing data bank at event `{}",
+                                    event_view.serial_number()
+                                )
+                            }))
                             .is_err()
                         {
                             return;
@@ -124,10 +126,9 @@ where
                     Ok(packet) => packet,
                     Err(error) => {
                         if sender
-                            .send(Err(anyhow!(error).context(format!(
-                                "bad chunks at event `{}`",
-                                event_view.serial_number()
-                            ))))
+                            .send(Err(error).with_context(|| {
+                                format!("bad chunks at event `{}`", event_view.serial_number())
+                            }))
                             .is_err()
                         {
                             return;

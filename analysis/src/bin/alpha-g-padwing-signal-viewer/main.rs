@@ -60,7 +60,7 @@ fn main() -> Result<()> {
     let pdf_path = empty_picture()
         .to_pdf(&dir, &jobname, Engine::PdfLatex)
         .context("failed to compile empty PDF")?;
-    opener::open(&pdf_path).context(format!("failed to open `{}`", pdf_path.display()))?;
+    opener::open(&pdf_path).with_context(|| format!("failed to open `{}`", pdf_path.display()))?;
 
     let mut siv = cursive::default();
     siv.set_window_title("Padwing Signal Viewer");
@@ -171,36 +171,14 @@ fn iterate(s: &mut Cursive) {
                 }
                 Err(_) => break result,
             },
-            Err(_) => panic!("receiver disconnected"),
+            Err(_) => {
+                s.quit();
+                return;
+            }
         }
     };
     update_packet_metadata(s, &result);
-    let jobname = s
-        .with_user_data(|user_data: &mut UserData| user_data.jobname.clone())
-        .unwrap();
-    let dir = &s.user_data::<UserData>().unwrap().dir;
-    match result {
-        Ok(packet) => match create_picture(&packet) {
-            Ok(picture) => {
-                picture
-                    .to_pdf(dir, &jobname, Engine::PdfLatex)
-                    .expect("failed to compile PDF");
-            }
-            Err(error) => {
-                empty_picture()
-                    .to_pdf(dir, &jobname, Engine::PdfLatex)
-                    .expect("failed to compile empty picture");
-
-                let text = format!("Error: {error:?}");
-                s.add_layer(Dialog::info(text));
-            }
-        },
-        Err(_) => {
-            empty_picture()
-                .to_pdf(dir, &jobname, Engine::PdfLatex)
-                .expect("failed to compile empty picture");
-        }
-    };
+    update_plot(s, &result);
 }
 
 /// Update the Metadata text box with information about the last received packet.
@@ -210,9 +188,30 @@ fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet>) {
         Err(error) => {
             let text = format!("Error: {error:?}");
             s.add_layer(Dialog::info(text));
+
             String::from("Press <Next> to jump to the next Padwing signal.")
         }
     };
 
     s.call_on_name("metadata", |view: &mut TextView| view.set_content(text));
+}
+
+/// Update the plot with the last received packet.
+fn update_plot(s: &mut Cursive, result: &Result<Packet>) {
+    let jobname = s
+        .with_user_data(|user_data: &mut UserData| user_data.jobname.clone())
+        .unwrap();
+    let dir = &s.user_data::<UserData>().unwrap().dir;
+    match result {
+        Ok(packet) => {
+            create_picture(packet)
+                .to_pdf(dir, &jobname, Engine::PdfLatex)
+                .expect("failed to compile PDF");
+        }
+        Err(_) => {
+            empty_picture()
+                .to_pdf(dir, &jobname, Engine::PdfLatex)
+                .expect("failed to compile empty picture");
+        }
+    };
 }
