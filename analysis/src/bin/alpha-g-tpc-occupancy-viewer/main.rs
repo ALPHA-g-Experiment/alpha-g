@@ -65,7 +65,7 @@ fn main() -> Result<()> {
     let pdf_path = empty_picture()
         .to_pdf(&dir, &jobname, Engine::PdfLatex)
         .context("failed to compile empty PDF")?;
-    opener::open(&pdf_path).context(format!("failed to open `{}`", pdf_path.display()))?;
+    opener::open(&pdf_path).with_context(|| format!("failed to open `{}`", pdf_path.display()))?;
 
     let mut siv = cursive::default();
     siv.set_window_title("rTPC Occupancy Viewer");
@@ -95,6 +95,35 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Create the EditView for the user to enter the filter values.
+// Just keeps the `select_filters` function more readable.
+fn make_edit_view<S: Into<String>>(
+    name: S,
+    current_filter: Option<usize>,
+    size: usize,
+) -> impl cursive::View {
+    EditView::new()
+        .content(current_filter.map_or(String::new(), |v| v.to_string()))
+        .with_name(name)
+        .fixed_width(size)
+}
+
+/// Get the filter values from the EditView by name.
+// Same as above. Just keeps the `select_filters` function more readable.
+fn try_value_from_edit_view(siv: &mut Cursive, name: &str) -> Result<Option<usize>> {
+    siv.call_on_name(name, |view: &mut EditView| {
+        let text = view.get_content();
+        if text.is_empty() {
+            Ok(None)
+        } else {
+            text.parse::<usize>()
+                .map(Some)
+                .with_context(|| format!("failed to parse `{text}` as a valid filter value"))
+        }
+    })
+    .unwrap()
+}
+
 /// Draw the filter selection pop-up window.
 fn select_filters(s: &mut Cursive) {
     s.set_autohide_menu(true);
@@ -111,90 +140,26 @@ fn select_filters(s: &mut Cursive) {
                 ListView::new()
                     .child(
                         "Min number of anode wires: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .min_anode_wires
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("min_anode_wires")
-                            .fixed_width(10),
+                        make_edit_view("min_anode_wires", current_filter.min_anode_wires, 10),
                     )
                     .child(
                         "Max number of anode wires: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .max_anode_wires
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("max_anode_wires")
-                            .fixed_width(10),
+                        make_edit_view("max_anode_wires", current_filter.max_anode_wires, 10),
                     )
                     .child(
                         "Min number of pads: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .min_pads
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("min_pads")
-                            .fixed_width(10),
+                        make_edit_view("min_pads", current_filter.min_pads, 10),
                     )
                     .child(
                         "Max number of pads: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .max_pads
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("max_pads")
-                            .fixed_width(10),
+                        make_edit_view("max_pads", current_filter.max_pads, 10),
                     ),
             )
             .button("Done", move |s| {
-                let min_anode_wires = s
-                    .call_on_name("min_anode_wires", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
-                let max_anode_wires = s
-                    .call_on_name("max_anode_wires", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
-                let min_pads = s
-                    .call_on_name("min_pads", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
-                let max_pads = s
-                    .call_on_name("max_pads", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
+                let min_anode_wires = try_value_from_edit_view(s, "min_anode_wires");
+                let max_anode_wires = try_value_from_edit_view(s, "max_anode_wires");
+                let min_pads = try_value_from_edit_view(s, "min_pads");
+                let max_pads = try_value_from_edit_view(s, "max_pads");
 
                 match (min_anode_wires, max_anode_wires, min_pads, max_pads) {
                     (Ok(min_anode_wires), Ok(max_anode_wires), Ok(min_pads), Ok(max_pads)) => {
@@ -210,17 +175,11 @@ fn select_filters(s: &mut Cursive) {
                         s.pop_layer();
                         s.set_autohide_menu(false);
                     }
-                    (Err(_), _, _, _) => {
-                        s.add_layer(Dialog::info("Invalid minimum number of anode wires"));
-                    }
-                    (_, Err(_), _, _) => {
-                        s.add_layer(Dialog::info("Invalid maximum number of anode wires"));
-                    }
-                    (_, _, Err(_), _) => {
-                        s.add_layer(Dialog::info("Invalid minimum number of pads"));
-                    }
-                    (_, _, _, Err(_)) => {
-                        s.add_layer(Dialog::info("Invalid maximum number of pads"));
+                    (Err(error), _, _, _)
+                    | (_, Err(error), _, _)
+                    | (_, _, Err(error), _)
+                    | (_, _, _, Err(error)) => {
+                        s.add_layer(Dialog::info(format!("Error: {error:?}")));
                     }
                 }
             }),
@@ -243,7 +202,10 @@ fn iterate(s: &mut Cursive) {
                 }
                 Err(_) => break result,
             },
-            Err(_) => panic!("unexpected channel disconnected"),
+            Err(_) => {
+                s.quit();
+                return;
+            }
         }
     };
     update_event_metadata(s, &result);
@@ -261,8 +223,8 @@ fn update_event_metadata(s: &mut Cursive, result: &Result<Packet>) {
         }
         Err(error) => {
             let text = format!("Error: {error:?}");
-
             s.add_layer(Dialog::info(text));
+
             String::from("Press <Next> to jump to the next event.")
         }
     };

@@ -1,7 +1,7 @@
 use alpha_g_detector::alpha16::{AdcPacket, ChannelId};
 use alpha_g_detector::midas::{Adc32BankName, EventId, PadwingBankName};
 use alpha_g_detector::padwing::{AfterId, BoardId, Chunk, PwbPacket};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use memmap2::Mmap;
 use midasio::read::file::FileView;
 use std::collections::HashMap;
@@ -36,10 +36,9 @@ where
             Ok(file) => file,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "failed to to open `{}`",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!("failed to open `{}`", file_name.as_ref().display())
+                    }))
                     .is_err()
                 {
                     return;
@@ -51,10 +50,9 @@ where
             Ok(mmap) => mmap,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "failed to memory map `{}`",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!("failed to memory map `{}`", file_name.as_ref().display())
+                    }))
                     .is_err()
                 {
                     return;
@@ -66,10 +64,12 @@ where
             Ok(file_view) => file_view,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "`{}` is not a valid MIDAS file",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!(
+                            "`{}` is not a valid MIDAS file",
+                            file_name.as_ref().display()
+                        )
+                    }))
                     .is_err()
                 {
                     return;
@@ -91,10 +91,12 @@ where
                         Ok(adc_packet) => adc_packet,
                         Err(error) => {
                             if sender
-                                .send(Err(anyhow!(error).context(format!(
-                                    "bad alpha16 data bank in event `{}`",
-                                    event_view.serial_number()
-                                ))))
+                                .send(Err(error).with_context(|| {
+                                    format!(
+                                        "bad alpha16 data bank in event `{}`",
+                                        event_view.serial_number()
+                                    )
+                                }))
                                 .is_err()
                             {
                                 return;
@@ -107,7 +109,10 @@ where
                     // the channel id).
                     if let ChannelId::A16(_) = adc_packet.channel_id() {
                         if sender
-                            .send(Err(anyhow!("anode wire packet with a BV channel id")))
+                            .send(Err(anyhow!(
+                                "anode wire packet with a BV channel id in event `{}`",
+                                event_view.serial_number()
+                            )))
                             .is_err()
                         {
                             return;
@@ -121,10 +126,12 @@ where
                         Ok(chunk) => chunk,
                         Err(error) => {
                             if sender
-                                .send(Err(anyhow!(error).context(format!(
-                                    "bad padwing data bank in event `{}`",
-                                    event_view.serial_number()
-                                ))))
+                                .send(Err(error).with_context(|| {
+                                    format!(
+                                        "bad padwing data bank in event `{}`",
+                                        event_view.serial_number()
+                                    )
+                                }))
                                 .is_err()
                             {
                                 return;
@@ -144,10 +151,9 @@ where
                     Ok(packet) => packet,
                     Err(error) => {
                         if sender
-                            .send(Err(anyhow!(error).context(format!(
-                                "bad chunks in event `{}",
-                                event_view.serial_number()
-                            ))))
+                            .send(Err(error).with_context(|| {
+                                format!("bad chunks in event `{}`", event_view.serial_number())
+                            }))
                             .is_err()
                         {
                             return;

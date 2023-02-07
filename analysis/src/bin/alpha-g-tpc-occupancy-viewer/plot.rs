@@ -34,27 +34,23 @@ pub fn create_picture(packet: &Packet) -> Result<Picture> {
     wires_plot.add_key(PlotKey::Custom(String::from("draw=black!90")));
     for adc_packet in &packet.adc_packets {
         let waveform = adc_packet.waveform();
-        if waveform.is_empty() {
-            continue;
-        }
-        // Additionally check that it is not flat. It can be flat and non-empty
-        // when data suppression is disabled.
-        let is_flat = waveform.iter().all(|&v| v == waveform[0]);
-        if is_flat {
-            continue;
-        }
+        // Waveform can be empty/flat. Ignore those.
+        if let Some(&first) = waveform.first() {
+            if waveform.iter().any(|&x| x != first) {
+                // BoardId is always `Some` for packets with non-empty waveforms.
+                let board_id = adc_packet.board_id().unwrap();
+                let alpha16::ChannelId::A32(channel_id) = adc_packet.channel_id() else {
+                    // Worker thread filters out non-A32 channels.
+                    unreachable!();
+                };
+                let wire_position =
+                    TpcWirePosition::try_new(packet.run_number, board_id, channel_id)
+                        .context("wire position mapping failed. Please open an issue on Github.")?;
 
-        let board_id = adc_packet
-            .board_id()
-            .expect("board id always exist if waveform is not empty");
-        let alpha16::ChannelId::A32(channel_id) = adc_packet.channel_id() else {
-            panic!("worker thread checked that only A32 channels are sent");
-        };
-        let wire_position = TpcWirePosition::try_new(packet.run_number, board_id, channel_id)
-            .context("wire position mapping failed. Please open an issue on Github.")?;
-
-        let phi = wire_position.phi();
-        wires_plot.coordinates.push((phi, 0.0).into());
+                let phi = wire_position.phi();
+                wires_plot.coordinates.push((phi, 0.0).into());
+            }
+        }
     }
 
     let mut wire_axis = Axis::from(wires_plot);
@@ -88,20 +84,22 @@ pub fn create_picture(packet: &Packet) -> Result<Picture> {
 
         for &channel_id in pwb_packet.channels_sent() {
             let waveform = pwb_packet.waveform_at(channel_id).unwrap();
-            // If channel was sent, waveform is guaranteed to be non-empty.
-            // Only plot if it is also not flat.
-            let is_flat = waveform.iter().all(|&v| v == waveform[0]);
-            if is_flat {
-                continue;
-            }
-
-            if let ChannelId::Pad(pad_channel) = channel_id {
-                let pad_position =
-                    TpcPadPosition::try_new(packet.run_number, board_id, after_id, pad_channel)
+            // Same as above, ignore empty/flat waveforms.
+            if let Some(&first) = waveform.first() {
+                if waveform.iter().any(|&x| x != first) {
+                    if let ChannelId::Pad(pad_channel) = channel_id {
+                        let pad_position = TpcPadPosition::try_new(
+                            packet.run_number,
+                            board_id,
+                            after_id,
+                            pad_channel,
+                        )
                         .context("pad position mapping failed. Please open an issue on GitHub.")?;
-                pads_plot
-                    .coordinates
-                    .push((pad_position.phi(), pad_position.z()).into());
+                        pads_plot
+                            .coordinates
+                            .push((pad_position.phi(), pad_position.z()).into());
+                    }
+                }
             }
         }
     }

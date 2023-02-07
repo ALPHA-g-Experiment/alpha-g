@@ -21,12 +21,10 @@ impl Packet {
         let mut num_anode_wires = 0;
         for adc_packet in self.adc_packets.iter() {
             let waveform = adc_packet.waveform();
-            if waveform.is_empty() {
-                continue;
-            }
-            let is_flat = waveform.iter().all(|&x| x == waveform[0]);
-            if !is_flat {
-                num_anode_wires += 1;
+            if let Some(&first) = waveform.first() {
+                if waveform.iter().any(|&x| x != first) {
+                    num_anode_wires += 1;
+                }
             }
         }
 
@@ -39,13 +37,14 @@ impl Packet {
         for pwb_packet in self.pwb_packets.iter() {
             for &channel_id in pwb_packet.channels_sent() {
                 let waveform = pwb_packet.waveform_at(channel_id).unwrap();
-                // If channel was sent, waveform is guaranteed to be non-empty.
-                let is_flat = waveform.iter().all(|&v| v == waveform[0]);
-                if !is_flat {
-                    num_pads += 1;
+                if let Some(&first) = waveform.first() {
+                    if waveform.iter().any(|&x| x != first) {
+                        num_pads += 1;
+                    }
                 }
             }
         }
+
         num_pads
     }
     /// Returns `true` if the packet satisfies the filter.
