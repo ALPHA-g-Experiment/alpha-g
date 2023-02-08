@@ -23,9 +23,9 @@ pub fn create_picture(packet: &Packet) -> Picture {
         // The debug format of ChannelId is not very nice.
         // Use that of the internal channel index instead.
         match packet.channel_id {
-            Pad(channel) => format!("{:?}", channel),
-            Fpn(channel) => format!("{:?}", channel),
-            Reset(channel) => format!("{:?}", channel),
+            Pad(channel) => format!("{channel:?}"),
+            Fpn(channel) => format!("{channel:?}"),
+            Reset(channel) => format!("{channel:?}"),
         }
     ));
     axis.set_x_label(format!("Samples~[{} ns]", 1e9 / PWB_RATE));
