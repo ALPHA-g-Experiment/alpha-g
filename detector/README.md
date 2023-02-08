@@ -11,7 +11,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-alpha_g_detector = "0.1"
+alpha_g_detector = "0.2"
 ```
 
 Reading and manipulating the data from the detectors is simple; a set of
