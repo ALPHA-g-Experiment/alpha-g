@@ -105,7 +105,7 @@ where
                         if sender
                             .send(Err(error).with_context(|| {
                                 format!(
-                                    "bad padwing data bank at event `{}",
+                                    "bad padwing data bank at event `{}`",
                                     event_view.serial_number()
                                 )
                             }))
