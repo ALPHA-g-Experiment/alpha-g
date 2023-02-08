@@ -1,8 +1,9 @@
+use alpha_g_detector::alpha16::AdcPacket;
 use alpha_g_detector::midas::{
     Alpha16BankName, EventId, ADC16_SUPPRESSION_THRESHOLD_JSON_PTR,
     ADC32_SUPPRESSION_THRESHOLD_JSON_PTR,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use memmap2::Mmap;
 use midasio::read::file::FileView;
 use serde_json::Value;
@@ -16,10 +17,8 @@ use std::sync::mpsc::SyncSender;
 // user_data.
 #[derive(Clone, Debug)]
 pub struct Packet {
-    /// ADC packet as a slice of bytes.
-    // This allows us to attempt the AdcPacket on the receiver end and react
-    // appropriately if the AdcPacket fails.
-    pub adc_packet: Vec<u8>,
+    /// ADC packet.
+    pub adc_packet: AdcPacket,
     /// Name of the data bank that contains the `adc_packet`.
     pub bank_name: String,
     // These are all Option<T> because maybe the fields are not found in the ODB
@@ -40,10 +39,9 @@ where
             Ok(file) => file,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "failed to open `{}`",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!("failed to open `{}`", file_name.as_ref().display())
+                    }))
                     .is_err()
                 {
                     return;
@@ -55,10 +53,9 @@ where
             Ok(mmap) => mmap,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "failed to memory map `{}`",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!("failed to memory map `{}`", file_name.as_ref().display())
+                    }))
                     .is_err()
                 {
                     return;
@@ -70,10 +67,12 @@ where
             Ok(file_view) => file_view,
             Err(error) => {
                 if sender
-                    .send(Err(anyhow!(error).context(format!(
-                        "`{}` is not a valid MIDAS file",
-                        file_name.as_ref().display()
-                    ))))
+                    .send(Err(error).with_context(|| {
+                        format!(
+                            "`{}` is not a valid MIDAS file",
+                            file_name.as_ref().display()
+                        )
+                    }))
                     .is_err()
                 {
                     return;
@@ -93,22 +92,42 @@ where
             (None, None)
         };
 
-        for bank_view in file_view
+        for event_view in file_view
             .into_iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)))
-            .flatten()
-            .filter(|b| Alpha16BankName::try_from(b.name()).is_ok())
         {
-            let packet = Packet {
-                adc_packet: bank_view.data_slice().to_owned(),
-                bank_name: bank_view.name().to_owned(),
-                a16_suppression,
-                a32_suppression,
-            };
-            if sender.send(Ok(packet)).is_err() {
-                return;
+            for bank_view in event_view
+                .into_iter()
+                .filter(|b| Alpha16BankName::try_from(b.name()).is_ok())
+            {
+                let adc_packet = match AdcPacket::try_from(bank_view.data_slice()) {
+                    Ok(adc_packet) => adc_packet,
+                    Err(error) => {
+                        if sender
+                            .send(Err(error).with_context(|| {
+                                format!(
+                                    "bad alpha16 data bank in event `{}`",
+                                    event_view.serial_number()
+                                )
+                            }))
+                            .is_err()
+                        {
+                            return;
+                        }
+                        continue;
+                    }
+                };
+                let packet = Packet {
+                    adc_packet,
+                    bank_name: bank_view.name().to_owned(),
+                    a16_suppression,
+                    a32_suppression,
+                };
+                if sender.send(Ok(packet)).is_err() {
+                    return;
+                }
             }
         }
     }
-    let _ = sender.send(Err(anyhow!("No more files to process")));
+    let _ = sender.send(Err(anyhow!("no more files")));
 }

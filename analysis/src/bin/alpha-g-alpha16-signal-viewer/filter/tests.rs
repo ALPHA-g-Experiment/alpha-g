@@ -1,4 +1,5 @@
 use super::*;
+use alpha_g_detector::alpha16::AdcPacket;
 
 const SHORT_ADC_V3_PACKET: [u8; 16] = [1, 3, 0, 1, 2, 3, 2, 187, 0, 0, 0, 4, 224, 0, 0, 0];
 const LONG_ADC_V3_PACKET: [u8; 166] = [
@@ -12,30 +13,9 @@ const LONG_ADC_V3_PACKET: [u8; 166] = [
 ];
 
 #[test]
-fn packet_correctness() {
-    let packet = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
-        bank_name: String::from("B09A"),
-        a16_suppression: Some(500.0),
-        a32_suppression: Some(1500.0),
-    };
-
-    assert!(matches!(packet.correctness(), Correctness::Good));
-
-    let packet = Packet {
-        adc_packet: vec![0],
-        bank_name: String::from("B09A"),
-        a16_suppression: Some(500.0),
-        a32_suppression: Some(1500.0),
-    };
-
-    assert!(matches!(packet.correctness(), Correctness::Bad));
-}
-
-#[test]
 fn packet_detector() {
     let packet = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -44,7 +24,7 @@ fn packet_detector() {
     assert!(matches!(packet.detector(), Detector::Bv));
 
     let packet = Packet {
-        adc_packet: vec![0],
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("C09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -56,7 +36,7 @@ fn packet_detector() {
 #[test]
 fn packet_keep_bit() {
     let packet = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -65,46 +45,54 @@ fn packet_keep_bit() {
     assert!(packet.keep_bit().unwrap());
 
     let packet = Packet {
-        adc_packet: vec![0],
+        adc_packet: AdcPacket::try_from(&SHORT_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("C09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
     };
 
-    assert!(packet.keep_bit().is_none());
+    assert!(!packet.keep_bit().unwrap());
 }
 
 #[test]
 fn packet_overflow() {
     let packet = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&SHORT_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
     };
-    assert!(matches!(packet.overflow(), Some(Overflow::Neither)));
+    assert_eq!(packet.overflow(), Overflow::Neither);
+
+    let packet = Packet {
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
+        bank_name: String::from("B09A"),
+        a16_suppression: Some(500.0),
+        a32_suppression: Some(1500.0),
+    };
+    assert_eq!(packet.overflow(), Overflow::Neither);
 
     let mut adc_packet = LONG_ADC_V3_PACKET.to_vec();
     adc_packet[160] = 128;
     adc_packet[161] = 0;
     let packet = Packet {
-        adc_packet,
+        adc_packet: AdcPacket::try_from(&adc_packet[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
     };
-    assert!(matches!(packet.overflow(), Some(Overflow::Negative)));
+    assert_eq!(packet.overflow(), Overflow::Negative);
 
     let mut adc_packet = LONG_ADC_V3_PACKET.to_vec();
     adc_packet[160] = 127;
     adc_packet[161] = 252;
     let packet = Packet {
-        adc_packet,
+        adc_packet: AdcPacket::try_from(&adc_packet[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
     };
-    assert!(matches!(packet.overflow(), Some(Overflow::Positive)));
+    assert_eq!(packet.overflow(), Overflow::Positive);
 
     let mut adc_packet = LONG_ADC_V3_PACKET.to_vec();
     adc_packet[160] = 127;
@@ -112,58 +100,12 @@ fn packet_overflow() {
     adc_packet.insert(160, 128);
     adc_packet.insert(161, 0);
     let packet = Packet {
-        adc_packet,
+        adc_packet: AdcPacket::try_from(&adc_packet[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
     };
-    assert!(matches!(packet.overflow(), Some(Overflow::Both)));
-
-    let packet = Packet {
-        adc_packet: vec![0],
-        bank_name: String::from("B09A"),
-        a16_suppression: Some(500.0),
-        a32_suppression: Some(1500.0),
-    };
-    assert!(packet.overflow().is_none());
-
-    let packet = Packet {
-        adc_packet: SHORT_ADC_V3_PACKET.to_vec(),
-        bank_name: String::from("B09A"),
-        a16_suppression: Some(500.0),
-        a32_suppression: Some(1500.0),
-    };
-    assert!(packet.overflow().is_none());
-}
-
-#[test]
-fn packet_passes_correctness_filter() {
-    let filter_one = Filter {
-        correctness: Some(Correctness::Good),
-        ..Filter::default()
-    };
-    let packet_one = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
-        bank_name: String::from("B09A"),
-        a16_suppression: Some(500.0),
-        a32_suppression: Some(1500.0),
-    };
-    assert!(packet_one.passes_filter(&filter_one));
-
-    let filter_two = Filter {
-        correctness: Some(Correctness::Bad),
-        ..Filter::default()
-    };
-    let packet_two = Packet {
-        adc_packet: vec![0],
-        bank_name: String::from("B09A"),
-        a16_suppression: Some(500.0),
-        a32_suppression: Some(1500.0),
-    };
-    assert!(packet_two.passes_filter(&filter_two));
-
-    assert!(!packet_one.passes_filter(&filter_two));
-    assert!(!packet_two.passes_filter(&filter_one));
+    assert_eq!(packet.overflow(), Overflow::Both);
 }
 
 #[test]
@@ -173,7 +115,7 @@ fn packet_passes_detector_filter() {
         ..Filter::default()
     };
     let packet_one = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("C09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -185,7 +127,7 @@ fn packet_passes_detector_filter() {
         ..Filter::default()
     };
     let packet_two = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -203,7 +145,7 @@ fn packet_passes_keep_bit_filter() {
         ..Filter::default()
     };
     let packet_one = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("C09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -215,7 +157,7 @@ fn packet_passes_keep_bit_filter() {
         ..Filter::default()
     };
     let packet_two = Packet {
-        adc_packet: SHORT_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&SHORT_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("C09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -233,7 +175,7 @@ fn packet_passes_overflow_filter() {
         ..Filter::default()
     };
     let packet_one = Packet {
-        adc_packet: LONG_ADC_V3_PACKET.to_vec(),
+        adc_packet: AdcPacket::try_from(&LONG_ADC_V3_PACKET[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -248,7 +190,7 @@ fn packet_passes_overflow_filter() {
     adc_packet[160] = 128;
     adc_packet[161] = 0;
     let packet_two = Packet {
-        adc_packet,
+        adc_packet: AdcPacket::try_from(&adc_packet[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -263,7 +205,7 @@ fn packet_passes_overflow_filter() {
     adc_packet[160] = 127;
     adc_packet[161] = 252;
     let packet_three = Packet {
-        adc_packet,
+        adc_packet: AdcPacket::try_from(&adc_packet[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
@@ -280,7 +222,7 @@ fn packet_passes_overflow_filter() {
     adc_packet.insert(160, 128);
     adc_packet.insert(161, 0);
     let packet_four = Packet {
-        adc_packet,
+        adc_packet: AdcPacket::try_from(&adc_packet[..]).unwrap(),
         bank_name: String::from("B09A"),
         a16_suppression: Some(500.0),
         a32_suppression: Some(1500.0),
