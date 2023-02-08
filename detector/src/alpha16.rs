@@ -328,8 +328,8 @@ impl fmt::Display for AdcV3Packet {
         writeln!(f, "Accepted trigger: {}", self.accepted_trigger)?;
         writeln!(f, "Module ID: {:?}", self.module_id)?;
         let channel_id = match self.channel_id {
-            ChannelId::A16(channel) => format!("{:?}", channel),
-            ChannelId::A32(channel) => format!("{:?}", channel),
+            ChannelId::A16(channel) => format!("{channel:?}"),
+            ChannelId::A32(channel) => format!("{channel:?}"),
         };
         writeln!(f, "Channel ID: {channel_id}")?;
         writeln!(f, "Requested samples: {}", self.requested_samples)?;

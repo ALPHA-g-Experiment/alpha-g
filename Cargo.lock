@@ -19,6 +19,7 @@ name = "alpha-g-analysis"
 version = "0.1.1"
 dependencies = [
  "alpha_g_detector",
+ "anyhow",
  "clap",
  "cursive",
  "glob",
@@ -30,7 +31,6 @@ dependencies = [
  "pgfplots",
  "serde_json",
  "tempfile",
- "thiserror",
 ]
 
 [[package]]
@@ -42,6 +42,12 @@ dependencies = [
  "midasio",
  "thiserror",
 ]
+
+[[package]]
+name = "anyhow"
+version = "1.0.68"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 
 [[package]]
 name = "atty"
@@ -434,9 +440,9 @@ dependencies = [
 
 [[package]]
 name = "midasio"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0569234093be035b7d350d3116cc442b025356153feacc131c8090b1652a7f55"
+checksum = "5ec0d5013e10e10cd7b480f01d420350d8f941609dd0efbd5c86dc8f6006b610"
 
 [[package]]
 name = "ncurses"

@@ -38,7 +38,7 @@ fn delta_packet_ok() {
 }
 
 #[test]
-fn delta_packet_corrupted_output_counter() {
+fn delta_packet_decreasing_output_counter() {
     let current = TrgPacket::try_from(&TRG_V3_PACKET[..]).unwrap();
 
     let mut previous = TRG_V3_PACKET;
@@ -48,13 +48,15 @@ fn delta_packet_corrupted_output_counter() {
     let previous = TrgPacket::try_from(&previous[..]).unwrap();
 
     assert_eq!(
-        DeltaPacket::try_from(&current, &previous).unwrap_err(),
-        String::from("corrupted output counter")
+        DeltaPacket::try_from(&current, &previous)
+            .unwrap_err()
+            .to_string(),
+        String::from("decreasing output counter")
     );
 }
 
 #[test]
-fn delta_packet_corrupted_input_counter() {
+fn delta_packet_decreasing_input_counter() {
     let current = TrgPacket::try_from(&TRG_V3_PACKET[..]).unwrap();
 
     let mut previous = TRG_V3_PACKET;
@@ -62,8 +64,10 @@ fn delta_packet_corrupted_input_counter() {
     let previous = TrgPacket::try_from(&previous[..]).unwrap();
 
     assert_eq!(
-        DeltaPacket::try_from(&current, &previous).unwrap_err(),
-        String::from("corrupted input counter")
+        DeltaPacket::try_from(&current, &previous)
+            .unwrap_err()
+            .to_string(),
+        String::from("decreasing input counter")
     );
 }
 
@@ -71,13 +75,15 @@ fn delta_packet_corrupted_input_counter() {
 fn delta_packet_non_incrementing_counter() {
     let packet = TrgPacket::try_from(&TRG_V3_PACKET[..]).unwrap();
     assert_eq!(
-        DeltaPacket::try_from(&packet, &packet).unwrap_err(),
+        DeltaPacket::try_from(&packet, &packet)
+            .unwrap_err()
+            .to_string(),
         String::from("non-incrementing counter")
     );
 }
 
 #[test]
-fn delta_packet_corrupted_pulser_counter() {
+fn delta_packet_decreasing_pulser_counter() {
     let current = TrgPacket::try_from(&TRG_V3_PACKET[..]).unwrap();
 
     let mut previous = TRG_V3_PACKET;
@@ -85,13 +91,15 @@ fn delta_packet_corrupted_pulser_counter() {
     let previous = TrgPacket::try_from(&previous[..]).unwrap();
 
     assert_eq!(
-        DeltaPacket::try_from(&current, &previous).unwrap_err(),
-        String::from("corrupted pulser counter")
+        DeltaPacket::try_from(&current, &previous)
+            .unwrap_err()
+            .to_string(),
+        String::from("decreasing pulser counter")
     );
 }
 
 #[test]
-fn delta_packet_corrupted_drift_veto_counter() {
+fn delta_packet_decreasing_drift_veto_counter() {
     let current = TrgPacket::try_from(&TRG_V3_PACKET[..]).unwrap();
 
     let mut previous = TRG_V3_PACKET;
@@ -99,13 +107,15 @@ fn delta_packet_corrupted_drift_veto_counter() {
     let previous = TrgPacket::try_from(&previous[..]).unwrap();
 
     assert_eq!(
-        DeltaPacket::try_from(&current, &previous).unwrap_err(),
-        String::from("corrupted drift veto counter")
+        DeltaPacket::try_from(&current, &previous)
+            .unwrap_err()
+            .to_string(),
+        String::from("decreasing drift veto counter")
     );
 }
 
 #[test]
-fn delta_packet_corrupted_scaledown_counter() {
+fn delta_packet_decreasing_scaledown_counter() {
     let current = TrgPacket::try_from(&TRG_V3_PACKET[..]).unwrap();
 
     let mut previous = TRG_V3_PACKET;
@@ -113,7 +123,9 @@ fn delta_packet_corrupted_scaledown_counter() {
     let previous = TrgPacket::try_from(&previous[..]).unwrap();
 
     assert_eq!(
-        DeltaPacket::try_from(&current, &previous).unwrap_err(),
-        String::from("corrupted scaledown counter")
+        DeltaPacket::try_from(&current, &previous)
+            .unwrap_err()
+            .to_string(),
+        String::from("decreasing scaledown counter")
     );
 }

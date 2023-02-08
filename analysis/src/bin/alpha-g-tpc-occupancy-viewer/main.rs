@@ -2,14 +2,14 @@
 //! occupancy on each event.
 
 use crate::filter::Filter;
-use crate::next::{worker, Packet, TryNextPacketError};
+use crate::next::{worker, Packet};
 use crate::plot::{create_picture, empty_picture};
+use anyhow::{Context, Result};
 use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, EditView, ListView, TextView};
 use cursive::Cursive;
 use pgfplots::Engine;
-use std::error::Error;
 use std::fmt::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -48,22 +48,24 @@ struct Args {
 /// Structure stored in Cursive object that needs to be accessed while modifying
 /// the layout.
 struct UserData {
-    receiver: mpsc::Receiver<Result<Packet, TryNextPacketError>>,
+    receiver: mpsc::Receiver<Result<Packet>>,
     jobname: String,
     dir: TempDir,
     filter: Filter,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
     // Unbuffered channel that blocks until receive.
     let (sender, receiver) = mpsc::sync_channel(0);
     std::thread::spawn(move || worker(sender, &args.files));
 
-    let dir = tempdir()?;
+    let dir = tempdir().context("failed to create temporary directory")?;
     let jobname = String::from("tpc_occupancy_viewer");
-    let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
-    opener::open(pdf_path)?;
+    let pdf_path = empty_picture()
+        .to_pdf(&dir, &jobname, Engine::PdfLatex)
+        .context("failed to compile empty PDF")?;
+    opener::open(&pdf_path).with_context(|| format!("failed to open `{}`", pdf_path.display()))?;
 
     let mut siv = cursive::default();
     siv.set_window_title("rTPC Occupancy Viewer");
@@ -93,6 +95,35 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Create the EditView for the user to enter the filter values.
+// Just keeps the `select_filters` function more readable.
+fn make_edit_view<S: Into<String>>(
+    name: S,
+    current_filter: Option<usize>,
+    size: usize,
+) -> impl cursive::View {
+    EditView::new()
+        .content(current_filter.map_or(String::new(), |v| v.to_string()))
+        .with_name(name)
+        .fixed_width(size)
+}
+
+/// Get the filter values from the EditView by name.
+// Same as above. Just keeps the `select_filters` function more readable.
+fn try_value_from_edit_view(siv: &mut Cursive, name: &str) -> Result<Option<usize>> {
+    siv.call_on_name(name, |view: &mut EditView| {
+        let text = view.get_content();
+        if text.is_empty() {
+            Ok(None)
+        } else {
+            text.parse::<usize>()
+                .map(Some)
+                .with_context(|| format!("failed to parse `{text}` as a valid filter value"))
+        }
+    })
+    .unwrap()
+}
+
 /// Draw the filter selection pop-up window.
 fn select_filters(s: &mut Cursive) {
     s.set_autohide_menu(true);
@@ -109,90 +140,26 @@ fn select_filters(s: &mut Cursive) {
                 ListView::new()
                     .child(
                         "Min number of anode wires: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .min_anode_wires
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("min_anode_wires")
-                            .fixed_width(10),
+                        make_edit_view("min_anode_wires", current_filter.min_anode_wires, 10),
                     )
                     .child(
                         "Max number of anode wires: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .max_anode_wires
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("max_anode_wires")
-                            .fixed_width(10),
+                        make_edit_view("max_anode_wires", current_filter.max_anode_wires, 10),
                     )
                     .child(
                         "Min number of pads: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .min_pads
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("min_pads")
-                            .fixed_width(10),
+                        make_edit_view("min_pads", current_filter.min_pads, 10),
                     )
                     .child(
                         "Max number of pads: ",
-                        EditView::new()
-                            .content(
-                                current_filter
-                                    .max_pads
-                                    .map_or(String::new(), |p| p.to_string()),
-                            )
-                            .with_name("max_pads")
-                            .fixed_width(10),
+                        make_edit_view("max_pads", current_filter.max_pads, 10),
                     ),
             )
             .button("Done", move |s| {
-                let min_anode_wires = s
-                    .call_on_name("min_anode_wires", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
-                let max_anode_wires = s
-                    .call_on_name("max_anode_wires", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
-                let min_pads = s
-                    .call_on_name("min_pads", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
-                let max_pads = s
-                    .call_on_name("max_pads", |view: &mut EditView| {
-                        let text = view.get_content();
-                        if text.is_empty() {
-                            Ok(None)
-                        } else {
-                            text.parse::<usize>().map(Some)
-                        }
-                    })
-                    .unwrap();
+                let min_anode_wires = try_value_from_edit_view(s, "min_anode_wires");
+                let max_anode_wires = try_value_from_edit_view(s, "max_anode_wires");
+                let min_pads = try_value_from_edit_view(s, "min_pads");
+                let max_pads = try_value_from_edit_view(s, "max_pads");
 
                 match (min_anode_wires, max_anode_wires, min_pads, max_pads) {
                     (Ok(min_anode_wires), Ok(max_anode_wires), Ok(min_pads), Ok(max_pads)) => {
@@ -208,17 +175,11 @@ fn select_filters(s: &mut Cursive) {
                         s.pop_layer();
                         s.set_autohide_menu(false);
                     }
-                    (Err(_), _, _, _) => {
-                        s.add_layer(Dialog::info("Invalid minimum number of anode wires"));
-                    }
-                    (_, Err(_), _, _) => {
-                        s.add_layer(Dialog::info("Invalid maximum number of anode wires"));
-                    }
-                    (_, _, Err(_), _) => {
-                        s.add_layer(Dialog::info("Invalid minimum number of pads"));
-                    }
-                    (_, _, _, Err(_)) => {
-                        s.add_layer(Dialog::info("Invalid maximum number of pads"));
+                    (Err(error), _, _, _)
+                    | (_, Err(error), _, _)
+                    | (_, _, Err(error), _)
+                    | (_, _, _, Err(error)) => {
+                        s.add_layer(Dialog::info(format!("Error: {error:?}")));
                     }
                 }
             }),
@@ -241,7 +202,10 @@ fn iterate(s: &mut Cursive) {
                 }
                 Err(_) => break result,
             },
-            Err(_) => panic!("unexpected channel disconnected"),
+            Err(_) => {
+                s.quit();
+                return;
+            }
         }
     };
     update_event_metadata(s, &result);
@@ -249,7 +213,7 @@ fn iterate(s: &mut Cursive) {
 }
 
 /// Update the event metadata box with the last received packet.
-fn update_event_metadata(s: &mut Cursive, result: &Result<Packet, TryNextPacketError>) {
+fn update_event_metadata(s: &mut Cursive, result: &Result<Packet>) {
     let text = match result {
         Ok(packet) => {
             let mut text = format!("Serial number: {}\n", packet.serial_number);
@@ -258,11 +222,9 @@ fn update_event_metadata(s: &mut Cursive, result: &Result<Packet, TryNextPacketE
             text
         }
         Err(error) => {
-            let mut text = format!("Error: {error}");
-            if let Some(cause) = error.source() {
-                let _ = write!(text, "\nCaused by: {cause}");
-            }
+            let text = format!("Error: {error:?}");
             s.add_layer(Dialog::info(text));
+
             String::from("Press <Next> to jump to the next event.")
         }
     };
@@ -273,25 +235,30 @@ fn update_event_metadata(s: &mut Cursive, result: &Result<Packet, TryNextPacketE
 }
 
 /// Update the plot with the last received packet.
-fn update_plot(s: &mut Cursive, result: &Result<Packet, TryNextPacketError>) {
+fn update_plot(s: &mut Cursive, result: &Result<Packet>) {
     let jobname = s
         .with_user_data(|user_data: &mut UserData| user_data.jobname.clone())
         .unwrap();
     let dir = &s.user_data::<UserData>().unwrap().dir;
     match result {
-        Ok(packet) => {
-            if create_picture(packet)
-                .to_pdf(dir, &jobname, Engine::PdfLatex)
-                .is_err()
-            {
+        Ok(packet) => match create_picture(packet) {
+            Ok(picture) => {
+                if picture.to_pdf(dir, &jobname, Engine::PdfLatex).is_err() {
+                    empty_picture()
+                        .to_pdf(dir, &jobname, Engine::PdfLatex)
+                        .expect("failed to compile empty picture");
+                    s.add_layer(Dialog::info("Too many points. PDF compilation failed"));
+                }
+            }
+            Err(error) => {
                 empty_picture()
                     .to_pdf(dir, &jobname, Engine::PdfLatex)
                     .expect("failed to compile empty picture");
-                s.add_layer(Dialog::info(
-                    "PDF compilation failed. Most likely too many points.",
-                ));
+
+                let text = format!("Error: {error:?}");
+                s.add_layer(Dialog::info(text));
             }
-        }
+        },
         Err(_) => {
             empty_picture()
                 .to_pdf(dir, &jobname, Engine::PdfLatex)

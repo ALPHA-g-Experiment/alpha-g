@@ -1,17 +1,15 @@
 //! Iterate through a MIDAS file, and visualize the individual ADC waveforms
 //! from the Barrel Veto and the radial Time Projection Chamber.
 
-use crate::filter::{Correctness, Detector, Filter, Overflow};
-use crate::next::{worker, Packet, TryNextPacketError};
+use crate::filter::{Detector, Filter, Overflow};
+use crate::next::{worker, Packet};
 use crate::plot::{create_picture, empty_picture};
-use alpha_g_detector::alpha16::AdcPacket;
+use anyhow::{Context, Result};
 use clap::Parser;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, LinearLayout, ListView, RadioGroup, TextView};
 use cursive::{Cursive, With};
 use pgfplots::Engine;
-use std::error::Error;
-use std::fmt::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use tempfile::{tempdir, TempDir};
@@ -45,22 +43,24 @@ struct Args {
 /// Structure stored in Cursive object that needs to be accessed while modifying
 /// the layout.
 struct UserData {
-    receiver: mpsc::Receiver<Result<Packet, TryNextPacketError>>,
+    receiver: mpsc::Receiver<Result<Packet>>,
     jobname: String,
     dir: TempDir,
     filter: Filter,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
     // Unbuffered channel that blocks until receive.
     let (sender, receiver) = mpsc::sync_channel(0);
     std::thread::spawn(move || worker(sender, &args.files));
 
-    let dir = tempdir()?;
+    let dir = tempdir().context("failed to create temporary directory")?;
     let jobname = String::from("alpha16_signal_viewer");
-    let pdf_path = empty_picture().to_pdf(&dir, &jobname, Engine::PdfLatex)?;
-    opener::open(pdf_path)?;
+    let pdf_path = empty_picture()
+        .to_pdf(&dir, &jobname, Engine::PdfLatex)
+        .context("failed to compile empty PDF")?;
+    opener::open(&pdf_path).with_context(|| format!("failed to open `{}`", pdf_path.display()))?;
 
     let mut siv = cursive::default();
     siv.set_window_title("Alpha16 Signal Viewer");
@@ -118,7 +118,6 @@ fn make_radio<T: 'static + PartialEq>(
 fn select_filters(s: &mut Cursive) {
     s.set_autohide_menu(true);
 
-    let mut correctness: RadioGroup<Option<Correctness>> = RadioGroup::new();
     let mut detector: RadioGroup<Option<Detector>> = RadioGroup::new();
     let mut keep_bit: RadioGroup<Option<bool>> = RadioGroup::new();
     let mut overflow: RadioGroup<Option<Overflow>> = RadioGroup::new();
@@ -133,18 +132,6 @@ fn select_filters(s: &mut Cursive) {
             .title("Filters")
             .content(
                 ListView::new()
-                    .child(
-                        "Correctness:",
-                        make_radio(
-                            [
-                                ("Any", None, 9),
-                                ("Good packet", Some(Correctness::Good), 17),
-                                ("Bad packet", Some(Correctness::Bad), 16),
-                            ],
-                            &mut correctness,
-                            &current_filter.correctness,
-                        ),
-                    )
                     .child(
                         "Detector:",
                         make_radio(
@@ -186,7 +173,6 @@ fn select_filters(s: &mut Cursive) {
             )
             .button("Done", move |s| {
                 s.with_user_data(|user_data: &mut UserData| {
-                    user_data.filter.correctness = *correctness.selection();
                     user_data.filter.detector = *detector.selection();
                     user_data.filter.keep_bit = *keep_bit.selection();
                     user_data.filter.overflow = *overflow.selection();
@@ -217,41 +203,42 @@ fn iterate(s: &mut Cursive) {
                 Err(_) => break result,
             },
             Err(_) => {
-                panic!("receiver disconnected");
+                s.quit();
+                return;
             }
         }
     };
     update_packet_metadata(s, &result);
+    update_plot(s, &result);
+}
+
+/// Update the Metadata text box with information about the last received packet
+fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet>) {
+    let text = match next_result {
+        Ok(packet) => packet.adc_packet.to_string(),
+        Err(error) => {
+            let text = format!("Error: {error:?}");
+            s.add_layer(Dialog::info(text));
+
+            String::from("Press <Next> to jump to the next Alpha16 signal.")
+        }
+    };
+
+    s.call_on_name("metadata", |view: &mut TextView| view.set_content(text));
+}
+
+/// Update the plot with the last received packet.
+fn update_plot(s: &mut Cursive, result: &Result<Packet>) {
     let jobname = s
         .with_user_data(|user_data: &mut UserData| user_data.jobname.clone())
         .unwrap();
     let dir = &s.user_data::<UserData>().unwrap().dir;
     match result {
-        Ok(packet) => create_picture(&packet)
+        Ok(packet) => create_picture(packet)
             .to_pdf(dir, &jobname, Engine::PdfLatex)
             .expect("failed to compile pdf"),
         Err(_) => empty_picture()
             .to_pdf(dir, &jobname, Engine::PdfLatex)
             .expect("failed to compile empty picture"),
     };
-}
-
-/// Update the Metadata text box with information about the last received packet
-fn update_packet_metadata(s: &mut Cursive, next_result: &Result<Packet, TryNextPacketError>) {
-    let text = match next_result {
-        Ok(packet) => match AdcPacket::try_from(&packet.adc_packet[..]) {
-            Ok(packet) => packet.to_string(),
-            Err(error) => format!("Error: {error}"),
-        },
-        Err(error) => {
-            let mut text = format!("Error: {error}");
-            if let Some(cause) = error.source() {
-                let _ = write!(text, "\nCaused by: {cause}");
-            }
-            s.add_layer(Dialog::info(text));
-            String::from("Press <Next> to jump to the next Alpha16 signal.")
-        }
-    };
-
-    s.call_on_name("metadata", |view: &mut TextView| view.set_content(text));
 }

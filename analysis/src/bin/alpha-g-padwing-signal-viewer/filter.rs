@@ -29,15 +29,14 @@ impl Packet {
     /// Return the [`Overflow`] of the inner `pwb_packet` at the current
     /// `channel_id`.
     fn overflow(&self) -> Overflow {
-        // Channel IS SENT, then guaranteed to have non-empty waveform. All
-        // these unwraps shouldn't panic.
+        // Channel IS SENT, then waveform is guaranteed to be `Some`
         let waveform = self.pwb_packet.waveform_at(self.channel_id).unwrap();
-        let min = waveform.iter().min().unwrap();
-        let max = waveform.iter().max().unwrap();
-        match (*min, *max) {
-            (PWB_MIN, PWB_MAX) => Overflow::Both,
-            (PWB_MIN, _) => Overflow::Negative,
-            (_, PWB_MAX) => Overflow::Positive,
+        let min = waveform.iter().min();
+        let max = waveform.iter().max();
+        match (min, max) {
+            (Some(&PWB_MIN), Some(&PWB_MAX)) => Overflow::Both,
+            (Some(&PWB_MIN), _) => Overflow::Negative,
+            (_, Some(&PWB_MAX)) => Overflow::Positive,
             _ => Overflow::Neither,
         }
     }

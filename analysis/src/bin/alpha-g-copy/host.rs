@@ -1,8 +1,7 @@
 use crate::Extension;
 use clap::ValueEnum;
-use glob::Pattern;
 use std::fmt;
-use std::path::Path;
+use std::path::PathBuf;
 
 /// Known hosts for ALPHA-g MIDAS files
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -21,19 +20,23 @@ impl fmt::Display for Host {
 
 impl Host {
     /// Path to MIDAS files in a given host
-    pub fn path_to_data(&self) -> &Path {
+    pub fn path_to_data(&self) -> PathBuf {
         match self {
-            Host::Lxplus => Path::new("/eos/experiment/ALPHAg/midasdata_old"),
-            Host::Alpha03 => Path::new("/daq/alpha_data0/acapra/alphag/midasdata"),
+            Host::Lxplus => PathBuf::from("/eos/experiment/ALPHAg/midasdata_old"),
+            Host::Alpha03 => PathBuf::from("/daq/alpha_data0/acapra/alphag/midasdata"),
         }
     }
     /// Return the Unix shell style pattern of all files from a single run number.
     /// This does not include the /path/to/data.
-    pub fn filename(&self, run_number: u32, extension: Option<Extension>) -> Pattern {
+    // Using glob::Pattern instead of String sounds like a good idea, but every
+    // usage of `filename()` in main needs the string anyway.
+    // For some reason, the `glob` function in `glob::glob` does not work with
+    // the `Pattern` type and requires a `&str`.
+    pub fn filename(&self, run_number: u32, extension: Option<Extension>) -> String {
         let extension = extension.map_or(String::new(), |e| e.to_string());
         match self {
             Host::Lxplus | Host::Alpha03 => {
-                Pattern::new(&format!("run{run_number:05}sub*.mid{extension}")).unwrap()
+                format!("run{run_number:05}sub*.mid{extension}")
             }
         }
     }

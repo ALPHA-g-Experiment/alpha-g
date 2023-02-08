@@ -1,42 +1,13 @@
-use alpha_g_detector::alpha16::{AdcPacket, ChannelId, TryAdcPacketFromSliceError};
+use alpha_g_detector::alpha16::{AdcPacket, ChannelId};
 use alpha_g_detector::midas::{Adc32BankName, EventId, PadwingBankName};
-use alpha_g_detector::padwing::{
-    AfterId, BoardId, Chunk, PwbPacket, TryChunkFromSliceError, TryPwbPacketFromChunksError,
-};
+use alpha_g_detector::padwing::{AfterId, BoardId, Chunk, PwbPacket};
+use anyhow::{anyhow, Context, Result};
 use memmap2::Mmap;
-use midasio::read::file::{FileView, TryFileViewFromSliceError};
+use midasio::read::file::FileView;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 use std::sync::mpsc::SyncSender;
-use thiserror::Error;
-
-/// The error type returned when obtaining the next [`Packet`] fails.
-#[derive(Error, Debug)]
-pub enum TryNextPacketError {
-    /// Error opening an input file.
-    #[error("failed to open input file")]
-    FailedOpen(#[from] std::io::Error),
-    /// Input file is not a valid MIDAS file.
-    #[error("not a valid MIDAS file")]
-    FailedFileView(#[from] TryFileViewFromSliceError),
-    /// PWB data bank doesn't make a correct [`Chunk`].
-    #[error("bad pwb data bank")]
-    BadPwbDataBank(#[from] TryChunkFromSliceError),
-    /// [`Chunk`]s don't make a correct [`PwbPacket`].
-    #[error("bad chunks")]
-    BadChunks(#[from] TryPwbPacketFromChunksError),
-    /// ADC data bank doesn't make a correct [`AdcPacket`].
-    #[error("bad adc data bank")]
-    BadAdcDataBank(#[from] TryAdcPacketFromSliceError),
-    /// An [`AdcPacket`] (presumably from the anode wires) contains a BV (A16)
-    /// channel id.
-    #[error("aw packet contains a BV channel id")]
-    BadAdcPacket,
-    /// All input files have been consumed.
-    #[error("consumed all input files")]
-    AllConsumed,
-}
 
 /// Data that the worker thread is trying to collect from the MIDAS file with
 /// every iteration of "next".
@@ -56,17 +27,20 @@ pub struct Packet {
 
 /// Worker function that iterates through MIDAS files and tries to send
 /// [`Packet`]s to the main thread.
-pub fn worker<P>(
-    sender: SyncSender<Result<Packet, TryNextPacketError>>,
-    file_names: impl IntoIterator<Item = P>,
-) where
+pub fn worker<P>(sender: SyncSender<Result<Packet>>, file_names: impl IntoIterator<Item = P>)
+where
     P: AsRef<Path>,
 {
     for file_name in file_names {
-        let file = match File::open(file_name) {
+        let file = match File::open(&file_name) {
             Ok(file) => file,
             Err(error) => {
-                if sender.send(Err(error.into())).is_err() {
+                if sender
+                    .send(Err(error).with_context(|| {
+                        format!("failed to open `{}`", file_name.as_ref().display())
+                    }))
+                    .is_err()
+                {
                     return;
                 }
                 continue;
@@ -75,7 +49,12 @@ pub fn worker<P>(
         let mmap = match unsafe { Mmap::map(&file) } {
             Ok(mmap) => mmap,
             Err(error) => {
-                if sender.send(Err(error.into())).is_err() {
+                if sender
+                    .send(Err(error).with_context(|| {
+                        format!("failed to memory map `{}`", file_name.as_ref().display())
+                    }))
+                    .is_err()
+                {
                     return;
                 }
                 continue;
@@ -84,7 +63,15 @@ pub fn worker<P>(
         let file_view = match FileView::try_from(&mmap[..]) {
             Ok(file_view) => file_view,
             Err(error) => {
-                if sender.send(Err(error.into())).is_err() {
+                if sender
+                    .send(Err(error).with_context(|| {
+                        format!(
+                            "`{}` is not a valid MIDAS file",
+                            file_name.as_ref().display()
+                        )
+                    }))
+                    .is_err()
+                {
                     return;
                 }
                 continue;
@@ -103,7 +90,15 @@ pub fn worker<P>(
                     let adc_packet = match AdcPacket::try_from(bank_view.data_slice()) {
                         Ok(adc_packet) => adc_packet,
                         Err(error) => {
-                            if sender.send(Err(error.into())).is_err() {
+                            if sender
+                                .send(Err(error).with_context(|| {
+                                    format!(
+                                        "bad alpha16 data bank in event `{}`",
+                                        event_view.serial_number()
+                                    )
+                                }))
+                                .is_err()
+                            {
                                 return;
                             }
                             continue;
@@ -113,7 +108,13 @@ pub fn worker<P>(
                     // assume all packets are from the anode wires (it unwraps
                     // the channel id).
                     if let ChannelId::A16(_) = adc_packet.channel_id() {
-                        if sender.send(Err(TryNextPacketError::BadAdcPacket)).is_err() {
+                        if sender
+                            .send(Err(anyhow!(
+                                "anode wire packet with a BV channel id in event `{}`",
+                                event_view.serial_number()
+                            )))
+                            .is_err()
+                        {
                             return;
                         }
                         continue;
@@ -124,7 +125,15 @@ pub fn worker<P>(
                     let chunk = match Chunk::try_from(bank_view.data_slice()) {
                         Ok(chunk) => chunk,
                         Err(error) => {
-                            if sender.send(Err(error.into())).is_err() {
+                            if sender
+                                .send(Err(error).with_context(|| {
+                                    format!(
+                                        "bad padwing data bank in event `{}`",
+                                        event_view.serial_number()
+                                    )
+                                }))
+                                .is_err()
+                            {
                                 return;
                             }
                             continue;
@@ -141,7 +150,12 @@ pub fn worker<P>(
                 let pwb_packet = match PwbPacket::try_from(chunks) {
                     Ok(packet) => packet,
                     Err(error) => {
-                        if sender.send(Err(error.into())).is_err() {
+                        if sender
+                            .send(Err(error).with_context(|| {
+                                format!("bad chunks in event `{}`", event_view.serial_number())
+                            }))
+                            .is_err()
+                        {
                             return;
                         }
                         continue;
@@ -161,5 +175,5 @@ pub fn worker<P>(
             }
         }
     }
-    let _ = sender.send(Err(TryNextPacketError::AllConsumed));
+    let _ = sender.send(Err(anyhow!("no more files")));
 }

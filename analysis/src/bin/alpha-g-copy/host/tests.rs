@@ -10,11 +10,11 @@ fn host_display() {
 fn host_path_to_data() {
     assert_eq!(
         Host::Lxplus.path_to_data(),
-        Path::new("/eos/experiment/ALPHAg/midasdata_old/")
+        PathBuf::from("/eos/experiment/ALPHAg/midasdata_old/")
     );
     assert_eq!(
         Host::Alpha03.path_to_data(),
-        Path::new("/daq/alpha_data0/acapra/alphag/midasdata/")
+        PathBuf::from("/daq/alpha_data0/acapra/alphag/midasdata/")
     );
 }
 
@@ -22,27 +22,27 @@ fn host_path_to_data() {
 fn lxplus_filename_lz4() {
     assert_eq!(
         Host::Lxplus.filename(1, Some(Extension::Lz4)),
-        Pattern::new("run00001sub*.mid.lz4").unwrap()
+        String::from("run00001sub*.mid.lz4")
     );
     assert_eq!(
         Host::Lxplus.filename(12, Some(Extension::Lz4)),
-        Pattern::new("run00012sub*.mid.lz4").unwrap()
+        String::from("run00012sub*.mid.lz4")
     );
     assert_eq!(
         Host::Lxplus.filename(123, Some(Extension::Lz4)),
-        Pattern::new("run00123sub*.mid.lz4").unwrap()
+        String::from("run00123sub*.mid.lz4")
     );
     assert_eq!(
         Host::Lxplus.filename(1234, Some(Extension::Lz4)),
-        Pattern::new("run01234sub*.mid.lz4").unwrap()
+        String::from("run01234sub*.mid.lz4")
     );
     assert_eq!(
         Host::Lxplus.filename(12345, Some(Extension::Lz4)),
-        Pattern::new("run12345sub*.mid.lz4").unwrap()
+        String::from("run12345sub*.mid.lz4")
     );
     assert_eq!(
         Host::Lxplus.filename(123456, Some(Extension::Lz4)),
-        Pattern::new("run123456sub*.mid.lz4").unwrap()
+        String::from("run123456sub*.mid.lz4")
     );
 }
 
@@ -50,27 +50,27 @@ fn lxplus_filename_lz4() {
 fn lxplus_filename() {
     assert_eq!(
         Host::Lxplus.filename(1, None),
-        Pattern::new("run00001sub*.mid").unwrap()
+        String::from("run00001sub*.mid")
     );
     assert_eq!(
         Host::Lxplus.filename(12, None),
-        Pattern::new("run00012sub*.mid").unwrap()
+        String::from("run00012sub*.mid")
     );
     assert_eq!(
         Host::Lxplus.filename(123, None),
-        Pattern::new("run00123sub*.mid").unwrap()
+        String::from("run00123sub*.mid")
     );
     assert_eq!(
         Host::Lxplus.filename(1234, None),
-        Pattern::new("run01234sub*.mid").unwrap()
+        String::from("run01234sub*.mid")
     );
     assert_eq!(
         Host::Lxplus.filename(12345, None),
-        Pattern::new("run12345sub*.mid").unwrap()
+        String::from("run12345sub*.mid")
     );
     assert_eq!(
         Host::Lxplus.filename(123456, None),
-        Pattern::new("run123456sub*.mid").unwrap()
+        String::from("run123456sub*.mid")
     );
 }
 
@@ -78,28 +78,28 @@ fn lxplus_filename() {
 fn alpha03_filename() {
     assert_eq!(
         Host::Alpha03.filename(1, None),
-        Pattern::new("run00001sub*.mid").unwrap()
+        String::from("run00001sub*.mid")
     );
     assert_eq!(
         Host::Alpha03.filename(12, None),
-        Pattern::new("run00012sub*.mid").unwrap()
+        String::from("run00012sub*.mid")
     );
     assert_eq!(
         Host::Alpha03.filename(123, None),
-        Pattern::new("run00123sub*.mid").unwrap()
+        String::from("run00123sub*.mid")
     );
     assert_eq!(
         Host::Alpha03.filename(1234, None),
-        Pattern::new("run01234sub*.mid").unwrap()
+        String::from("run01234sub*.mid")
     );
     assert_eq!(
         Host::Alpha03.filename(12345, None),
-        Pattern::new("run12345sub*.mid").unwrap()
+        String::from("run12345sub*.mid")
     );
 
     assert_eq!(
         Host::Alpha03.filename(123456, None),
-        Pattern::new("run123456sub*.mid").unwrap()
+        String::from("run123456sub*.mid")
     );
 }
 
@@ -107,26 +107,26 @@ fn alpha03_filename() {
 fn alpha03_filename_lz4() {
     assert_eq!(
         Host::Alpha03.filename(1, Some(Extension::Lz4)),
-        Pattern::new("run00001sub*.mid.lz4").unwrap()
+        String::from("run00001sub*.mid.lz4")
     );
     assert_eq!(
         Host::Alpha03.filename(12, Some(Extension::Lz4)),
-        Pattern::new("run00012sub*.mid.lz4").unwrap()
+        String::from("run00012sub*.mid.lz4")
     );
     assert_eq!(
         Host::Alpha03.filename(123, Some(Extension::Lz4)),
-        Pattern::new("run00123sub*.mid.lz4").unwrap()
+        String::from("run00123sub*.mid.lz4")
     );
     assert_eq!(
         Host::Alpha03.filename(1234, Some(Extension::Lz4)),
-        Pattern::new("run01234sub*.mid.lz4").unwrap()
+        String::from("run01234sub*.mid.lz4")
     );
     assert_eq!(
         Host::Alpha03.filename(12345, Some(Extension::Lz4)),
-        Pattern::new("run12345sub*.mid.lz4").unwrap()
+        String::from("run12345sub*.mid.lz4")
     );
     assert_eq!(
         Host::Alpha03.filename(123456, Some(Extension::Lz4)),
-        Pattern::new("run123456sub*.mid.lz4").unwrap()
+        String::from("run123456sub*.mid.lz4")
     );
 }

@@ -1,15 +1,6 @@
 use crate::Packet;
-use alpha_g_detector::alpha16::{AdcPacket, ADC_MAX, ADC_MIN};
+use alpha_g_detector::alpha16::{ADC_MAX, ADC_MIN};
 use alpha_g_detector::midas::Alpha16BankName::{self, A16, A32};
-
-/// Correctness of an ADC data packet.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Correctness {
-    /// A good ADC data packet converts without error into an [`AdcPacket`].
-    Good,
-    /// A bad ADC data packet fails during conversion.
-    Bad,
-}
 
 /// Source of an ADC data packet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,7 +11,7 @@ pub enum Detector {
     Tpc,
 }
 
-/// Possible overflow of the waveform in an [`AdcPacket`].
+/// Possible overflow of the waveform in an AdcPacket
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Overflow {
     /// Exclusively positive.
@@ -36,26 +27,15 @@ pub enum Overflow {
 /// User-selected conditions that a [`Packet`] has to satisfy to be displayed.
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Filter {
-    pub correctness: Option<Correctness>,
     pub detector: Option<Detector>,
     pub keep_bit: Option<bool>,
     pub overflow: Option<Overflow>,
 }
 
 impl Packet {
-    /// Return the [`Correctness`] of the inner `adc_packet` slice.
-    fn correctness(&self) -> Correctness {
-        match AdcPacket::try_from(&self.adc_packet[..]) {
-            Ok(_) => Correctness::Good,
-            Err(_) => Correctness::Bad,
-        }
-    }
     /// Return the [`Detector`] from which the [`Packet`] comes from. This
     /// function only checks the `bank_name` field to determine the source of
     /// the packet.
-    // I don't check for the `adc_packet` itself because it can be a bad packet,
-    // hence the name is the only reliable information on the source of the
-    // packet.
     // This function never fails because the `worker` function in the `next`
     // module only iterates over valid Alpha16BankNames
     fn detector(&self) -> Detector {
@@ -64,62 +44,37 @@ impl Packet {
             A32(_) => Detector::Tpc,
         }
     }
-    /// Return the `keep_bit` of the inner `adc_packet` slice. Additionally
-    /// return [`None`] if the conversion fails.
+    /// Return the `keep_bit` of the inner `adc_packet` slice.
     fn keep_bit(&self) -> Option<bool> {
-        match AdcPacket::try_from(&self.adc_packet[..]) {
-            Ok(packet) => packet.keep_bit(),
-            Err(_) => None,
-        }
+        self.adc_packet.keep_bit()
     }
-    /// Return the [`Overflow`] of the inner `adc_packet` slice. Additionally
-    /// return [`None`] if the conversion fails or the waveform is empty.
-    fn overflow(&self) -> Option<Overflow> {
-        match AdcPacket::try_from(&self.adc_packet[..]) {
-            Ok(packet) => {
-                let min = packet.waveform().iter().min();
-                let max = packet.waveform().iter().max();
-                match (min, max) {
-                    (Some(&ADC_MIN), Some(&ADC_MAX)) => Some(Overflow::Both),
-                    (Some(&ADC_MIN), Some(_)) => Some(Overflow::Negative),
-                    (Some(_), Some(&ADC_MAX)) => Some(Overflow::Positive),
-                    (Some(_), Some(_)) => Some(Overflow::Neither),
-                    _ => None,
-                }
-            }
-            Err(_) => None,
+    /// Return the [`Overflow`] of the inner `adc_packet` slice.
+    fn overflow(&self) -> Overflow {
+        let waveform = self.adc_packet.waveform();
+        let min = waveform.iter().min();
+        let max = waveform.iter().max();
+        match (min, max) {
+            (Some(&ADC_MIN), Some(&ADC_MAX)) => Overflow::Both,
+            (Some(&ADC_MIN), _) => Overflow::Negative,
+            (_, Some(&ADC_MAX)) => Overflow::Positive,
+            _ => Overflow::Neither,
         }
     }
     /// Return [`true`] if the [`Packet`] satisfies a user-defined [`Filter`].
     pub fn passes_filter(&self, filter: &Filter) -> bool {
-        if let Some(correctness) = filter.correctness {
-            if self.correctness() != correctness {
-                return false;
-            }
-        }
         if let Some(detector) = filter.detector {
             if self.detector() != detector {
                 return false;
             }
         }
         if let Some(keep_bit) = filter.keep_bit {
-            match self.keep_bit() {
-                None => return false,
-                Some(value) => {
-                    if value != keep_bit {
-                        return false;
-                    }
-                }
+            if self.keep_bit() != Some(keep_bit) {
+                return false;
             }
         }
         if let Some(overflow) = filter.overflow {
-            match self.overflow() {
-                None => return false,
-                Some(value) => {
-                    if overflow != value {
-                        return false;
-                    }
-                }
+            if self.overflow() != overflow {
+                return false;
             }
         }
         true

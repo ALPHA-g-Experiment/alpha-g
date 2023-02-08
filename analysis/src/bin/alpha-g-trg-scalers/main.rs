@@ -5,11 +5,11 @@ use crate::plot::{create_picture, Figure};
 use alpha_g_detector::midas::{EventId, TriggerBankName};
 use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
+use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
-use midasio::read::file::FileView;
-use std::error::Error;
+use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
 use std::fs::{copy, File};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
@@ -22,7 +22,7 @@ mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
-#[command(about = "Visualize the rate of TRG signals for a single run", long_about = None)]
+#[command(about = "Visualize the rate of TRG scalers for a single run", long_about = None)]
 // If you add a new argument that changes the behaviour of the final plot,
 // remember to include this in the Hash trait below.
 pub(crate) struct Args {
@@ -111,30 +111,11 @@ impl Hash for Args {
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
-    let spinner = ProgressBar::new_spinner()
-        .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
-    spinner.enable_steady_tick(std::time::Duration::from_millis(100));
-    // Creating and checking all FileViews at the start is significantly
-    // (2-3 times) slower than creating, validating, and sorting on the fly.
-    // Each file is loaded into RAM more than once.
-    // On the other hand, this allows for faster feedback on incorrect input e.g.
-    // a bad last file wont make you wait a lot just to crash at the end.
-    //
-    // File IO is a bottleneck for this simple program (if for some reason the
-    // current implementation is not fast enough), then sort and validate the
-    // raw memory-mapped buffers and just create the FileViews on the fly. If it
-    // is clean enough, consider pushing upstream to `midasio` crate.
-    spinner.set_message("Memory mapping files...");
-    let mmaps = try_mmaps(args.files.clone())?;
-    spinner.set_message("Sorting input files...");
-    let file_views = try_sort_file_views(mmaps.iter())?;
-    spinner.set_message("Checking correctness...");
-    check_input_file_views(&file_views)?;
-    spinner.finish_and_clear();
+    let input_files = try_valid_mmaps(args.files.clone()).context("invalid input file")?;
 
-    let bar = ProgressBar::new(file_views.len().try_into().unwrap()).with_style(
+    let bar = ProgressBar::new(input_files.len().try_into().unwrap()).with_style(
         ProgressStyle::with_template("  Analysing [{bar:25}] {percent}%,  ETA: {eta}")
             .unwrap()
             .progress_chars("=> "),
@@ -145,12 +126,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut cumulative_timestamp: u64 = 0;
     let mut figures = Vec::new();
     let mut count_errors: u32 = 0;
-
     // Need to keep track of the `final_timestamp` of each file in order to
-    // detect time between contiguous files.
-    let mut previous_file_timestamp = file_views[0].initial_timestamp();
-    'outer: for file in file_views {
-        // This is the time (in seconds) between 2 contiguous MIDAS files.
+    // detect time between consecutive files.
+    let mut previous_file_timestamp = initial_timestamp_unchecked(&input_files[0].1).unwrap();
+    'outer: for (path, mmap) in input_files {
+        let file = FileView::try_from(&mmap[..])
+            .with_context(|| format!("`{}` is not a valid MIDAS file", path.display()))?;
+        // This is the time (in seconds) between 2 consecutive MIDAS files.
         // Files are already sorted by timestamp, so this is guaranteed to be
         // non-negative.
         let seconds_between_files = file.initial_timestamp() - previous_file_timestamp;
@@ -238,7 +220,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_message("Compiling PDF...")
         .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
     spinner.enable_steady_tick(std::time::Duration::from_millis(100));
-
     // The final name of the plot should be a unique name based on the input
     // arguments given to the CLI. This prevents overwriting different plots.
     let output_name = format!("trg_scalers_{}", {
@@ -246,38 +227,53 @@ fn main() -> Result<(), Box<dyn Error>> {
         args.hash(&mut hasher);
         hasher.finish()
     });
-    let tmp_pdf = create_picture(figures, &args).to_pdf(
-        std::env::temp_dir(),
-        &output_name,
-        pgfplots::Engine::PdfLatex,
-    )?;
+    let tmp_pdf = create_picture(figures, &args)
+        .to_pdf(
+            std::env::temp_dir(),
+            &output_name,
+            pgfplots::Engine::PdfLatex,
+        )
+        .context("failed to compile PDF")?;
 
     if args.batch_mode {
         // Leave the `.aux` and `.log` files in the temporary directory.
-        copy(tmp_pdf, args.output_path.join(output_name + ".pdf"))?;
+        let output_path = args.output_path.join(output_name + ".pdf");
+        copy(&tmp_pdf, &output_path).with_context(|| {
+            format!(
+                "failed to copy the contents from `{}` to `{}`",
+                tmp_pdf.display(),
+                output_path.display()
+            )
+        })?;
     } else {
-        opener::open(tmp_pdf)?;
+        opener::open(&tmp_pdf)
+            .with_context(|| format!("failed to open `{}`", tmp_pdf.display()))?;
     }
 
     if count_errors != 0 {
-        spinner.println(format!("Warning: found {count_errors} error(s)/warning(s)"));
+        spinner.println(format!(
+            "Warning: found `{count_errors}` error(s)/warning(s)"
+        ));
     }
 
     spinner.finish_and_clear();
+
     Ok(())
 }
 
 /// Validate `time_step` argument.
 // It has to be a positive float.
 // Cannot be NaN, inf, nor 0.0.
-fn valid_time_step(s: &str) -> Result<f64, String> {
-    let time_step: f64 = s.parse().map_err(|_| format!("`{s}` isn't a number"))?;
+fn valid_time_step(s: &str) -> Result<f64> {
+    let time_step: f64 = s
+        .parse()
+        .with_context(|| format!("failed to parse `{s}` as a time_step"))?;
     // Also ignore subnormal numbers because they would make the computer run
     // out of RAM anyways.
     if time_step.is_normal() && time_step.is_sign_positive() {
         Ok(time_step)
     } else {
-        Err(format!("`{time_step}` isn't a valid time_step"))
+        bail!("`{time_step}` isn't a valid time_step")
     }
 }
 
@@ -285,88 +281,94 @@ fn valid_time_step(s: &str) -> Result<f64, String> {
 // It has to be a positive float.
 // Cannot be NaN, or inf.
 // Has to fit into u64 (max cumulative timestamp).
-fn valid_time_limit(s: &str) -> Result<u64, String> {
-    let time_limit: f64 = s.parse().map_err(|_| format!("`{s}` isn't a number"))?;
+fn valid_time_limit(s: &str) -> Result<u64> {
+    let time_limit: f64 = s
+        .parse()
+        .with_context(|| format!("failed to parse `{s}` as a time_limit"))?;
     if time_limit.is_finite() && time_limit.is_sign_positive() {
         let clock_limit = (time_limit * TRG_CLOCK_FREQ) as u64;
         // Casting saturates to the maximum value of the integer type
         if clock_limit != u64::MAX {
             Ok(clock_limit)
         } else {
-            Err(format!(
-                "`{time_limit}` is larger than the maximum possible time limit"
-            ))
+            bail!("`{time_limit}` is larger than the maximum possible time limit")
         }
     } else {
-        Err(format!("`{time_limit}` isn't a valid time limit"))
+        bail!("`{time_limit}` isn't a valid time_limit")
     }
 }
 
 /// Parse `--output-path` flag as valid directory
-fn is_directory(s: &str) -> Result<PathBuf, String> {
+fn is_directory(s: &str) -> Result<PathBuf> {
     let path: PathBuf = s.into();
     if path.is_dir() {
         Ok(path)
     } else {
-        Err(String::from("path is not pointing at a directory on disk"))
+        bail!(
+            "`{}` is not pointing to a directory on disk",
+            path.display()
+        )
     }
 }
 
-/// Try to get a vector of memory maps from a collection of paths. Return an
-/// error if there is a problem opening the file or creating the Mmap.
-// This function should preserve the order of the Mmaps (same as input paths)
-// in order to be able to provide feedback in `try_file_views` by the index
-// of which file failed.
-fn try_mmaps(file_names: impl IntoIterator<Item = PathBuf>) -> Result<Vec<Mmap>, String> {
-    file_names
+/// Try to get a vector of memory maps from a collection of paths. Ensure that
+/// all the memory maps are valid and sort them.
+// Check that all files satisfy the conditions required to produce a correct
+// result.
+// 1. All files belong to the same run number.
+// 2. There are no duplicate files (by timestamp).
+// 3. All files are sorted by timestamp.
+fn try_valid_mmaps(file_names: impl IntoIterator<Item = PathBuf>) -> Result<Vec<(PathBuf, Mmap)>> {
+    // Tuple the PathBuf with the Mmap to keep some context about the mmap.
+    // This is used to print the file name in case of an error.
+    let mut mmaps = file_names
         .into_iter()
         .map(|path| {
-            let file =
-                File::open(&path).map_err(|_| format!("unable to open `{}`", path.display()))?;
-            unsafe { Mmap::map(&file) }
-                .map_err(|_| format!("unable to memory map `{}`", path.display()))
+            let file = File::open(&path)
+                .with_context(|| format!("failed to open `{}`", path.display()))?;
+            let mmap = unsafe { Mmap::map(&file) }
+                .with_context(|| format!("failed to memory map `{}`", path.display()))?;
+            // Decorate-sort-undecorate pattern.
+            // Cannot bail in the sort closure, so bail here.
+            let initial_timestamp = initial_timestamp_unchecked(&mmap).with_context(|| {
+                format!("failed to read initial timestamp from `{}`", path.display())
+            })?;
+            Ok((path, initial_timestamp, mmap))
         })
-        .collect()
-}
-
-/// Try to get a vector of sorted  MIDAS file views from a collection of
-/// memory maps. Return an error if there is a problem creating a FileView from
-/// the memory map.
-fn try_sort_file_views<'a>(
-    mmaps: impl Iterator<Item = &'a Mmap>,
-) -> Result<Vec<FileView<'a>>, String> {
-    let mut file_views = mmaps
-        .enumerate() // Include index to give some information about which file
-        // failed to create a FileView
-        .map(|(index, mmap)| {
-            FileView::try_from(&mmap[..])
-                .map_err(|_| format!("unable to FileView file index `{index}`"))
-        })
-        .collect::<Result<Vec<FileView>, String>>()?;
-
-    file_views.sort_unstable_by_key(|file| file.initial_timestamp());
-    Ok(file_views)
-}
-
-/// Check that all files satisfy the conditions required to produce a correct
-/// result.
-// 1. All files belong to the same run number.
-// 2. There are no duplicate files.
-fn check_input_file_views(file_views: &Vec<FileView>) -> Result<(), String> {
-    if file_views.len() > 1 {
-        if file_views
-            .iter()
-            .any(|&f| f.run_number() != file_views[0].run_number())
-        {
-            return Err("found files from multiple run numbers".to_string());
-        }
-        // The vector is already sorted, only check contiguous elements for
-        // a duplicate initial timestamp
-        for pair in file_views.windows(2) {
-            if pair[0].initial_timestamp() == pair[1].initial_timestamp() {
-                return Err("found files with same initial timestamp".to_string());
-            }
+        .collect::<Result<Vec<_>>>()?;
+    mmaps.sort_unstable_by_key(|(_, timestamp, _)| *timestamp);
+    // They are sorted, so it is enough to check consecutive elements to have a
+    // different timestamp.
+    for window in mmaps.windows(2) {
+        let [(path_0, time_0, _), (path_1, time_1, _)] = window else { unreachable!() };
+        ensure!(
+            time_0 != time_1,
+            "duplicate files `{}` and `{}` with the same initial timestamp",
+            path_0.display(),
+            path_1.display()
+        )
+    }
+    // Undecorate.
+    let mmaps: Vec<_> = mmaps
+        .into_iter()
+        .map(|(path, _, mmap)| (path, mmap))
+        .collect();
+    if mmaps.len() > 1 {
+        let expected_run_number = run_number_unchecked(&mmaps[0].1).with_context(|| {
+            format!("failed to read run number from `{}`", mmaps[0].0.display())
+        })?;
+        for (path, mmap) in mmaps.iter() {
+            let run_number = run_number_unchecked(mmap)
+                .with_context(|| format!("failed to read run number from `{}`", path.display()))?;
+            ensure!(
+                run_number == expected_run_number,
+                "incompatible run number in `{}` (expected `{}`, found `{}`)",
+                path.display(),
+                expected_run_number,
+                run_number
+            )
         }
     }
-    Ok(())
+
+    Ok(mmaps)
 }

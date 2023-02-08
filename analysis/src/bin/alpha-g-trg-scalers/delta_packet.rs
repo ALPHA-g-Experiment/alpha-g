@@ -1,4 +1,5 @@
 use alpha_g_detector::trigger::TrgPacket;
+use anyhow::{anyhow, ensure, Result};
 
 /// Represents the difference between two TRG packets.
 // To make things simpler:
@@ -20,46 +21,45 @@ impl DeltaPacket {
     // Return an error if `previous` happens AFTER `current` or if they are
     // equal. DeltaPacket is only meant to represent differences against a
     // previous packet (from BEFORE).
-    pub(crate) fn try_from(
-        current: &TrgPacket,
-        previous: &TrgPacket,
-    ) -> Result<DeltaPacket, String> {
+    pub(crate) fn try_from(current: &TrgPacket, previous: &TrgPacket) -> Result<DeltaPacket> {
         let timestamp = current.timestamp().wrapping_sub(previous.timestamp());
         let output_counter = current
             .output_counter()
             .checked_sub(previous.output_counter())
-            .ok_or_else(|| "corrupted output counter".to_string())?;
+            .ok_or_else(|| anyhow!("decreasing output counter"))?;
         let input_counter = current
             .input_counter()
             .checked_sub(previous.input_counter())
-            .ok_or_else(|| "corrupted input counter".to_string())?;
+            .ok_or_else(|| anyhow!("decreasing input counter"))?;
         let pulser_counter = current
             .pulser_counter()
             .checked_sub(previous.pulser_counter())
-            .ok_or_else(|| "corrupted pulser counter".to_string())?;
+            .ok_or_else(|| anyhow!("decreasing pulser counter"))?;
         let drift_veto_counter = match (current.drift_veto_counter(), previous.drift_veto_counter())
         {
             (Some(current), Some(previous)) => current
                 .checked_sub(previous)
-                .ok_or_else(|| "corrupted drift veto counter".to_string())?,
+                .ok_or_else(|| anyhow!("decreasing drift veto counter"))?,
             (None, None) => 0,
             // Currently the field is either always Some, or always
             // None. It is not possible to have mixed states within
             // the same version (and they are same version because
-            // they come form the same file).
+            // they come from the same file).
             _ => unreachable!(),
         };
         let scaledown_counter = match (current.scaledown_counter(), previous.scaledown_counter()) {
             (Some(current), Some(previous)) => current
                 .checked_sub(previous)
-                .ok_or_else(|| "corrupted scaledown counter".to_string())?,
+                .ok_or_else(|| anyhow!("decreasing scaledown counter"))?,
             (None, None) => 0,
             // Same as drift_veto above
             _ => unreachable!(),
         };
-        if output_counter == 0 || input_counter == 0 {
-            return Err("non-incrementing counter".to_string());
-        }
+
+        ensure!(
+            output_counter != 0 && input_counter != 0,
+            "non-incrementing counter"
+        );
         Ok(DeltaPacket {
             timestamp,
             output_counter,

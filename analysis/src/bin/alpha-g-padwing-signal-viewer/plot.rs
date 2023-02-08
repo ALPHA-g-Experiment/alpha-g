@@ -20,22 +20,22 @@ pub fn create_picture(packet: &Packet) -> Picture {
         "Board {}. AFTER {:?}. {}",
         packet.pwb_packet.board_id().name(),
         packet.pwb_packet.after_id(),
+        // The debug format of ChannelId is not very nice.
+        // Use that of the internal channel index instead.
         match packet.channel_id {
-            Pad(channel) => format!("{:?}", channel),
-            Fpn(channel) => format!("{:?}", channel),
-            Reset(channel) => format!("{:?}", channel),
+            Pad(channel) => format!("{channel:?}"),
+            Fpn(channel) => format!("{channel:?}"),
+            Reset(channel) => format!("{channel:?}"),
         }
     ));
     axis.set_x_label(format!("Samples~[{} ns]", 1e9 / PWB_RATE));
     axis.set_y_label("Amplitude~[a.u.]");
     axis.add_key(AxisKey::Custom(format!("ymin={PWB_MIN}, ymax={PWB_MAX}")));
 
-    if let Some(baseline) = suppression_baseline(
+    if let Ok(Some(baseline)) = suppression_baseline(
         packet.run_number,
         packet.pwb_packet.waveform_at(packet.channel_id).unwrap(),
-    )
-    .unwrap()
-    {
+    ) {
         if let Some(threshold) = packet.suppression_threshold {
             let mut suppression = Plot2D::new();
             for (mut x, mut y) in [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)] {

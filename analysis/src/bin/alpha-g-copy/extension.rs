@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use clap::ValueEnum;
 use lz4::Decoder;
 use std::fmt;
@@ -18,11 +19,22 @@ impl fmt::Display for Extension {
 }
 
 /// Decompress `.lz4` file
-pub fn decompress_lz4(source: &Path, destination: &Path) -> std::io::Result<()> {
-    let input_file = File::open(source)?;
-    let mut decoder = Decoder::new(input_file)?;
-    let mut output_file = File::create(destination)?;
-    std::io::copy(&mut decoder, &mut output_file)?;
+pub fn decompress_lz4(source: &Path, destination: &Path) -> Result<()> {
+    let input_file =
+        File::open(source).with_context(|| format!("failed to open `{}`", source.display()))?;
+    let mut decoder = Decoder::new(input_file).context("failed to create lz4 encoder")?;
+    let mut output_file = File::create(destination).with_context(|| {
+        format!(
+            "failed to create output file at `{}`",
+            destination.display()
+        )
+    })?;
+    std::io::copy(&mut decoder, &mut output_file).with_context(|| {
+        format!(
+            "failed to write decompressed data to `{}`",
+            destination.display()
+        )
+    })?;
 
     Ok(())
 }
