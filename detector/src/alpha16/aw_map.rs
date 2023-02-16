@@ -1,5 +1,6 @@
 use crate::alpha16::{Adc32ChannelId, BoardId};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use thiserror::Error;
@@ -92,7 +93,7 @@ pub struct TryTpcWirePositionFromIndexError {
 // used in the raw data. This is what we get from the unpacking of the raw data
 // in the data banks. Positioning the wires at phi is the job of the
 // TpcWirePosition::phi() method.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct TpcWirePosition(usize);
 impl TryFrom<usize> for TpcWirePosition {
     type Error = TryTpcWirePositionFromIndexError;
