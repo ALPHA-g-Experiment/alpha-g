@@ -2,7 +2,7 @@
 
 use crate::plot::calibration_picture;
 use alpha_g_detector::alpha16::{
-    aw_map::TpcWirePosition,
+    aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
     {AdcPacket, ChannelId},
 };
 use alpha_g_detector::midas::{Adc32BankName, EventId};
@@ -44,7 +44,7 @@ fn main() -> Result<()> {
     // `try_valid_mmaps`.
     let run_number = run_number_unchecked(&mmaps[0].1).unwrap();
 
-    let (errors_count, noise_samples) =
+    let (mut errors_count, noise_samples) =
         try_noise_samples(mmaps, args.verbose).context("failed to sample noise")?;
 
     let calibration: HashMap<_, _> = noise_samples
@@ -101,6 +101,20 @@ fn main() -> Result<()> {
             .with_context(|| format!("failed to open `{}`", tmp_pdf.display()))?;
     }
     spinner.finish_and_clear();
+    // Leave this at the end because it is arguably the most important warning.
+    // It avoids this warnings (in case verbose is enabled) to be hidden by all
+    // the other output.
+    if calibration.len() != TPC_ANODE_WIRES {
+        for wire in 0..TPC_ANODE_WIRES {
+            let wire_position = TpcWirePosition::try_from(wire).unwrap();
+            if !calibration.contains_key(&wire_position) {
+                errors_count += 1;
+                if args.verbose {
+                    eprintln!("Warning: no calibration data for `{wire_position:?}`");
+                }
+            }
+        }
+    }
 
     if errors_count != 0 {
         eprintln!("Warning: found `{errors_count}` error(s)/warning(s)");
