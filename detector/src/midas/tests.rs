@@ -17,6 +17,38 @@ fn adc32_suppression_threshold_json_ptr() {
 }
 
 #[test]
+fn bsc_pulser_enable_json_ptr() {
+    assert_eq!(
+        BSC_PULSER_ENABLE_JSON_PTR,
+        "/Equipment/CTRL/Settings/BscPulserEnable"
+    );
+}
+
+#[test]
+fn field_wire_pulser_enable_json_ptr() {
+    assert_eq!(
+        FIELD_WIRE_PULSER_ENABLE_JSON_PTR,
+        "/Equipment/CTRL/Settings/FwPulserEnable"
+    );
+}
+
+#[test]
+fn pulser_enable_json_ptr() {
+    assert_eq!(
+        PULSER_ENABLE_JSON_PTR,
+        "/Equipment/CTRL/Settings/Pulser/Enable"
+    );
+}
+
+#[test]
+fn trigger_pulser_json_ptr() {
+    assert_eq!(
+        TRIGGER_PULSER_JSON_PTR,
+        "/Equipment/CTRL/Settings/TrigSrc/TrigPulser"
+    );
+}
+
+#[test]
 fn pwb_suppression_threshold_json_ptr() {
     assert_eq!(
         PWB_SUPPRESSION_THRESHOLD_JSON_PTR,
