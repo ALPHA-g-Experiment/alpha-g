@@ -1,27 +1,36 @@
 //! Generate a calibration file with the baseline of all anode wire channels.
 
+use crate::calibration::{is_noise, mean, std_dev};
 use crate::plot::calibration_picture;
 use alpha_g_detector::alpha16::{
     aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
     {AdcPacket, ChannelId},
 };
-use alpha_g_detector::midas::{Adc32BankName, EventId};
+use alpha_g_detector::midas::{
+    Adc32BankName, EventId, ADC32_SUPPRESSION_ENABLE_JSON_PTR, BSC_PULSER_ENABLE_JSON_PTR,
+    FIELD_WIRE_PULSER_ENABLE_JSON_PTR, PULSER_ENABLE_JSON_PTR, TRIGGER_PULSER_JSON_PTR,
+    TRIGGER_SOURCES_JSON_PTR,
+};
 use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
 use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
 use pgfplots::Engine;
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs::{copy, File};
 use std::path::PathBuf;
+
+/// Calibration statistics implementation.
+mod calibration;
 
 /// Generate plots of calibration data.
 mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
-#[command(about = "Generate a calibration file with the baseline of all anode wire channels")]
+#[command(about = "Generate a calibration file with the baseline of all anode wire channels", long_about = None)]
 struct Args {
     /// MIDAS files from the calibration run.
     #[arg(required = true)]
@@ -53,14 +62,10 @@ fn main() -> Result<()> {
             let mean = mean(&noise);
             let std_dev = std_dev(&noise);
             // Estimator of the standard error of the mean.
+            // https://en.wikipedia.org/wiki/Standard_error#Estimate
             let mean_error = std_dev / (noise.len() as f64).sqrt();
-            // The baseline in this calibration will be used as an integer
-            // offset, so we round the mean to the nearest integer.
-            // Round the error up to the nearest integer. This is a conservative
-            // estimate of the error.
-            // Furthermore, storing the calibration as integers rather than
-            // floats reduces the size of the calibration file significantly.
-            (wire, (mean.round() as i16, mean_error as u16 + 1))
+
+            (wire, (mean, mean_error, noise.len()))
         })
         .collect();
 
@@ -140,7 +145,7 @@ fn parse_directory(s: &str) -> Result<PathBuf> {
 /// that all the memory maps are valid:
 /// - All belong to the same run number.
 /// - There are no duplicates (by timestamp).
-// Do not validate the entire MIDAS format because it is too expensive.
+// Do not validate the entire MIDAS format (here) because it is too expensive.
 // Instead, only validate the run number and the timestamp.
 //
 // Return tuple to keep some context about each memory map.
@@ -184,11 +189,79 @@ fn try_valid_mmaps(file_names: impl IntoIterator<Item = PathBuf>) -> Result<Vec<
         .collect()
 }
 
+/// Validate the settings for a given ODB.
+/// - Pulser must be enabled.
+/// - Field wire pulser must be disabled.
+/// - BSC pulser must be disabled.
+/// - Trigger pulser must be enabled.
+/// - There should be no other active trigger sources.
+/// - Anode wire data suppression must be disabled.
+fn validate_odb_settings(odb: &[u8]) -> Result<()> {
+    let odb: Value = serde_json::from_slice(odb).context("failed to parse ODB as JSON")?;
+
+    let pulser_enable = odb
+        .pointer(PULSER_ENABLE_JSON_PTR)
+        .with_context(|| format!("failed to read `{PULSER_ENABLE_JSON_PTR}` from ODB"))?;
+    ensure!(pulser_enable == &json!(true), "pulser not enabled");
+
+    let field_wire_pulser_enable = odb
+        .pointer(FIELD_WIRE_PULSER_ENABLE_JSON_PTR)
+        .with_context(|| {
+            format!("failed to read `{FIELD_WIRE_PULSER_ENABLE_JSON_PTR}` from ODB")
+        })?;
+    ensure!(
+        field_wire_pulser_enable == &json!(false),
+        "field wire pulser not disabled"
+    );
+
+    let bsc_pulser_enable = odb
+        .pointer(BSC_PULSER_ENABLE_JSON_PTR)
+        .with_context(|| format!("failed to read `{BSC_PULSER_ENABLE_JSON_PTR}` from ODB"))?;
+    ensure!(
+        bsc_pulser_enable == &json!(false),
+        "bsc pulser not disabled"
+    );
+
+    let trigger_pulser = odb
+        .pointer(TRIGGER_PULSER_JSON_PTR)
+        .with_context(|| format!("failed to read `{TRIGGER_PULSER_JSON_PTR}` from ODB"))?;
+    ensure!(trigger_pulser == &json!(true), "trigger pulser not enabled");
+
+    let Value::Object(trigger_sources) = odb
+        .pointer(TRIGGER_SOURCES_JSON_PTR)
+        .with_context(|| format!("failed to read `{TRIGGER_SOURCES_JSON_PTR}` from ODB"))?
+        else {
+        bail!("invalid `{TRIGGER_SOURCES_JSON_PTR}` in ODB");
+        };
+    let active_trigger_sources = trigger_sources
+        .values()
+        .filter_map(|value| value.as_bool())
+        .filter(|&value| value)
+        .count();
+    ensure!(
+        active_trigger_sources == 1,
+        "found `{active_trigger_sources}` active trigger sources (expected 1)"
+    );
+
+    let adc32_suppression_enable = odb
+        .pointer(ADC32_SUPPRESSION_ENABLE_JSON_PTR)
+        .with_context(|| {
+            format!("failed to read `{ADC32_SUPPRESSION_ENABLE_JSON_PTR}` from ODB")
+        })?;
+    ensure!(
+        adc32_suppression_enable == &json!(false),
+        "anode wire data suppression not disabled"
+    );
+
+    Ok(())
+}
+
 /// Get noise samples of all anode wire channels given a collection of memory
 /// mapped MIDAS files.
 /// Count the number of non-critical errors/warnings found.
 ///
-/// Return an error if a memory map is not a valid MIDAS file.
+/// Return an error if a memory map is not a valid MIDAS file, or an invalid
+/// setting is found in the ODB.
 /// If verbose is true, print the errors/warnings to stderr.
 fn try_noise_samples(
     mmaps: Vec<(PathBuf, Mmap)>,
@@ -207,6 +280,9 @@ fn try_noise_samples(
         let file_view = FileView::try_from(&mmap[..])
             .with_context(|| format!("`{}` is not a valid MIDAS file", path.display()))?;
         let run_number = file_view.run_number();
+        validate_odb_settings(file_view.initial_odb())
+            .with_context(|| format!("invalid ODB settings in `{}`", path.display()))?;
+
         for event_view in file_view
             .into_iter()
             .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
@@ -264,25 +340,4 @@ fn try_noise_samples(
     bar.finish_and_clear();
 
     Ok((errors_count, noise_samples))
-}
-
-/// Determine if the waveform is noise.
-// Those which are not noise are not considered to estimate the baseline.
-fn is_noise(_waveform: &[i16]) -> bool {
-    true
-}
-
-/// Calculate the mean of a slice of `i16`.
-fn mean(slice: &[i16]) -> f64 {
-    slice.iter().map(|&x| f64::from(x)).sum::<f64>() / slice.len() as f64
-}
-
-/// Calculate the standard deviation of a slice of `i16`.
-fn std_dev(slice: &[i16]) -> f64 {
-    let mean = mean(slice);
-    let sum = slice
-        .iter()
-        .map(|&x| f64::from(x))
-        .fold(0.0, |acc, x| acc + (x - mean).powi(2));
-    (sum / (slice.len() - 1) as f64).sqrt()
 }

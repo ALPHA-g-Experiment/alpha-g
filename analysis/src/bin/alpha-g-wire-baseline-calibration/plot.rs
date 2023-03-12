@@ -7,7 +7,8 @@ use std::collections::HashMap;
 
 pub(crate) fn calibration_picture(
     run_number: u32,
-    map: &HashMap<TpcWirePosition, (i16, u16)>,
+    // Recall the tuple is (baseline, error, number of samples)
+    map: &HashMap<TpcWirePosition, (f64, f64, usize)>,
 ) -> Picture {
     let mut plot = Plot2D::new();
     plot.add_key(PlotKey::Custom(String::from("scatter, only marks")));
@@ -15,7 +16,7 @@ pub(crate) fn calibration_picture(
     plot.add_key(PlotKey::YErrorDirection(ErrorDirection::Both));
     plot.coordinates = map
         .iter()
-        .map(|(wire, (y, sigma))| (wire.phi(), f64::from(*y), None, Some(f64::from(*sigma))).into())
+        .map(|(wire, (y, sigma, _))| (wire.phi(), *y, None, Some(*sigma)).into())
         .collect();
 
     let mut axis = Axis::from(plot);
