@@ -9,6 +9,14 @@ fn adc16_suppression_threshold_json_ptr() {
 }
 
 #[test]
+fn adc32_suppression_enable_json_ptr() {
+    assert_eq!(
+        ADC32_SUPPRESSION_ENABLE_JSON_PTR,
+        "/Equipment/CTRL/Settings/ADC/adc32_ch_suppress"
+    );
+}
+
+#[test]
 fn adc32_suppression_threshold_json_ptr() {
     assert_eq!(
         ADC32_SUPPRESSION_THRESHOLD_JSON_PTR,
@@ -54,6 +62,11 @@ fn pwb_suppression_threshold_json_ptr() {
         PWB_SUPPRESSION_THRESHOLD_JSON_PTR,
         "/Equipment/CTRL/Settings/PWB/ch_threshold"
     );
+}
+
+#[test]
+fn trigger_sources_json_ptr() {
+    assert_eq!(TRIGGER_SOURCES_JSON_PTR, "/Equipment/CTRL/Settings/TrigSrc");
 }
 
 #[test]
