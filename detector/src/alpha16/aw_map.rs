@@ -94,6 +94,7 @@ pub struct TryTpcWirePositionFromIndexError {
 // in the data banks. Positioning the wires at phi is the job of the
 // TpcWirePosition::phi() method.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "usize")]
 pub struct TpcWirePosition(usize);
 impl TryFrom<usize> for TpcWirePosition {
     type Error = TryTpcWirePositionFromIndexError;
