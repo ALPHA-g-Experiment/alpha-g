@@ -27,8 +27,8 @@ Visualize the rate of the TRG scalers for a single run.
 
 #### Anode Wires
 
-- [`alpha-g-wire-baseline-calibration`](src/bin/alpha-g-wire-baseline-calibration/README.md):
-Generate a calibration file with the baseline of all anode wire channels.
+- [`alpha-g-wire-noise-statistics`](src/bin/alpha-g-wire-noise-statistics/README.md):
+Statistical analysis of the anode wire signals during a noise run.
 
 ### Other
 

@@ -1,7 +1,7 @@
-//! Generate a calibration file with the baseline of all anode wire channels.
+//! Statistical analysis of the anode wire signals during a noise run.
 
-use crate::calibration::{is_noise, mean, std_dev};
 use crate::plot::calibration_picture;
+use crate::statistics::{is_noise, mean, std_dev};
 use alpha_g_detector::alpha16::{
     aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
     {AdcPacket, ChannelId},
@@ -22,17 +22,17 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{copy, File};
 use std::path::PathBuf;
 
-/// Calibration statistics implementation.
-mod calibration;
+/// Statistics implementation.
+mod statistics;
 
 /// Generate plots of calibration data.
 mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
-#[command(about = "Generate a calibration file with the baseline of all anode wire channels", long_about = None)]
+#[command(about = "Statistical analysis of the anode wire signals during a noise run", long_about = None)]
 struct Args {
-    /// MIDAS files from the calibration run.
+    /// MIDAS files from the noise run.
     #[arg(required = true)]
     files: Vec<PathBuf>,
     /// Save the PDF plot in the `output_path`. Do not open the file.

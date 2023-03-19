@@ -1,7 +1,8 @@
-# `alpha-g-wire-baseline-calibration`
+# `alpha-g-wire-noise-statistics`
 
-Generate a calibration file with the baseline of all anode wire channels. Run
-the `alpha-g-wire-baseline-calibration --help` command to make sure you have
+Statistical analysis of the anode wire signals during a noise run. Generate
+(among other things) a calibration file with the baseline of all wire channels.
+Run the `alpha-g-wire-noise-statistics --help` command to make sure you have
 installed the `alpha-g-analysis` package and print help information.
 
 ## Requirements
@@ -15,7 +16,7 @@ All input MIDAS files should belong to the same run with the following settings:
 - Anode wire data suppression must be disabled.
 
 Additionally, please make sure you have all the following installed in your
-system, otherwise `alpha-g-wire-baseline-calibration` may not work as expected:
+system, otherwise `alpha-g-wire-noise-statistics` may not work as expected:
 
 - pdflatex: Access to the `pdflatex` command. Additionally, the `standalone` and
 `pgfplots` packages are required to generate the plots. To make sure that these
