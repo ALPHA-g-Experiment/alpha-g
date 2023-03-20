@@ -47,6 +47,11 @@ fn tpc_pad_rows() {
 }
 
 #[test]
+fn tpc_pads() {
+    assert_eq!(TPC_PADS, 18432);
+}
+
+#[test]
 fn pad_pitch_z() {
     let pad_pitch_z = 4e-3;
     let abs_diff = (pad_pitch_z - PAD_PITCH_Z).abs();

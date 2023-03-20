@@ -20,6 +20,8 @@ pub const TPC_PWB_ROWS: usize = 8;
 pub const TPC_PAD_COLUMNS: usize = TPC_PWB_COLUMNS * PWB_PAD_COLUMNS;
 /// Number of pad rows in the rTPC.
 pub const TPC_PAD_ROWS: usize = TPC_PWB_ROWS * PWB_PAD_ROWS;
+/// Number of pads in the rTPC.
+pub const TPC_PADS: usize = TPC_PAD_COLUMNS * TPC_PAD_ROWS;
 /// Distance (in meters) between the center of two adjacent pads in the Z
 /// direction.
 pub const PAD_PITCH_Z: f64 = DETECTOR_LENGTH / (TPC_PAD_ROWS as f64);
