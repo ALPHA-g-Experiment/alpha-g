@@ -19,6 +19,29 @@ fn i16_mean() {
 }
 
 #[test]
+fn i16_cov() {
+    let slice1 = [1, 2, 3, 4, 5];
+    let slice2 = [1, 1, 1, 1, 1];
+    let covariance = cov(&slice1, &slice2);
+    assert!((covariance - 0.0).abs() < 0.0001);
+
+    let slice1 = [2, 2, 3, 4];
+    let slice2 = [8, 10, 12, 14];
+    let covariance = cov(&slice1, &slice2);
+    assert!((covariance - 2.333333333).abs() < 0.0001);
+
+    let slice1 = [2, 2, 3, 4, 0, 0, 0, 0, 0, 0];
+    let slice2 = [8, 10, 12, 14];
+    let covariance = cov(&slice1, &slice2);
+    assert!((covariance - 2.333333333).abs() < 0.0001);
+
+    let slice1 = [2, 2, 3, 4];
+    let slice2 = [8, 10, 12, 14, 0, 0, 0, 0, 0, 0];
+    let covariance = cov(&slice1, &slice2);
+    assert!((covariance - 2.333333333).abs() < 0.0001);
+}
+
+#[test]
 fn i16_std_dev() {
     let slice = [1];
     assert!(std_dev(&slice).is_nan());

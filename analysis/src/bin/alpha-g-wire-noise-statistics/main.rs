@@ -1,7 +1,6 @@
 //! Statistical analysis of the anode wire signals during a noise run.
 
-use crate::plot::calibration_picture;
-use crate::statistics::{is_noise, mean, std_dev};
+use crate::statistics::{cov, is_noise, mean, std_dev};
 use alpha_g_detector::alpha16::{
     aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
     {AdcPacket, ChannelId},
@@ -16,17 +15,13 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
 use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
-use pgfplots::Engine;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
-use std::fs::{copy, File};
+use std::fs::File;
 use std::path::PathBuf;
 
 /// Statistics implementation.
 mod statistics;
-
-/// Generate plots of calibration data.
-mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -35,12 +30,12 @@ struct Args {
     /// MIDAS files from the noise run.
     #[arg(required = true)]
     files: Vec<PathBuf>,
-    /// Save the PDF plot in the `output_path`. Do not open the file.
-    #[arg(long)]
-    batch_mode: bool,
-    /// Path where calibration file will be saved into.
+    /// Path where all output files will be saved into.
     #[arg(short, long, default_value = "./", value_parser(parse_directory))]
     output_path: PathBuf,
+    /// Write the channel covariance matrix to a file.
+    #[arg(long)]
+    save_covariance: bool,
     /// Print detailed information about errors (if any).
     #[arg(short, long)]
     verbose: bool,
@@ -53,76 +48,43 @@ fn main() -> Result<()> {
     // `try_valid_mmaps`.
     let run_number = run_number_unchecked(&mmaps[0].1).unwrap();
 
-    let (mut errors_count, noise_samples) =
+    let (errors_count, noise_samples) =
         try_noise_samples(mmaps, args.verbose).context("failed to sample noise")?;
-
-    let calibration: HashMap<_, _> = noise_samples
-        .into_iter()
-        .map(|(wire, noise)| {
-            let mean = mean(&noise);
-            let std_dev = std_dev(&noise);
-            // Estimator of the standard error of the mean.
-            // https://en.wikipedia.org/wiki/Standard_error#Estimate
-            let mean_error = std_dev / (noise.len() as f64).sqrt();
-
-            (wire, (mean, mean_error, noise.len()))
-        })
-        .collect();
-
-    let output_name = format!("wire_baseline_calibration_{}", run_number);
-
-    let json_output = args.output_path.join(format!("{output_name}.json"));
-    let json_string =
-        serde_json::to_string(&calibration).context("failed to serialize the calibration")?;
-    std::fs::write(&json_output, json_string).with_context(|| {
-        format!(
-            "failed to write calibration data to `{}`",
-            json_output.display()
-        )
-    })?;
-
-    let spinner = ProgressBar::new_spinner()
-        .with_message("Compiling PDF...")
-        .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
-    spinner.enable_steady_tick(std::time::Duration::from_millis(100));
-    // Regardless of `batch_mode`, always first compile into `/tmp` to keep
-    // any intermediate files there.
-    let tmp_pdf = calibration_picture(run_number, &calibration)
-        .to_pdf(std::env::temp_dir(), &output_name, Engine::PdfLatex)
-        .context("failed to compile PDF")?;
-    if args.batch_mode {
-        let pdf_output = args.output_path.join(format!("{output_name}.pdf"));
-        copy(&tmp_pdf, &pdf_output)
-            .with_context(|| {
-                format!(
-                    "failed to copy the contents from `{}` to `{}`",
-                    tmp_pdf.display(),
-                    pdf_output.display()
-                )
-            })
-            .context("failed to save PDF")?;
-    } else {
-        opener::open(&tmp_pdf)
-            .with_context(|| format!("failed to open `{}`", tmp_pdf.display()))?;
-    }
-    spinner.finish_and_clear();
-    // Leave this at the end because it is arguably the most important warning.
-    // It avoids this warnings (in case verbose is enabled) to be hidden by all
-    // the other output.
-    if calibration.len() != TPC_ANODE_WIRES {
-        for wire in 0..TPC_ANODE_WIRES {
-            let wire_position = TpcWirePosition::try_from(wire).unwrap();
-            if !calibration.contains_key(&wire_position) {
-                errors_count += 1;
-                if args.verbose {
-                    eprintln!("Warning: no calibration data for `{wire_position:?}`");
-                }
-            }
-        }
-    }
-
     if errors_count != 0 {
         eprintln!("Warning: found `{errors_count}` error(s)/warning(s)");
+    }
+
+    let baseline_stats = get_baseline_statistics(&noise_samples);
+    let baseline_stats = serde_json::to_string(&baseline_stats)
+        .context("failed to serialize the baseline statistics")?;
+    let baseline_file = args
+        .output_path
+        .join(format!("wire_baseline_statistics_{run_number}.json"));
+    std::fs::write(&baseline_file, baseline_stats).with_context(|| {
+        format!(
+            "failed to write baseline statistics to `{}`",
+            baseline_file.display()
+        )
+    })?;
+    println!("Created `{}`", baseline_file.display());
+    // The covariance data won't be useful to many people, so we only write it
+    // to a file if the user explicitly asks for it.
+    if args.save_covariance {
+        let cov_matrix = get_covariance_matrix(&noise_samples);
+        let cov_matrix =
+            ron::to_string(&cov_matrix).context("failed to serialize the covariance matrix")?;
+        let cov_file = args
+            .output_path
+            // JSON makes it difficult to deal with non-string keys. Not worth
+            // the effort. RON is trivial to serialize and deserialize.
+            .join(format!("wire_covariance_matrix_{run_number}.ron"));
+        std::fs::write(&cov_file, cov_matrix).with_context(|| {
+            format!(
+                "failed to write channel covariance matrix to `{}`",
+                cov_file.display()
+            )
+        })?;
+        println!("Created `{}`", cov_file.display());
     }
 
     Ok(())
@@ -263,10 +225,18 @@ fn validate_odb_settings(odb: &[u8]) -> Result<()> {
 /// Return an error if a memory map is not a valid MIDAS file, or an invalid
 /// setting is found in the ODB.
 /// If verbose is true, print the errors/warnings to stderr.
+// Allow this complex return type because this is not a library.
+// It is just convenient.
+#[allow(clippy::type_complexity)]
 fn try_noise_samples(
     mmaps: Vec<(PathBuf, Mmap)>,
     verbose: bool,
-) -> Result<(usize, HashMap<TpcWirePosition, Vec<i16>>)> {
+    // Noise samples are Option because it is important to keep samples aligned
+    // in time between different channels. Hence, add None to the vector when
+    // there is no sample for a given channel.
+    // This is particularly important to correctly calculate the covariance
+    // matrix.
+) -> Result<(usize, HashMap<TpcWirePosition, Vec<Option<i16>>>)> {
     let mut errors_count = 0;
     let mut noise_samples: HashMap<_, Vec<_>> = HashMap::new();
 
@@ -287,6 +257,10 @@ fn try_noise_samples(
             .into_iter()
             .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
         {
+            // This temporary hash map keeps track of missing channels in the
+            // current event. Helps to maintain time alignment between channels.
+            let mut temp = HashMap::new();
+
             for bank_view in event_view
                 .into_iter()
                 .filter(|bank| Adc32BankName::try_from(bank.name()).is_ok())
@@ -329,15 +303,93 @@ fn try_noise_samples(
                 // samples in case there is some behaviour at the edges I don't
                 // understand (like it happens for the pads).
                 let middle_index = (waveform.len() - 1) / 2;
-                noise_samples
-                    .entry(wire_position)
-                    .or_default()
-                    .push(waveform[middle_index]);
+                temp.insert(wire_position, waveform[middle_index]);
+            }
+            // Add all the noise samples found in the current event to the
+            // final hash map.
+            // If a channel is missing in the current event, add None to the
+            // vector to keep the time alignment.
+            for i in 0..TPC_ANODE_WIRES {
+                let wire_position = TpcWirePosition::try_from(i).unwrap();
+                let sample = temp.get(&wire_position).copied();
+                noise_samples.entry(wire_position).or_default().push(sample);
             }
         }
         bar.inc(1);
     }
     bar.finish_and_clear();
+    // If all samples are None, it means that the channel is missing.
+    // Just remove it from the hash map.
+    noise_samples.retain(|_, samples| samples.iter().any(Option::is_some));
+
+    let missing_channels = TPC_ANODE_WIRES - noise_samples.len();
+    errors_count += missing_channels;
+    if verbose && missing_channels > 0 {
+        for wire in 0..TPC_ANODE_WIRES {
+            let wire_position = TpcWirePosition::try_from(wire).unwrap();
+            if !noise_samples.contains_key(&wire_position) {
+                eprintln!("Warning: no noise samples for `{wire_position:?}`");
+            }
+        }
+    }
 
     Ok((errors_count, noise_samples))
+}
+
+/// Get the wire baseline statistics from the noise samples.
+fn get_baseline_statistics(
+    noise_samples: &HashMap<TpcWirePosition, Vec<Option<i16>>>,
+    // The tuple is (mean, error, number of samples).
+) -> HashMap<TpcWirePosition, (f64, f64, usize)> {
+    noise_samples
+        .iter()
+        .map(|(&wire, noise)| {
+            let noise: Vec<_> = noise.iter().filter_map(|sample| *sample).collect();
+            let mean = mean(&noise);
+            let std_dev = std_dev(&noise);
+            // Estimator of the standard error of the mean.
+            // https://en.wikipedia.org/wiki/Standard_error#Estimate
+            let mean_error = std_dev / (noise.len() as f64).sqrt();
+
+            (wire, (mean, mean_error, noise.len()))
+        })
+        .collect()
+}
+
+/// Get the covariance matrix from the noise samples.
+fn get_covariance_matrix(
+    noise_samples: &HashMap<TpcWirePosition, Vec<Option<i16>>>,
+) -> HashMap<(TpcWirePosition, TpcWirePosition), f64> {
+    let mut covariance_matrix = HashMap::new();
+    for i in 0..TPC_ANODE_WIRES {
+        let wire_i = TpcWirePosition::try_from(i).unwrap();
+        let Some(noise_i) = noise_samples.get(&wire_i) else {
+            continue;
+        };
+        // The matrix is symmetric, so we only need to compute the upper
+        // triangle.
+        for j in i..TPC_ANODE_WIRES {
+            let wire_j = TpcWirePosition::try_from(j).unwrap();
+            let Some(noise_j) = noise_samples.get(&wire_j) else {
+                continue;
+            };
+            // Only interested when both wires have a sample at the same time.
+            // i.e. skip whenever there is a None in either of the two vectors.
+            let (noise_i, noise_j): (Vec<_>, Vec<_>) = noise_i
+                .iter()
+                .zip(noise_j.iter())
+                .filter_map(|(sample_i, sample_j)| {
+                    if let (Some(sample_i), Some(sample_j)) = (sample_i, sample_j) {
+                        Some((sample_i, sample_j))
+                    } else {
+                        None
+                    }
+                })
+                .unzip();
+            let covariance = cov(&noise_i, &noise_j);
+            covariance_matrix.insert((wire_i, wire_j), covariance);
+        }
+    }
+
+    covariance_matrix
 }
