@@ -26,6 +26,25 @@ fn try_from_index_tpc_wire_position() {
     }
 }
 
+#[test]
+fn try_from_tpc_wire_position_usize() {
+    for i in 0..=255 {
+        let wire_position = TpcWirePosition::try_from(i).unwrap();
+        assert_eq!(i, wire_position.into());
+    }
+}
+
+#[test]
+fn tpc_wire_position_ron_roundtrip() {
+    for i in 0..=255 {
+        let wire_position = TpcWirePosition::try_from(i).unwrap();
+        let wire_position_ron = ron::to_string(&wire_position).unwrap();
+        let wire_position_ron_deserialized: TpcWirePosition =
+            ron::from_str(&wire_position_ron).unwrap();
+        assert_eq!(wire_position, wire_position_ron_deserialized);
+    }
+}
+
 fn all_different_str(map: [(&str, (usize, usize)); 8]) -> bool {
     let mut set = HashSet::new();
     for (s, _) in map.iter() {

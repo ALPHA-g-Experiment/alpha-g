@@ -18,3 +18,4 @@ thiserror = "1"
 
 [dev-dependencies]
 midasio = "0.4"
+ron = "0.8.0"

@@ -94,16 +94,39 @@ pub struct TryTpcWirePositionFromIndexError {
 // in the data banks. Positioning the wires at phi is the job of the
 // TpcWirePosition::phi() method.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(try_from = "usize")]
+#[serde(try_from = "usize", into = "usize")]
 pub struct TpcWirePosition(usize);
 impl TryFrom<usize> for TpcWirePosition {
     type Error = TryTpcWirePositionFromIndexError;
+    /// Convert from an index to a [`TpcWirePosition`]. Do not assume angular
+    /// position of a wire based on this index; the [`TpcWirePosition::phi()`]
+    /// method should always be used instead.
+    ///
+    /// You can assume that consecutive index values correspond to consecutive
+    /// wires in the azimuthal direction. But the `phi = 0` wire DOES NOT have
+    /// index 0.
     fn try_from(input: usize) -> Result<Self, Self::Error> {
         if input < TPC_ANODE_WIRES {
             Ok(Self(input))
         } else {
             Err(Self::Error { input })
         }
+    }
+}
+// I would rather not have this implementation, but it is needed for the
+// serialization of the TpcWirePosition to be consistent with the
+// deserialization.
+// In theory this should not be used by the user explicitly.
+impl From<TpcWirePosition> for usize {
+    /// Convert to the `u: usize` such that
+    /// `TpcWirePosition::try_from(u).unwrap() == self`. Do not assume angular
+    /// position of a wire based on this index; the
+    /// [`TpcWirePosition::phi()`] method should always be used instead.
+    ///
+    /// If you are explicitly using this conversion, you are probably doing
+    /// something wrong.
+    fn from(wire: TpcWirePosition) -> Self {
+        wire.0
     }
 }
 impl TpcWirePosition {
