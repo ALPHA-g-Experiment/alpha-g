@@ -52,3 +52,6 @@ pub(crate) fn tost(new_calib: (f64, f64, usize), old_calib: (f64, f64, usize), l
 
     p_value(t_lower, t_upper, dof)
 }
+
+#[cfg(test)]
+mod tests;
