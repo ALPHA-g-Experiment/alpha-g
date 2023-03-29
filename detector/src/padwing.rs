@@ -966,7 +966,6 @@ impl fmt::Display for PwbV2Packet {
         writeln!(f, "Last SCA cell: {}", self.last_sca_cell)?;
         writeln!(f, "Requested samples: {}", self.requested_samples)?;
         let channels_sent: Vec<u16> = (1..=79)
-            .into_iter()
             .filter(|i| {
                 let channel = ChannelId::try_from(*i).unwrap();
                 self.channels_sent.contains(&channel)
@@ -974,7 +973,6 @@ impl fmt::Display for PwbV2Packet {
             .collect();
         writeln!(f, "Channels sent: {channels_sent:?}")?;
         let channels_over_threshold: Vec<u16> = (1..=79)
-            .into_iter()
             .filter(|i| {
                 let channel = ChannelId::try_from(*i).unwrap();
                 self.channels_over_threshold.contains(&channel)

@@ -172,7 +172,7 @@ fn valid_adc_16_bank_name() {
         }
     }
     for num in 9..=14 {
-        for (i, chan) in ('A'..='F').into_iter().enumerate() {
+        for (i, chan) in ('A'..='F').enumerate() {
             let bank_name = format!("B{num:0>2}{chan}");
             let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
@@ -209,7 +209,7 @@ fn adc_16_bank_name_channel_id() {
             Adc16ChannelId::try_from(chan).unwrap()
         );
     }
-    for (i, chan) in ('A'..='F').into_iter().enumerate() {
+    for (i, chan) in ('A'..='F').enumerate() {
         let bank_name = format!("B09{chan}");
         let bank_name = Adc16BankName::try_from(&bank_name[..]).unwrap();
         assert_eq!(
@@ -311,7 +311,7 @@ fn valid_adc_32_bank_name() {
         }
     }
     for num in 9..=14 {
-        for (i, chan) in ('A'..='V').into_iter().enumerate() {
+        for (i, chan) in ('A'..='V').enumerate() {
             let bank_name = format!("C{num:0>2}{chan}");
             let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
             assert_eq!(
@@ -348,7 +348,7 @@ fn adc_32_bank_name_channel_id() {
             Adc32ChannelId::try_from(chan).unwrap()
         );
     }
-    for (i, chan) in ('A'..='V').into_iter().enumerate() {
+    for (i, chan) in ('A'..='V').enumerate() {
         let bank_name = format!("C09{chan}");
         let bank_name = Adc32BankName::try_from(&bank_name[..]).unwrap();
         assert_eq!(
@@ -525,11 +525,7 @@ fn alpha_16_bank_name_board_id() {
 
 #[test]
 fn alpha_16_bank_name_channel_id() {
-    for (i, chan) in ('0'..='9')
-        .into_iter()
-        .chain(('A'..='F').into_iter())
-        .enumerate()
-    {
+    for (i, chan) in ('0'..='9').chain('A'..='F').enumerate() {
         let bank_name = format!("B09{chan}");
         let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
         match bank_name.channel_id() {
@@ -540,11 +536,7 @@ fn alpha_16_bank_name_channel_id() {
             _ => unreachable!(),
         }
     }
-    for (i, chan) in ('0'..='9')
-        .into_iter()
-        .chain(('A'..='V').into_iter())
-        .enumerate()
-    {
+    for (i, chan) in ('0'..='9').chain('A'..='V').enumerate() {
         let bank_name = format!("C09{chan}");
         let bank_name = Alpha16BankName::try_from(&bank_name[..]).unwrap();
         match bank_name.channel_id() {
