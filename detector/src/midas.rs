@@ -6,13 +6,27 @@ use thiserror::Error;
 /// ODB.
 pub const ADC16_SUPPRESSION_THRESHOLD_JSON_PTR: &str =
     "/Equipment/CTRL/Settings/ADC/adc16_sthreshold";
-/// JSON pointer that identified the ADC32 data suppression threshold in the
+/// JSON pointer that identifies the ADC32 data suppression enable flag in the
+/// ODB.
+pub const ADC32_SUPPRESSION_ENABLE_JSON_PTR: &str =
+    "/Equipment/CTRL/Settings/ADC/adc32_ch_suppress";
+/// JSON pointer that identifies the ADC32 data suppression threshold in the
 /// ODB.
 pub const ADC32_SUPPRESSION_THRESHOLD_JSON_PTR: &str =
     "/Equipment/CTRL/Settings/ADC/adc32_sthreshold";
+/// JSON pointer that identifies the Barrel Veto pulser enable flag in the ODB.
+pub const BSC_PULSER_ENABLE_JSON_PTR: &str = "/Equipment/CTRL/Settings/BscPulserEnable";
+/// JSON pointer that identifies the field wire pulser enable flag in the ODB.
+pub const FIELD_WIRE_PULSER_ENABLE_JSON_PTR: &str = "/Equipment/CTRL/Settings/FwPulserEnable";
+/// JSON pointer that identifies the pulser enable flag in the ODB.
+pub const PULSER_ENABLE_JSON_PTR: &str = "/Equipment/CTRL/Settings/Pulser/Enable";
 /// JSON pointer that identifies the PWB data suppression threshold in the ODB.
 // This is the same for all Reset, FPN, and Pad channels.
 pub const PWB_SUPPRESSION_THRESHOLD_JSON_PTR: &str = "/Equipment/CTRL/Settings/PWB/ch_threshold";
+/// JSON pointer that identifies the pulser trigger flag in the ODB.
+pub const TRIGGER_PULSER_JSON_PTR: &str = "/Equipment/CTRL/Settings/TrigSrc/TrigPulser";
+/// JSON pointer that identifies the trigger sources in the ODB.
+pub const TRIGGER_SOURCES_JSON_PTR: &str = "/Equipment/CTRL/Settings/TrigSrc";
 
 /// The error type returned when conversion from unsigned integer to [`EventId`]
 /// fails.
