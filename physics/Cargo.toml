@@ -1,0 +1,19 @@
+[package]
+name = "alpha_g_physics"
+version = "0.1.0" # Remember to also change this in the README.md
+edition = "2021"
+license = "MIT"
+description = "Data analysis library for the ALPHA-g experiment"
+readme = "README.md"
+repository = "https://github.com/DJDuque/alpha-g"
+keywords = ["alpha", "alpha-g", "cern", "physics", "antimatter"]
+categories = ["science"]
+documentation = "https://docs.rs/alpha_g_physics"
+
+[dependencies]
+alpha_g_detector = { version = "0.2.0", path = "../detector" }
+lazy_static = "1.4.0"
+serde_json = "1.0.95"
+thiserror = "1.0.40"
+
+[dev-dependencies]
