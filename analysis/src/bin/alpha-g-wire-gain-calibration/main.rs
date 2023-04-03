@@ -9,6 +9,9 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::PathBuf;
 
+// CDF and Kolmogorov-Smirnov distance implementation
+mod distribution;
+
 #[derive(Parser)]
 #[command(author, version)]
 #[command(about = "Gain calibration of the anode wires", long_about = None)]
