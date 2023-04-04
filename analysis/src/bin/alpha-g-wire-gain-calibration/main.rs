@@ -1,10 +1,16 @@
 //! Gain calibration of the anode wires.
 
-use alpha_g_detector::alpha16::aw_map::TpcWirePosition;
+use crate::distribution::Distribution;
+use alpha_g_detector::alpha16::{
+    aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
+    AdcPacket, ChannelId,
+};
+use alpha_g_detector::midas::{Adc32BankName, EventId};
 use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
+use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
-use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked};
+use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::PathBuf;
@@ -36,6 +42,14 @@ fn main() -> Result<()> {
     // It is safe to unwrap because this has already been checked in
     // `try_valid_mmaps`.
     let run_number = run_number_unchecked(&mmaps[0].1).unwrap();
+
+    let (errors_count, distributions) =
+        try_amplitude_distributions(mmaps, &args.baseline_calibration, args.verbose)
+            .context("failed to sample amplitude distributions")?;
+    if errors_count != 0 {
+        eprintln!("Warning: found `{errors_count}` error(s)/warning(s)");
+    }
+
     Ok(())
 }
 
@@ -112,4 +126,108 @@ fn try_valid_mmaps(file_names: impl IntoIterator<Item = PathBuf>) -> Result<Vec<
             Ok((path, mmap))
         })
         .collect()
+}
+
+/// Get the amplitude distribution of all anode wires given a collection of
+/// memory mapped MIDAS files.
+/// Count the number of non-critical errors/warnings found.
+///
+/// Return an error if a memory map is not a valid MIDAS file.
+/// If verbose is true, print the errors/warnings to stderr.
+fn try_amplitude_distributions(
+    mmaps: Vec<(PathBuf, Mmap)>,
+    baselines: &HashMap<TpcWirePosition, i16>,
+    verbose: bool,
+) -> Result<(usize, HashMap<TpcWirePosition, Distribution>)> {
+    let mut errors_count = 0;
+    let mut distributions = HashMap::new();
+
+    let bar = ProgressBar::new(mmaps.len().try_into().unwrap()).with_style(
+        ProgressStyle::with_template("  Sampling [{bar:25}] {percent}%,  ETA: {eta}")
+            .unwrap()
+            .progress_chars("=> "),
+    );
+    bar.tick();
+    for (path, mmap) in mmaps {
+        let file_view = FileView::try_from(&mmap[..])
+            .with_context(|| format!("`{}` is not a valid MIDAS file", path.display()))?;
+        let run_number = file_view.run_number();
+
+        for event_view in file_view
+            .into_iter()
+            .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
+        {
+            for bank_view in event_view
+                .into_iter()
+                .filter(|bank| Adc32BankName::try_from(bank.name()).is_ok())
+            {
+                let packet = match AdcPacket::try_from(bank_view.data_slice()) {
+                    Ok(packet) => packet,
+                    Err(error) => {
+                        errors_count += 1;
+                        if verbose {
+                            bar.println(format!(
+                                "Error: event `{}`, bank `{}`, {error}",
+                                event_view.serial_number(),
+                                bank_view.name(),
+                            ));
+                        }
+                        continue;
+                    }
+                };
+                let waveform = packet.waveform();
+                if waveform.is_empty() {
+                    continue;
+                }
+                // Given that waveform is not empty, we can unwrap safely.
+                let board_id = packet.board_id().unwrap();
+                let ChannelId::A32(channel_id) = packet.channel_id() else {
+                    errors_count += 1;
+                    if verbose {
+                        bar.println(format!(
+                            "Error: anode wire packet `{}` with BV channel_id in event `{}`",
+                            bank_view.name(),
+                            event_view.serial_number()
+                            ));
+                    }
+                    continue;
+                };
+                let wire_position = TpcWirePosition::try_new(run_number, board_id, channel_id)
+                    .context("wire position mapping failed")?;
+
+                let Some(baseline) = baselines.get(&wire_position) else {
+                    // Any missing channel is counted as a single error at the
+                    // end of sampling. Don't spam the user with warnings here
+                    // for every bank.
+                    continue;
+                };
+                let amplitude = waveform
+                    .iter()
+                    // Convert to i32 to avoid overflow.
+                    .map(|sample| i32::from(*sample) - i32::from(*baseline))
+                    .max_by_key(|amplitude| amplitude.abs())
+                    // We checked that waveform is not empty, so we can unwrap
+                    .unwrap();
+                distributions
+                    .entry(wire_position)
+                    .or_insert(Distribution::new())
+                    .add_sample(amplitude, 1);
+            }
+        }
+        bar.inc(1);
+    }
+    bar.finish_and_clear();
+
+    let missing_channels = TPC_ANODE_WIRES - distributions.len();
+    errors_count += missing_channels;
+    if verbose && missing_channels > 0 {
+        for wire in 0..TPC_ANODE_WIRES {
+            let wire_position = TpcWirePosition::try_from(wire).unwrap();
+            if !distributions.contains_key(&wire_position) {
+                eprintln!("Warning: no amplitude samples for `{wire_position:?}`");
+            }
+        }
+    }
+
+    Ok((errors_count, distributions))
 }
