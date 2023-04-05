@@ -12,6 +12,7 @@ categories = ["science", "command-line-utilities"]
 [dependencies]
 alpha_g_detector = { version = "0.2",  path = "../detector" }
 anyhow = "1"
+argmin = { version = "0.8.1", default-features = false }
 clap = { version = "4", features = ["derive"] }
 cursive = "0.20"
 glob = "0.3"

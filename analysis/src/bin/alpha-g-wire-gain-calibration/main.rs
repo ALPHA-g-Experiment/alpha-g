@@ -17,6 +17,8 @@ use std::path::PathBuf;
 
 // CDF and Kolmogorov-Smirnov distance implementation
 mod distribution;
+// Minimization of the KS distance implementation
+mod minimization;
 
 #[derive(Parser)]
 #[command(author, version)]
