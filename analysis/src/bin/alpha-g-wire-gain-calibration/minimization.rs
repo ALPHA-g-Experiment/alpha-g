@@ -59,7 +59,7 @@ impl CostFunction for Problem {
 /// Try to find the best rescaling factor for the free distribution. The best
 /// rescaling factor is the one that minimizes the Kolmogorov-Smirnov distance
 /// between the pivot and the free distribution.
-fn try_minimization(
+pub(crate) fn try_minimization(
     pivot: &Distribution,
     free: &Distribution,
     negative_saturation: i32,

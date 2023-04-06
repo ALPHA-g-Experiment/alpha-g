@@ -4,7 +4,7 @@ use super::*;
 fn minimization_try_minimization() {
     let mut d1 = Distribution::new();
     for sample in -10000..0 {
-        d1.add_sample(sample, sample.abs() as usize);
+        d1.add_sample(sample, sample.unsigned_abs() as usize);
     }
     for sample in 0..10000 {
         d1.add_sample(sample, sample as usize);

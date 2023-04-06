@@ -1,9 +1,10 @@
 //! Gain calibration of the anode wires.
 
 use crate::distribution::Distribution;
+use crate::minimization::try_minimization;
 use alpha_g_detector::alpha16::{
     aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
-    AdcPacket, ChannelId,
+    AdcPacket, ChannelId, ADC_MAX, ADC_MIN,
 };
 use alpha_g_detector::midas::{Adc32BankName, EventId};
 use anyhow::{bail, ensure, Context, Result};
@@ -38,6 +39,20 @@ struct Args {
     verbose: bool,
 }
 
+// To get the best estimate of the gain, we need to apply the worst-case
+// scenario suppression threshold. To keep only signal data, this value has to
+// be large enough to suppress noise waveforms from the noisiest channel (after
+// re-scaling). Furthermore, it has to be larger than
+// `data_suppression_threshold` * `largest_rescaling_factor`; otherwise, the
+// channels with the largest rescaling factor will have had more signal
+// suppressed (during data acquisition) than the other channels.
+// The typical data suppression threshold is 1500, and it suppresses most of
+// the noise. This value has been very consistent over the years (see elogs 3449
+// and 5358). Pivoting on the smallest rescaling factor, we typically see a
+// largest rescaling factor lower than 1.5.
+// The following feels like a reasonable safe choice.
+const ARBITRARY_LARGE_SUPPRESSION_THRESHOLD: i32 = 4000;
+
 fn main() -> Result<()> {
     let args = Args::parse();
     let mmaps = try_valid_mmaps(args.files).context("invalid input file")?;
@@ -51,6 +66,25 @@ fn main() -> Result<()> {
     if errors_count != 0 {
         eprintln!("Warning: found `{errors_count}` error(s)/warning(s)");
     }
+    // To get the best estimate of the gain, it is best if all distributions
+    // saturate and are suppressed at the same level. This is only possible if
+    // we treat them all by the worst case scenario i.e. smallest saturation
+    // level and largest suppression level (it is impossible to recover any
+    // saturated/suppressed waveforms).
+    let (min, max) = try_baseline_extrema(&args.baseline_calibration)
+        .context("failed to find baseline extrema")?;
+    let negative_saturation = i32::from(ADC_MIN) - i32::from(min);
+    let positive_saturation = i32::from(ADC_MAX) - i32::from(max);
+    let sol = try_minimize_ks_distance(
+        &distributions,
+        TpcWirePosition::try_from(63).unwrap(),
+        negative_saturation,
+        positive_saturation,
+        ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
+    )
+    .context("failed to minimize KS distance")?;
+
+    println!("Solution: {:#?}", sol);
 
     Ok(())
 }
@@ -232,4 +266,54 @@ fn try_amplitude_distributions(
     }
 
     Ok((errors_count, distributions))
+}
+
+/// Try to get the minimum and maximum baseline values
+/// Return an error if the map is empty.
+fn try_baseline_extrema(baselines: &HashMap<TpcWirePosition, i16>) -> Result<(i16, i16)> {
+    ensure!(!baselines.is_empty(), "empty baselines map");
+
+    let values = baselines.values();
+    let min = values.clone().min().unwrap();
+    let max = values.max().unwrap();
+
+    Ok((*min, *max))
+}
+
+/// Try to minimize the KS distance between the amplitude distributions of
+/// anode wires.
+/// Take a given TPC wire as the pivot for all the other wires.
+fn try_minimize_ks_distance(
+    distributions: &HashMap<TpcWirePosition, Distribution>,
+    pivot: TpcWirePosition,
+    negative_saturation: i32,
+    positive_saturation: i32,
+    suppression_threshold: i32,
+) -> Result<HashMap<TpcWirePosition, f64>> {
+    let pivot_distribution = distributions
+        .get(&pivot)
+        .with_context(|| format!("no amplitude distribution for pivot `{pivot:?}`"))?;
+
+    distributions
+        .iter()
+        .map(|(wire, distribution)| {
+            let best_param = try_minimization(
+                pivot_distribution,
+                distribution,
+                negative_saturation,
+                positive_saturation,
+                suppression_threshold,
+                1.0,
+            )
+            .with_context(|| {
+                format!("minimization failed for `{wire:?}` with `{pivot:?}` as pivot")
+            })?
+            .best_param
+            .with_context(|| {
+                format!("no best parameter for `{wire:?}` with `{pivot:?}` as pivot")
+            })?;
+
+            Ok((*wire, best_param))
+        })
+        .collect()
 }
