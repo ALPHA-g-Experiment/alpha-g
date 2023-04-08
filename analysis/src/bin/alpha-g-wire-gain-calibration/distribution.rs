@@ -98,7 +98,7 @@ impl Distribution {
 }
 
 pub(crate) struct CumulativeDistribution {
-    samples: Vec<f64>,
+    pub(crate) samples: Vec<f64>,
 }
 
 impl CumulativeDistribution {

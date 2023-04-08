@@ -1,6 +1,6 @@
 //! Gain calibration of the anode wires.
 
-use crate::distribution::Distribution;
+use crate::distribution::{CumulativeDistribution, Distribution};
 use crate::minimization::try_minimization;
 use alpha_g_detector::alpha16::{
     aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
@@ -12,6 +12,7 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
 use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
+use pgfplots::{axis::*, Engine, Picture};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::PathBuf;
@@ -20,6 +21,8 @@ use std::path::PathBuf;
 mod distribution;
 // Minimization of the KS distance implementation
 mod minimization;
+// Plotting of distributions
+mod plot;
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -83,6 +86,15 @@ fn main() -> Result<()> {
         ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
     )
     .context("failed to minimize KS distance")?;
+
+    let picture = calibration_picture(
+        &distributions,
+        &sol,
+        negative_saturation,
+        positive_saturation,
+        ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
+    );
+    picture.show_pdf(Engine::PdfLatex)?;
 
     println!("Solution: {:#?}", sol);
 
@@ -316,4 +328,58 @@ fn try_minimize_ks_distance(
             Ok((*wire, best_param))
         })
         .collect()
+}
+
+/// Picture to visually validate the gain calibration.
+fn calibration_picture(
+    distributions: &HashMap<TpcWirePosition, Distribution>,
+    best_rescaling: &HashMap<TpcWirePosition, f64>,
+    negative_saturation: i32,
+    positive_saturation: i32,
+    suppression_threshold: i32,
+) -> Picture {
+    let mut before_axis = Axis::new();
+    before_axis.add_key(AxisKey::Custom(String::from("name=before")));
+    before_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+    before_axis.set_x_label("Max. Amplitude~[a.u.]");
+    before_axis.set_y_label("Cumulative Distribution");
+    before_axis.set_title("Before Calibration");
+    before_axis.plots = distributions
+        .iter()
+        .map(|(_, distribution)| {
+            let distribution = distribution
+                .clone()
+                .saturate(negative_saturation, positive_saturation)
+                .suppress(suppression_threshold);
+            let cumulative = CumulativeDistribution::from_distribution(&distribution);
+
+            cumulative.plot(60)
+        })
+        .collect();
+
+    let mut after_axis = Axis::new();
+    after_axis.add_key(AxisKey::Custom(String::from("at=(before.east)")));
+    after_axis.add_key(AxisKey::Custom(String::from("anchor=west")));
+    after_axis.add_key(AxisKey::Custom(String::from("xshift=30pt")));
+    after_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+    after_axis.set_x_label("Max. Amplitude~[a.u.]");
+    after_axis.set_title("After Calibration");
+    after_axis.plots = distributions
+        .iter()
+        .map(|(wire, distribution)| {
+            let rescaling = best_rescaling.get(wire).unwrap();
+            let distribution = distribution
+                .clone()
+                .rescale(*rescaling)
+                .saturate(negative_saturation, positive_saturation)
+                .suppress(suppression_threshold);
+            let cumulative = CumulativeDistribution::from_distribution(&distribution);
+
+            cumulative.plot(60)
+        })
+        .collect();
+
+    let mut picture = Picture::new();
+    picture.axes = vec![before_axis, after_axis];
+    picture
 }
