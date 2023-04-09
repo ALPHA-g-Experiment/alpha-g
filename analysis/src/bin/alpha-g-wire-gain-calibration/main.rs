@@ -69,6 +69,10 @@ fn main() -> Result<()> {
     if errors_count != 0 {
         eprintln!("Warning: found `{errors_count}` error(s)/warning(s)");
     }
+
+    let spinner = ProgressBar::new_spinner()
+        .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
+    spinner.enable_steady_tick(std::time::Duration::from_millis(100));
     // To get the best estimate of the gain, it is best if all distributions
     // saturate and are suppressed at the same level. This is only possible if
     // we treat them all by the worst case scenario i.e. smallest saturation
@@ -78,25 +82,56 @@ fn main() -> Result<()> {
         .context("failed to find baseline extrema")?;
     let negative_saturation = i32::from(ADC_MIN) - i32::from(min);
     let positive_saturation = i32::from(ADC_MAX) - i32::from(max);
-    let sol = try_minimize_ks_distance(
-        &distributions,
-        TpcWirePosition::try_from(63).unwrap(),
-        negative_saturation,
-        positive_saturation,
-        ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
-    )
-    .context("failed to minimize KS distance")?;
+    // Following this `worst-case scenario`, we would need to pivot on the
+    // channel with the smallest rescaling factor. We don't know which channel
+    // this is, so we start with a random channel and iterate the minimization
+    // with whichever channel has the smallest rescaling factor.
+    // The only important thing is that the initial pivot wire is a valid key in
+    // the `distributions` map. It doesn't matter which one.
+    // It is safe to unwrap because `try_amplitude_distributions` has already
+    // checked that the map is not empty.
+    let mut pivot = *distributions.keys().next().unwrap();
+    let gain_calibration = loop {
+        spinner.set_message(format!("Minimizing KS distance... (pivot: {:?})", pivot));
+        let sol = try_minimize_ks_distance(
+            &distributions,
+            pivot,
+            negative_saturation,
+            positive_saturation,
+            ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
+        )
+        .context("failed to minimize KS distance")?;
 
+        let (min_wire, _) = rescaling_extrema(&sol);
+        if sol.get(&min_wire).unwrap() < &1.0 && pivot != min_wire {
+            pivot = min_wire;
+        } else {
+            break sol;
+        }
+    };
+    let serialized_gain =
+        serde_json::to_string(&gain_calibration).context("failed to serialize gain calibration")?;
+    let gain_calibration_file = args
+        .output_path
+        .join(format!("wire_gain_calibration_{run_number}.json"));
+    std::fs::write(&gain_calibration_file, serialized_gain).with_context(|| {
+        format!(
+            "failed to write gain calibration to `{}`",
+            gain_calibration_file.display()
+        )
+    })?;
+    spinner.println(format!("Created `{}`", gain_calibration_file.display()));
+
+    spinner.set_message("Compiling PDF...");
     let picture = calibration_picture(
         &distributions,
-        &sol,
+        &gain_calibration,
         negative_saturation,
         positive_saturation,
         ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
     );
     picture.show_pdf(Engine::PdfLatex)?;
-
-    println!("Solution: {:#?}", sol);
+    spinner.finish_and_clear();
 
     Ok(())
 }
@@ -267,6 +302,10 @@ fn try_amplitude_distributions(
     bar.finish_and_clear();
 
     let missing_channels = TPC_ANODE_WIRES - distributions.len();
+    ensure!(
+        missing_channels != TPC_ANODE_WIRES,
+        "no anode wire signals found"
+    );
     errors_count += missing_channels;
     if verbose && missing_channels > 0 {
         for wire in 0..TPC_ANODE_WIRES {
@@ -290,6 +329,30 @@ fn try_baseline_extrema(baselines: &HashMap<TpcWirePosition, i16>) -> Result<(i1
     let max = values.max().unwrap();
 
     Ok((*min, *max))
+}
+
+/// Get the TpcWirePositions with the minimum and maximum rescaliing
+/// factors.
+// We know that the map is not empty (guaranteed by
+// `try_amplitude_distributions`).
+fn rescaling_extrema(gains: &HashMap<TpcWirePosition, f64>) -> (TpcWirePosition, TpcWirePosition) {
+    let mut min_gain = f64::INFINITY;
+    let mut max_gain = f64::NEG_INFINITY;
+    let mut min_gain_wire = None;
+    let mut max_gain_wire = None;
+
+    for (wire_position, gain) in gains {
+        if gain < &min_gain {
+            min_gain = *gain;
+            min_gain_wire = Some(*wire_position);
+        }
+        if gain > &max_gain {
+            max_gain = *gain;
+            max_gain_wire = Some(*wire_position);
+        }
+    }
+
+    (min_gain_wire.unwrap(), max_gain_wire.unwrap())
 }
 
 /// Try to minimize the KS distance between the amplitude distributions of
@@ -338,6 +401,14 @@ fn calibration_picture(
     positive_saturation: i32,
     suppression_threshold: i32,
 ) -> Picture {
+    // PGFPlots can't handle too many points. Here we are plotting
+    // 256 * 2 (before and after) distributions, so we need to downsample the
+    // data. Playing around with the number of points, the following seems to
+    // be around the limit before PGFPlots starts to choke.
+    // If compilation ever fails (i.e. someone complains), decreasing this
+    // number would be the first thing to try.
+    const ARBITRARY_NUMBER_OF_POINTS: usize = 85;
+
     let mut before_axis = Axis::new();
     before_axis.add_key(AxisKey::Custom(String::from("name=before")));
     before_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
@@ -353,7 +424,7 @@ fn calibration_picture(
                 .suppress(suppression_threshold);
             let cumulative = CumulativeDistribution::from_distribution(&distribution);
 
-            cumulative.plot(60)
+            cumulative.plot(ARBITRARY_NUMBER_OF_POINTS)
         })
         .collect();
 
@@ -375,7 +446,7 @@ fn calibration_picture(
                 .suppress(suppression_threshold);
             let cumulative = CumulativeDistribution::from_distribution(&distribution);
 
-            cumulative.plot(60)
+            cumulative.plot(ARBITRARY_NUMBER_OF_POINTS)
         })
         .collect();
 

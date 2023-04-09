@@ -18,9 +18,12 @@ impl CumulativeDistribution {
             // samples at the end are 1.0. We don't care about plotting those.
             .filter(|&(_, &value)| value > 0.0 && value < 1.0)
             .map(|(index, value)| (f64::from(min + index as i32), *value).into());
-        // We want only `num_coordinates`
-        let step = (coordinates.clone().count() - 1) / (num_coordinates - 1);
-        plot.coordinates = coordinates.step_by(step).collect();
+        // We want only `num_coordinates`. Or if the cumulative distribution
+        // is empty, just leave the plot empty.
+        let step = coordinates.clone().count().saturating_sub(1) / (num_coordinates - 1);
+        if step > 0 {
+            plot.coordinates = coordinates.step_by(step).collect();
+        }
 
         plot
     }
