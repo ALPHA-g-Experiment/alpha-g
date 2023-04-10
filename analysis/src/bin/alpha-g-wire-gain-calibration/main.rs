@@ -34,6 +34,9 @@ struct Args {
     /// MIDAS files from the calibration run.
     #[arg(required = true)]
     files: Vec<PathBuf>,
+    /// Test the effect of a previous gain calibration on the given data files.
+    #[arg(short, long, value_parser(parse_gain_file))]
+    previous_gain_calibration: Option<HashMap<TpcWirePosition, f64>>,
     /// Path where all output files will be saved into.
     #[arg(short, long, default_value = "./", value_parser(parse_directory))]
     output_path: PathBuf,
@@ -126,6 +129,7 @@ fn main() -> Result<()> {
     let picture = calibration_picture(
         &distributions,
         &gain_calibration,
+        &args.previous_gain_calibration,
         negative_saturation,
         positive_saturation,
         ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
@@ -148,6 +152,17 @@ fn parse_baseline_file(s: &str) -> Result<HashMap<TpcWirePosition, i16>> {
         .into_iter()
         .map(|(wire, (baseline, _, _))| (wire, baseline.round() as i16))
         .collect())
+}
+
+/// Parse a gain calibration file.
+/// The file is expected to be valid JSON, and should deserialize to a HashMap
+/// of TpcWirePosition to f64.
+fn parse_gain_file(s: &str) -> Result<HashMap<TpcWirePosition, f64>> {
+    let contents = std::fs::read(s).with_context(|| format!("failed to read `{s}`"))?;
+    let map: HashMap<TpcWirePosition, f64> = serde_json::from_slice(&contents)
+        .with_context(|| format!("failed to deserialize `{s}`"))?;
+
+    Ok(map)
 }
 
 /// Parse `--output-path` flag as valid directory
@@ -397,25 +412,26 @@ fn try_minimize_ks_distance(
 fn calibration_picture(
     distributions: &HashMap<TpcWirePosition, Distribution>,
     best_rescaling: &HashMap<TpcWirePosition, f64>,
+    previous_rescaling: &Option<HashMap<TpcWirePosition, f64>>,
     negative_saturation: i32,
     positive_saturation: i32,
     suppression_threshold: i32,
 ) -> Picture {
+    let mut picture = Picture::new();
     // PGFPlots can't handle too many points. Here we are plotting
-    // 256 * 2 (before and after) distributions, so we need to downsample the
-    // data. Playing around with the number of points, the following seems to
-    // be around the limit before PGFPlots starts to choke.
-    // If compilation ever fails (i.e. someone complains), decreasing this
-    // number would be the first thing to try.
-    const ARBITRARY_NUMBER_OF_POINTS: usize = 85;
+    // 256 * 3 distributions, so we need to downsample the data. Playing around
+    // with the number of points, the following seems to be around the limit
+    // before PGFPlots starts to choke. If compilation ever fails (i.e. someone
+    // complains), decreasing this number would be the first thing to try.
+    const ARBITRARY_NUMBER_OF_POINTS: usize = 60;
 
-    let mut before_axis = Axis::new();
-    before_axis.add_key(AxisKey::Custom(String::from("name=before")));
-    before_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
-    before_axis.set_x_label("Max. Amplitude~[a.u.]");
-    before_axis.set_y_label("Cumulative Distribution");
-    before_axis.set_title("Before Calibration");
-    before_axis.plots = distributions
+    let mut raw_axis = Axis::new();
+    raw_axis.add_key(AxisKey::Custom(String::from("name=raw")));
+    raw_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+    raw_axis.set_x_label("Max. Amplitude~[a.u.]");
+    raw_axis.set_y_label("Cumulative Distribution");
+    raw_axis.set_title("No Calibration");
+    raw_axis.plots = distributions
         .iter()
         .map(|(_, distribution)| {
             let distribution = distribution
@@ -427,15 +443,17 @@ fn calibration_picture(
             cumulative.plot(ARBITRARY_NUMBER_OF_POINTS)
         })
         .collect();
+    picture.axes.push(raw_axis);
 
-    let mut after_axis = Axis::new();
-    after_axis.add_key(AxisKey::Custom(String::from("at=(before.east)")));
-    after_axis.add_key(AxisKey::Custom(String::from("anchor=west")));
-    after_axis.add_key(AxisKey::Custom(String::from("xshift=30pt")));
-    after_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
-    after_axis.set_x_label("Max. Amplitude~[a.u.]");
-    after_axis.set_title("After Calibration");
-    after_axis.plots = distributions
+    let mut new_axis = Axis::new();
+    new_axis.add_key(AxisKey::Custom(String::from("name=new")));
+    new_axis.add_key(AxisKey::Custom(String::from("at=(raw.east)")));
+    new_axis.add_key(AxisKey::Custom(String::from("anchor=west")));
+    new_axis.add_key(AxisKey::Custom(String::from("xshift=30pt")));
+    new_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+    new_axis.set_x_label("Max. Amplitude~[a.u.]");
+    new_axis.set_title("New Calibration");
+    new_axis.plots = distributions
         .iter()
         .map(|(wire, distribution)| {
             let rescaling = best_rescaling.get(wire).unwrap();
@@ -449,8 +467,32 @@ fn calibration_picture(
             cumulative.plot(ARBITRARY_NUMBER_OF_POINTS)
         })
         .collect();
+    picture.axes.push(new_axis);
 
-    let mut picture = Picture::new();
-    picture.axes = vec![before_axis, after_axis];
+    if let Some(previous_rescaling) = previous_rescaling {
+        let mut old_axis = Axis::new();
+        old_axis.add_key(AxisKey::Custom(String::from("at=(new.east)")));
+        old_axis.add_key(AxisKey::Custom(String::from("anchor=west")));
+        old_axis.add_key(AxisKey::Custom(String::from("xshift=30pt")));
+        old_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+        old_axis.set_x_label("Max. Amplitude~[a.u.]");
+        old_axis.set_title("Previous Calibration");
+        old_axis.plots = distributions
+            .iter()
+            .map(|(wire, distribution)| {
+                let rescaling = previous_rescaling.get(wire).unwrap();
+                let distribution = distribution
+                    .clone()
+                    .rescale(*rescaling)
+                    .saturate(negative_saturation, positive_saturation)
+                    .suppress(suppression_threshold);
+                let cumulative = CumulativeDistribution::from_distribution(&distribution);
+
+                cumulative.plot(ARBITRARY_NUMBER_OF_POINTS)
+            })
+            .collect();
+        picture.axes.push(old_axis);
+    }
+
     picture
 }
