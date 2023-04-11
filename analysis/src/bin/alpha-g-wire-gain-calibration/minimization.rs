@@ -1,7 +1,7 @@
 use crate::distribution::{CumulativeDistribution, Distribution};
 use anyhow::Context;
 use argmin::core::{CostFunction, Error, Executor, IterState};
-use argmin::solver::brent::BrentOpt;
+use argmin::solver::goldensectionsearch::GoldenSectionSearch;
 
 struct Problem {
     // Pivot is the target cumulative distribution. Store as a cumulative
@@ -74,7 +74,7 @@ pub(crate) fn try_minimization(
         positive_saturation,
         suppression_threshold,
     );
-    // With Brent's method I need to provide a `lower_bound` and an
+    // With Golden Search method I need to provide a `lower_bound` and an
     // `upper_bound`. The minimization problem we are trying to solve here has
     // a logical lower bound of 0.0 (the free distribution should not be
     // rescaled to a negative value).
@@ -85,7 +85,11 @@ pub(crate) fn try_minimization(
     // suppression of 15000 in another wire. This is already excessive, so any
     // value above 10 is not even worth dealing with (at that point it might
     // be better to mask that wire).
-    let solver = BrentOpt::new(0.0, 10.0);
+    let solver = GoldenSectionSearch::new(0.0, 10.0)
+        .unwrap()
+        // Arbitrary low number that gave good results while playing around.
+        .with_tolerance(0.0001)
+        .unwrap();
 
     let res = Executor::new(problem, solver)
         .configure(|state| state.param(initial_rescale_factor).target_cost(0.0))

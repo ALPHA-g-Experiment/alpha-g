@@ -112,11 +112,19 @@ impl CumulativeDistribution {
             sum += count;
             samples.push(sum);
         }
-
-        let total = samples.last().copied().unwrap_or(0);
+        // Normalize only if there were samples. Otherwise, leave the cumulative
+        // distribution all zeros.
+        // It could be argued that a cumulative distribution with all zeros
+        // doesn't make sense, but it is completely valid in this context.
+        // Such cumulative distribution could show up when all values in the
+        // distribution are suppressed.
+        // Additionally, the KS distance between such cumulative distribution
+        // and a normal (correct) cumulative distribution is 1, which is
+        // definitely not the minimum KS distance.
+        let normalization = if sum > 0 { sum as f64 } else { 1.0 };
         let samples = samples
             .into_iter()
-            .map(|count| count as f64 / total as f64)
+            .map(|sample| sample as f64 / normalization)
             .collect();
 
         Self { samples }

@@ -131,6 +131,10 @@ fn cumulative_distribution_from_distribution() {
     assert_eq!(c.samples[0], 0.5);
     assert_eq!(c.samples[2 * (max - min) as usize - 1], 0.5);
     assert_eq!(c.samples[2 * (max - min) as usize], 1.0);
+
+    let d = Distribution::new();
+    let c = CumulativeDistribution::from_distribution(&d);
+    assert_eq!(c.samples.iter().sum::<f64>(), 0.0);
 }
 
 #[test]

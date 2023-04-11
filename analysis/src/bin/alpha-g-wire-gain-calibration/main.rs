@@ -94,6 +94,11 @@ fn main() -> Result<()> {
     // It is safe to unwrap because `try_amplitude_distributions` has already
     // checked that the map is not empty.
     let mut pivot = *distributions.keys().next().unwrap();
+    // We need to keep track of the pivot wires that have already been tried.
+    // The minimization could go into an infinite loop where the same couple of
+    // pivots (which are extremely similar, but they keep swapping) are tried
+    // over and over again.
+    let mut tried_pivots = HashSet::new();
     let gain_calibration = loop {
         spinner.set_message(format!("Minimizing KS distance... (pivot: {:?})", pivot));
         let sol = try_minimize_ks_distance(
@@ -106,7 +111,7 @@ fn main() -> Result<()> {
         .context("failed to minimize KS distance")?;
 
         let (min_wire, _) = rescaling_extrema(&sol);
-        if sol.get(&min_wire).unwrap() < &1.0 && pivot != min_wire {
+        if sol.get(&min_wire).unwrap() < &1.0 && tried_pivots.insert(min_wire) {
             pivot = min_wire;
         } else {
             break sol;
