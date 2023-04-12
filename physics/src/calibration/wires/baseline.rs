@@ -21,31 +21,36 @@ lazy_static! {
     static ref MAP_7026: HashMap<TpcWirePosition, i16> = complete_from_bytes(BYTES_7026);
 }
 /// Try to get the baseline for a given wire. Return an error if there is no map
-/// available for the given run number.
-///
-/// If there is no baseline for a given wire return None. This is not an error
-/// because a channel could simply be disconnected.
+/// available for the given run number or if there is no baseline for a given
+/// wire in the map.
 pub(crate) fn try_wire_baseline(
     run_number: u32,
     wire: TpcWirePosition,
-) -> Result<Option<i16>, WireBaselineMapError> {
-    // This map changes whenever a new file is added.
+) -> Result<i16, MapWireBaselineError> {
+    // This map should be updated whenever a new file is added.
     let map = match run_number {
         7026.. => &MAP_7026,
-        _ => return Err(WireBaselineMapError { run_number }),
+        _ => return Err(MapWireBaselineError::MissingMap { run_number }),
     };
 
-    Ok(map.get(&wire).copied())
+    map.get(&wire)
+        .copied()
+        .ok_or(MapWireBaselineError::MissingWire { run_number, wire })
 }
 
 // Nothing below this line needs to be changed when new files are added.
 
-/// The error type returned when the baseline calibration map does not exist for
-/// a given run number.
+/// The error type returned when the baseline calibration map is not available
+/// for a given run number and wire.
 #[derive(Debug, Error)]
-#[error("no wire baseline calibration available for run number `{run_number}`")]
-pub struct WireBaselineMapError {
-    run_number: u32,
+pub enum MapWireBaselineError {
+    #[error("no wire baseline calibration available for run number `{run_number}`")]
+    MissingMap { run_number: u32 },
+    #[error("no baseline calibration available for wire `{wire:?}` in run number `{run_number}`")]
+    MissingWire {
+        run_number: u32,
+        wire: TpcWirePosition,
+    },
 }
 
 fn complete_from_bytes(bytes: &[u8]) -> HashMap<TpcWirePosition, i16> {
