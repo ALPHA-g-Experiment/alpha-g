@@ -7,5 +7,5 @@
 // guaranteed to use the same (and correct) calibration settings.
 //
 // If there is ever a compelling reason to expose calibration to the user, I
-// believe it should be moved to the `alpha_g_detector` crate instead.
+// believe it should be moved to a separate `alpha_g_calibration` crate.
 mod calibration;
