@@ -20,6 +20,9 @@ pub const BSC_PULSER_ENABLE_JSON_PTR: &str = "/Equipment/CTRL/Settings/BscPulser
 pub const FIELD_WIRE_PULSER_ENABLE_JSON_PTR: &str = "/Equipment/CTRL/Settings/FwPulserEnable";
 /// JSON pointer that identifies the pulser enable flag in the ODB.
 pub const PULSER_ENABLE_JSON_PTR: &str = "/Equipment/CTRL/Settings/Pulser/Enable";
+/// JSON pointer that identifies the PWB force channels flag in the ODB (i.e.
+/// disable data suppression).
+pub const PWB_FORCE_CHANNELS_JSON_PTR: &str = "/Equipment/CTRL/Settings/PWB/ch_force";
 /// JSON pointer that identifies the PWB data suppression threshold in the ODB.
 // This is the same for all Reset, FPN, and Pad channels.
 pub const PWB_SUPPRESSION_THRESHOLD_JSON_PTR: &str = "/Equipment/CTRL/Settings/PWB/ch_threshold";
