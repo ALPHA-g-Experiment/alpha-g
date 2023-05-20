@@ -561,7 +561,7 @@ fn tpc_pad_position_column() {
             column: TpcPadColumn(i),
             row: TpcPadRow(0),
         };
-        assert_eq!(position.column(), TpcPadColumn(i));
+        assert_eq!(position.column, TpcPadColumn(i));
     }
 }
 
@@ -572,7 +572,7 @@ fn tpc_pad_position_row() {
             column: TpcPadColumn(0),
             row: TpcPadRow(i),
         };
-        assert_eq!(position.row(), TpcPadRow(i));
+        assert_eq!(position.row, TpcPadRow(i));
     }
 }
 

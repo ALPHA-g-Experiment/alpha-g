@@ -463,8 +463,8 @@ pub enum MapTpcPadPositionError {
 /// Position of a pad in the rTPC.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TpcPadPosition {
-    column: TpcPadColumn,
-    row: TpcPadRow,
+    pub column: TpcPadColumn,
+    pub row: TpcPadRow,
 }
 impl TpcPadPosition {
     /// Map a [`TpcPwbPosition`] and [`PwbPadPosition`] to a [`TpcPadPosition`].
@@ -526,58 +526,6 @@ impl TpcPadPosition {
         let board_position = TpcPwbPosition::try_new(run_number, board_id)?;
         let pad_position = PwbPadPosition::try_new(run_number, after_id, pad_channel_id)?;
         Ok(TpcPadPosition::new(board_position, pad_position))
-    }
-    /// Return the column of the pad within the rTPC.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use alpha_g_detector::padwing::map::{TpcPadPosition, TpcPadColumn, TpcPwbPosition, PwbPadPosition};
-    /// use alpha_g_detector::padwing::{AfterId, PadChannelId, BoardId};
-    ///
-    /// let run_number = 5000;
-    /// let board = BoardId::try_from("26")?;
-    /// let board_pos = TpcPwbPosition::try_new(run_number, board)?;
-    ///
-    /// let after = AfterId::try_from('A')?;
-    /// let pad_channel = PadChannelId::try_from(1)?;
-    /// let pad_pos = PwbPadPosition::try_new(run_number, after, pad_channel)?;
-    ///
-    /// let tpc_pad_position = TpcPadPosition::new(board_pos, pad_pos);
-    ///
-    /// assert_eq!(tpc_pad_position.column(), TpcPadColumn::try_from(5)?);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn column(&self) -> TpcPadColumn {
-        self.column
-    }
-    /// Return the row of the pad within the rTPC.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use alpha_g_detector::padwing::map::{TpcPadPosition, TpcPadRow, TpcPwbPosition, PwbPadPosition};
-    /// use alpha_g_detector::padwing::{AfterId, PadChannelId, BoardId};
-    ///
-    /// let run_number = 5000;
-    /// let board = BoardId::try_from("26")?;
-    /// let board_pos = TpcPwbPosition::try_new(run_number, board)?;
-    ///
-    /// let after = AfterId::try_from('A')?;
-    /// let pad_channel = PadChannelId::try_from(1)?;
-    /// let pad_pos = PwbPadPosition::try_new(run_number, after, pad_channel)?;
-    ///
-    /// let tpc_pad_position = TpcPadPosition::new(board_pos, pad_pos);
-    ///
-    /// assert_eq!(tpc_pad_position.row(), TpcPadRow::try_from(432)?);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn row(&self) -> TpcPadRow {
-        self.row
     }
     /// Return the `z` coordinate (in meters) of the pad center within the rTPC.
     /// The `z` coordinate is measured from the center of the rTPC (positive
