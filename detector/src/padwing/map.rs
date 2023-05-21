@@ -1,5 +1,6 @@
 use crate::padwing::{AfterId, BoardId, PadChannelId};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use thiserror::Error;
@@ -415,12 +416,17 @@ impl PwbPadPosition {
 }
 
 /// Column of a pad in the rTPC.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+// These are needed because otherwise it would be possible to deserialize some
+// invalid values (e.g. handwritten columns greater than 31).
+#[serde(try_from = "usize", into = "usize")]
 pub struct TpcPadColumn(usize);
 impl TryFrom<usize> for TpcPadColumn {
     type Error = TryPositionFromIndexError;
 
-    /// Convert from a `usize` (`0..=31`) to a [`TpcPadColumn`].
+    /// Convert from a `usize` (`0..=31`) to a [`TpcPadColumn`]. Do not assume
+    /// angular position of a pad column based on this index; the
+    /// [`TpcPadPosition::phi()`] method should be used instead.
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if value < TPC_PAD_COLUMNS {
             Ok(TpcPadColumn(value))
@@ -429,20 +435,56 @@ impl TryFrom<usize> for TpcPadColumn {
         }
     }
 }
+// I would rather not have this implementation, but it is needed for the
+// serialization of the TpcPadColumn to be consistent with the
+// deserialization.
+// In theory this should not be used by the user explicitly.
+impl From<TpcPadColumn> for usize {
+    /// Convert to the `u: usize` such that
+    /// `TpcPadColumn::try_from(u).unwrap() == self`. Do not assume angular
+    /// position of a pad column based on this index; the
+    /// [`TpcPadPosition::phi()`] method should always be used instead.
+    ///
+    /// If you are explicitly using this conversion, you are probably doing
+    /// something wrong.
+    fn from(pad_column: TpcPadColumn) -> Self {
+        pad_column.0
+    }
+}
 
 /// Row of a pad in the rTPC.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+// These are needed because otherwise it would be possible to deserialize some
+// invalid values (e.g. handwritten rows greater than 575).
+#[serde(try_from = "usize", into = "usize")]
 pub struct TpcPadRow(usize);
 impl TryFrom<usize> for TpcPadRow {
     type Error = TryPositionFromIndexError;
 
-    /// Convert from a `usize` (`0..=575`) to a [`TpcPadRow`].
+    /// Convert from a `usize` (`0..=575`) to a [`TpcPadRow`]. Do not assume a
+    /// `z` position of a pad row based on this index; the
+    /// [`TpcPadPosition::z()`] method should be used instead.
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if value < TPC_PAD_ROWS {
             Ok(TpcPadRow(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
         }
+    }
+}
+// I would rather not have this implementation, but it is needed for the
+// serialization of the TpcPadRow to be consistent with the deserialization.
+// In theory this should not be used by the user explicitly.
+impl From<TpcPadRow> for usize {
+    /// Convert to the `u: usize` such that
+    /// `TpcPadRow::try_from(u).unwrap() == self`. Do not assume `z` position of
+    /// a pad row based on this index; the [`TpcPadPosition::z()`] method should
+    /// always be used instead.
+    ///
+    /// If you are explicitly using this conversion, you are probably doing
+    /// something wrong.
+    fn from(pad_row: TpcPadRow) -> Self {
+        pad_row.0
     }
 }
 
@@ -461,7 +503,7 @@ pub enum MapTpcPadPositionError {
 }
 
 /// Position of a pad in the rTPC.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TpcPadPosition {
     pub column: TpcPadColumn,
     pub row: TpcPadRow,
