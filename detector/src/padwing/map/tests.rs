@@ -599,7 +599,8 @@ fn tpc_pad_position_ron_roundtrip() {
                 row: TpcPadRow(row),
             };
             let pad_position_ron = ron::to_string(&pad_position).unwrap();
-            let pad_position_deserialized: TpcPadPosition = ron::from_str(&pad_position_ron).unwrap();
+            let pad_position_deserialized: TpcPadPosition =
+                ron::from_str(&pad_position_ron).unwrap();
             assert_eq!(pad_position, pad_position_deserialized);
         }
     }
