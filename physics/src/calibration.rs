@@ -11,3 +11,5 @@ macro_rules! includes {
 
 // Anode wires calibration (baseline and gain)
 mod wires;
+// Pad calibration (baseline and gain)
+mod pads;
