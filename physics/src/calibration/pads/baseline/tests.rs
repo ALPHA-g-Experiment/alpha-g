@@ -1,0 +1,96 @@
+use super::*;
+use alpha_g_detector::padwing::{
+    map::{TpcPadColumn, TpcPadRow, TPC_PAD_COLUMNS, TPC_PAD_ROWS},
+    PWB_MAX, PWB_MIN,
+};
+
+fn all_within_limits(run_number: u32) -> bool {
+    for row in 0..TPC_PAD_ROWS {
+        let row = TpcPadRow::try_from(row).unwrap();
+        for column in 0..TPC_PAD_COLUMNS {
+            let column = TpcPadColumn::try_from(column).unwrap();
+            let pad_position = TpcPadPosition { row, column };
+
+            let baseline = try_pad_baseline(run_number, pad_position);
+            if let Ok(baseline) = baseline {
+                if !(PWB_MIN..=PWB_MAX).contains(&baseline) {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
+#[test]
+fn all_within_limits_in_baseline_map() {
+    assert!(all_within_limits(9277));
+}
+
+#[test]
+fn try_pad_baseline_map_error() {
+    // Too slow to run all run numbers on CI. Just check limits.
+    for run_number in [0, 9276] {
+        for row in 0..TPC_PAD_ROWS {
+            let row = TpcPadRow::try_from(row).unwrap();
+            for column in 0..TPC_PAD_COLUMNS {
+                let column = TpcPadColumn::try_from(column).unwrap();
+                let pad_position = TpcPadPosition { row, column };
+
+                assert!(try_pad_baseline(run_number, pad_position).is_err());
+            }
+        }
+    }
+}
+
+#[test]
+fn try_pad_baseline_correctness_9277() {
+    let mut missing = 0;
+    for row in 0..TPC_PAD_ROWS {
+        let row = TpcPadRow::try_from(row).unwrap();
+        for column in 0..TPC_PAD_COLUMNS {
+            let column = TpcPadColumn::try_from(column).unwrap();
+            let pad_position = TpcPadPosition { row, column };
+
+            let baseline = try_pad_baseline(9277, pad_position);
+            if let Err(_) = baseline {
+                missing += 1;
+            }
+        }
+    }
+    assert_eq!(missing, 721);
+
+    assert_eq!(
+        try_pad_baseline(
+            9277,
+            TpcPadPosition {
+                row: TpcPadRow::try_from(0).unwrap(),
+                column: TpcPadColumn::try_from(0).unwrap(),
+            }
+        )
+        .unwrap(),
+        1665
+    );
+    assert_eq!(
+        try_pad_baseline(
+            9277,
+            TpcPadPosition {
+                row: TpcPadRow::try_from(429).unwrap(),
+                column: TpcPadColumn::try_from(14).unwrap(),
+            }
+        )
+        .unwrap(),
+        1729
+    );
+    assert_eq!(
+        try_pad_baseline(
+            9277,
+            TpcPadPosition {
+                row: TpcPadRow::try_from(200).unwrap(),
+                column: TpcPadColumn::try_from(5).unwrap(),
+            }
+        )
+        .unwrap(),
+        1714
+    );
+}

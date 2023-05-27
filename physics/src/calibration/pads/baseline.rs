@@ -67,3 +67,6 @@ fn complete_from_bytes(bytes: &[u8]) -> HashMap<TpcPadPosition, i16> {
 // The implementation would just be a copy-paste of the anode wires calibration.
 // I don't need it now, so I just want to implement it whenever I have a use
 // case to add unit tests for it.
+
+#[cfg(test)]
+mod tests;
