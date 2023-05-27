@@ -516,12 +516,48 @@ fn try_from_index_tpc_pad_column() {
 }
 
 #[test]
+fn from_tpc_pad_column_usize() {
+    for i in 0..=31 {
+        let pad_column = TpcPadColumn::try_from(i).unwrap();
+        assert_eq!(usize::from(pad_column), i);
+    }
+}
+
+#[test]
+fn tpc_pad_column_ron_roundtrip() {
+    for i in 0..=31 {
+        let pad_column = TpcPadColumn::try_from(i).unwrap();
+        let pad_column_ron = ron::to_string(&pad_column).unwrap();
+        let pad_column_deserialized: TpcPadColumn = ron::from_str(&pad_column_ron).unwrap();
+        assert_eq!(pad_column, pad_column_deserialized);
+    }
+}
+
+#[test]
 fn try_from_index_tpc_pad_row() {
     for i in 0..=575 {
         assert_eq!(TpcPadRow::try_from(i).unwrap(), TpcPadRow(i));
     }
     for i in 576..=19000 {
         assert!(TpcPadRow::try_from(i).is_err());
+    }
+}
+
+#[test]
+fn from_tpc_pad_row_usize() {
+    for i in 0..=575 {
+        let pad_row = TpcPadRow::try_from(i).unwrap();
+        assert_eq!(usize::from(pad_row), i);
+    }
+}
+
+#[test]
+fn tpc_pad_row_ron_roundtrip() {
+    for i in 0..=575 {
+        let pad_row = TpcPadRow::try_from(i).unwrap();
+        let pad_row_ron = ron::to_string(&pad_row).unwrap();
+        let pad_row_deserialized: TpcPadRow = ron::from_str(&pad_row_ron).unwrap();
+        assert_eq!(pad_row, pad_row_deserialized);
     }
 }
 
@@ -555,13 +591,29 @@ fn tpc_pad_position_new() {
 }
 
 #[test]
+fn tpc_pad_position_ron_roundtrip() {
+    for row in 0..=575 {
+        for column in 0..=31 {
+            let pad_position = TpcPadPosition {
+                column: TpcPadColumn(column),
+                row: TpcPadRow(row),
+            };
+            let pad_position_ron = ron::to_string(&pad_position).unwrap();
+            let pad_position_deserialized: TpcPadPosition =
+                ron::from_str(&pad_position_ron).unwrap();
+            assert_eq!(pad_position, pad_position_deserialized);
+        }
+    }
+}
+
+#[test]
 fn tpc_pad_position_column() {
     for i in 0..=31 {
         let position = TpcPadPosition {
             column: TpcPadColumn(i),
             row: TpcPadRow(0),
         };
-        assert_eq!(position.column(), TpcPadColumn(i));
+        assert_eq!(position.column, TpcPadColumn(i));
     }
 }
 
@@ -572,7 +624,7 @@ fn tpc_pad_position_row() {
             column: TpcPadColumn(0),
             row: TpcPadRow(i),
         };
-        assert_eq!(position.row(), TpcPadRow(i));
+        assert_eq!(position.row, TpcPadRow(i));
     }
 }
 

@@ -57,6 +57,14 @@ fn trigger_pulser_json_ptr() {
 }
 
 #[test]
+fn pwb_force_channels_json_ptr() {
+    assert_eq!(
+        PWB_FORCE_CHANNELS_JSON_PTR,
+        "/Equipment/CTRL/Settings/PWB/ch_force"
+    );
+}
+
+#[test]
 fn pwb_suppression_threshold_json_ptr() {
     assert_eq!(
         PWB_SUPPRESSION_THRESHOLD_JSON_PTR,
