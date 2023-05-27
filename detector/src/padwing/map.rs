@@ -1,5 +1,6 @@
 use crate::padwing::{AfterId, BoardId, PadChannelId};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use thiserror::Error;
@@ -415,12 +416,17 @@ impl PwbPadPosition {
 }
 
 /// Column of a pad in the rTPC.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+// These are needed because otherwise it would be possible to deserialize some
+// invalid values (e.g. handwritten columns greater than 31).
+#[serde(try_from = "usize", into = "usize")]
 pub struct TpcPadColumn(usize);
 impl TryFrom<usize> for TpcPadColumn {
     type Error = TryPositionFromIndexError;
 
-    /// Convert from a `usize` (`0..=31`) to a [`TpcPadColumn`].
+    /// Convert from a `usize` (`0..=31`) to a [`TpcPadColumn`]. Do not assume
+    /// angular position of a pad column based on this index; the
+    /// [`TpcPadPosition::phi()`] method should be used instead.
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if value < TPC_PAD_COLUMNS {
             Ok(TpcPadColumn(value))
@@ -429,20 +435,56 @@ impl TryFrom<usize> for TpcPadColumn {
         }
     }
 }
+// I would rather not have this implementation, but it is needed for the
+// serialization of the TpcPadColumn to be consistent with the
+// deserialization.
+// In theory this should not be used by the user explicitly.
+impl From<TpcPadColumn> for usize {
+    /// Convert to the `u: usize` such that
+    /// `TpcPadColumn::try_from(u).unwrap() == self`. Do not assume angular
+    /// position of a pad column based on this index; the
+    /// [`TpcPadPosition::phi()`] method should always be used instead.
+    ///
+    /// If you are explicitly using this conversion, you are probably doing
+    /// something wrong.
+    fn from(pad_column: TpcPadColumn) -> Self {
+        pad_column.0
+    }
+}
 
 /// Row of a pad in the rTPC.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+// These are needed because otherwise it would be possible to deserialize some
+// invalid values (e.g. handwritten rows greater than 575).
+#[serde(try_from = "usize", into = "usize")]
 pub struct TpcPadRow(usize);
 impl TryFrom<usize> for TpcPadRow {
     type Error = TryPositionFromIndexError;
 
-    /// Convert from a `usize` (`0..=575`) to a [`TpcPadRow`].
+    /// Convert from a `usize` (`0..=575`) to a [`TpcPadRow`]. Do not assume a
+    /// `z` position of a pad row based on this index; the
+    /// [`TpcPadPosition::z()`] method should be used instead.
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if value < TPC_PAD_ROWS {
             Ok(TpcPadRow(value))
         } else {
             Err(TryPositionFromIndexError { input: value })
         }
+    }
+}
+// I would rather not have this implementation, but it is needed for the
+// serialization of the TpcPadRow to be consistent with the deserialization.
+// In theory this should not be used by the user explicitly.
+impl From<TpcPadRow> for usize {
+    /// Convert to the `u: usize` such that
+    /// `TpcPadRow::try_from(u).unwrap() == self`. Do not assume `z` position of
+    /// a pad row based on this index; the [`TpcPadPosition::z()`] method should
+    /// always be used instead.
+    ///
+    /// If you are explicitly using this conversion, you are probably doing
+    /// something wrong.
+    fn from(pad_row: TpcPadRow) -> Self {
+        pad_row.0
     }
 }
 
@@ -461,10 +503,10 @@ pub enum MapTpcPadPositionError {
 }
 
 /// Position of a pad in the rTPC.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TpcPadPosition {
-    column: TpcPadColumn,
-    row: TpcPadRow,
+    pub column: TpcPadColumn,
+    pub row: TpcPadRow,
 }
 impl TpcPadPosition {
     /// Map a [`TpcPwbPosition`] and [`PwbPadPosition`] to a [`TpcPadPosition`].
@@ -526,58 +568,6 @@ impl TpcPadPosition {
         let board_position = TpcPwbPosition::try_new(run_number, board_id)?;
         let pad_position = PwbPadPosition::try_new(run_number, after_id, pad_channel_id)?;
         Ok(TpcPadPosition::new(board_position, pad_position))
-    }
-    /// Return the column of the pad within the rTPC.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use alpha_g_detector::padwing::map::{TpcPadPosition, TpcPadColumn, TpcPwbPosition, PwbPadPosition};
-    /// use alpha_g_detector::padwing::{AfterId, PadChannelId, BoardId};
-    ///
-    /// let run_number = 5000;
-    /// let board = BoardId::try_from("26")?;
-    /// let board_pos = TpcPwbPosition::try_new(run_number, board)?;
-    ///
-    /// let after = AfterId::try_from('A')?;
-    /// let pad_channel = PadChannelId::try_from(1)?;
-    /// let pad_pos = PwbPadPosition::try_new(run_number, after, pad_channel)?;
-    ///
-    /// let tpc_pad_position = TpcPadPosition::new(board_pos, pad_pos);
-    ///
-    /// assert_eq!(tpc_pad_position.column(), TpcPadColumn::try_from(5)?);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn column(&self) -> TpcPadColumn {
-        self.column
-    }
-    /// Return the row of the pad within the rTPC.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use alpha_g_detector::padwing::map::{TpcPadPosition, TpcPadRow, TpcPwbPosition, PwbPadPosition};
-    /// use alpha_g_detector::padwing::{AfterId, PadChannelId, BoardId};
-    ///
-    /// let run_number = 5000;
-    /// let board = BoardId::try_from("26")?;
-    /// let board_pos = TpcPwbPosition::try_new(run_number, board)?;
-    ///
-    /// let after = AfterId::try_from('A')?;
-    /// let pad_channel = PadChannelId::try_from(1)?;
-    /// let pad_pos = PwbPadPosition::try_new(run_number, after, pad_channel)?;
-    ///
-    /// let tpc_pad_position = TpcPadPosition::new(board_pos, pad_pos);
-    ///
-    /// assert_eq!(tpc_pad_position.row(), TpcPadRow::try_from(432)?);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn row(&self) -> TpcPadRow {
-        self.row
     }
     /// Return the `z` coordinate (in meters) of the pad center within the rTPC.
     /// The `z` coordinate is measured from the center of the rTPC (positive
