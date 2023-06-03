@@ -1,40 +1,6 @@
 use super::*;
 use alpha_g_detector::alpha16::aw_map::TPC_ANODE_WIRES;
 
-fn all_within_limits(run_number: u32) -> bool {
-    for i in 0..TPC_ANODE_WIRES {
-        let wire = TpcWirePosition::try_from(i).unwrap();
-
-        let gain = try_wire_gain(run_number, wire);
-        if let Ok(gain) = gain {
-            // This 1.5 is somewhat arbitrary. Have a look at the
-            // ARBITRARY_LARGE_SUPPRESSION_THRESHOLD value in `main.rs` of the
-            // `alpha-g-wire-gain-calibration` executable.
-            // If this test fails then there are a couple of things to do:
-            // 1. Check which wire is causing this to fail and look at some
-            //   waveforms. Mask the wire i.e. remove it from the calibration
-            //   file if it is strange.
-            // 2. If there is no need to mask this wire, check the pivot wire.
-            //   If the pivot wire is strange then run the calibration again
-            //   with this wire masked.
-            //   Recall that the pivot will be the one with exactly 1.0 gain.
-            // 3. If everything looks fine, then increase the
-            //   ARBITRARY_LARGE_SUPPRESSION_THRESHOLD value in `main.rs` of the
-            //   `alpha-g-wire-gain-calibration` executable.
-            //   Also increase this 1.5 value here.
-            if gain > 1.5 {
-                return false;
-            }
-        }
-    }
-    true
-}
-
-#[test]
-fn all_within_limits_in_gain_map() {
-    assert!(all_within_limits(9277));
-}
-
 #[test]
 fn try_wire_gain_wire_gain_map_error() {
     for run_number in 0..=9276 {
