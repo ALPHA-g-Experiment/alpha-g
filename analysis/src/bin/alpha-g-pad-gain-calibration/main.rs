@@ -130,7 +130,9 @@ fn main() -> Result<()> {
         positive_saturation,
         ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
     );
-    picture.show_pdf(Engine::PdfLatex).context("failed to show PDF")?;
+    picture
+        .show_pdf(Engine::PdfLatex)
+        .context("failed to show PDF")?;
     spinner.finish_and_clear();
 
     Ok(())
