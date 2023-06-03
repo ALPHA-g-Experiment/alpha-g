@@ -1,6 +1,6 @@
 //! Gain calibration for the cathode pads.
 
-use crate::distribution::Distribution;
+use crate::distribution::{CumulativeDistribution, Distribution};
 use crate::minimization::try_minimization;
 use alpha_g_detector::midas::{EventId, PadwingBankName};
 use alpha_g_detector::padwing::map::{
@@ -12,6 +12,7 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
 use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
+use pgfplots::{axis::*, Engine, Picture};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::PathBuf;
@@ -51,11 +52,6 @@ struct Args {
 // `data_suppression_threshold` * `largest_rescaling_factor`; otherwise, the
 // channels with the largest rescaling factor will have had more signal
 // suppressed (during data acquisition) than the other channels.
-// The typical data suppression threshold is 1500, and it suppresses most of
-// the noise. This value has been very consistent over the years (see elogs 3449
-// and 5358). Pivoting on the smallest rescaling factor, we typically see a
-// largest rescaling factor lower than 1.5.
-// The following feels like a reasonable safe choice.
 const ARBITRARY_LARGE_SUPPRESSION_THRESHOLD: i16 = 300;
 
 fn main() -> Result<()> {
@@ -123,7 +119,18 @@ fn main() -> Result<()> {
             gain_filename.display()
         )
     })?;
-    println!("Created `{}`", gain_filename.display());
+    spinner.println(format!("Created `{}`", gain_filename.display()));
+
+    spinner.set_message("Compiling PDF...");
+    let picture = calibration_picture(
+        &distributions,
+        &gain_calibration,
+        &args.previous_gain_calibration,
+        negative_saturation,
+        positive_saturation,
+        ARBITRARY_LARGE_SUPPRESSION_THRESHOLD,
+    );
+    picture.show_pdf(Engine::PdfLatex).context("failed to show PDF")?;
     spinner.finish_and_clear();
 
     Ok(())
@@ -411,4 +418,92 @@ fn rescaling_extrema(gains: &HashMap<TpcPadPosition, f64>) -> (TpcPadPosition, T
     }
 
     (min_gain_pad.unwrap(), max_gain_pad.unwrap())
+}
+
+/// Picture to visually validate the gain calibration.
+fn calibration_picture(
+    distributions: &HashMap<TpcPadPosition, Distribution>,
+    best_rescaling: &HashMap<TpcPadPosition, f64>,
+    previous_rescaling: &Option<HashMap<TpcPadPosition, f64>>,
+    negative_saturation: i16,
+    positive_saturation: i16,
+    suppression_threshold: i16,
+) -> Picture {
+    // Arbitrary best values that worked during testing. Trying anything more
+    // than this makes PGFPLOTS choke.
+    const POINTS_PER_LINE: usize = 50;
+    const LINES_PER_PLOT: usize = 300;
+
+    let mut picture = Picture::new();
+
+    let mut raw_axis = Axis::new();
+    raw_axis.add_key(AxisKey::Custom(String::from("name=raw")));
+    raw_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+    raw_axis.set_x_label("Max. Amplitude~[a.u.]");
+    raw_axis.set_y_label("Cumulative Distribution");
+    raw_axis.set_title("No Calibration");
+    raw_axis.plots = distributions
+        .iter()
+        .map(|(_, distribution)| {
+            let distribution = distribution
+                .clone()
+                .saturate(negative_saturation, positive_saturation)
+                .suppress(suppression_threshold);
+
+            CumulativeDistribution::from_distribution(&distribution).plot(POINTS_PER_LINE)
+        })
+        .take(LINES_PER_PLOT)
+        .collect();
+    picture.axes.push(raw_axis);
+
+    let mut new_axis = Axis::new();
+    new_axis.add_key(AxisKey::Custom(String::from("name=new")));
+    new_axis.add_key(AxisKey::Custom(String::from("at=(raw.east)")));
+    new_axis.add_key(AxisKey::Custom(String::from("anchor=west")));
+    new_axis.add_key(AxisKey::Custom(String::from("xshift=30pt")));
+    new_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+    new_axis.set_x_label("Max. Amplitude~[a.u.]");
+    new_axis.set_title("New Calibration");
+    new_axis.plots = distributions
+        .iter()
+        .map(|(pad, distribution)| {
+            let rescaling = best_rescaling.get(pad).unwrap();
+            let distribution = distribution
+                .clone()
+                .rescale(*rescaling)
+                .saturate(negative_saturation, positive_saturation)
+                .suppress(suppression_threshold);
+
+            CumulativeDistribution::from_distribution(&distribution).plot(POINTS_PER_LINE)
+        })
+        .take(LINES_PER_PLOT)
+        .collect();
+    picture.axes.push(new_axis);
+
+    if let Some(previous_rescaling) = previous_rescaling {
+        let mut old_axis = Axis::new();
+        old_axis.add_key(AxisKey::Custom(String::from("at=(new.east)")));
+        old_axis.add_key(AxisKey::Custom(String::from("anchor=west")));
+        old_axis.add_key(AxisKey::Custom(String::from("xshift=30pt")));
+        old_axis.add_key(AxisKey::Custom(String::from("ymin=0, ymax=1.1")));
+        old_axis.set_x_label("Max. Amplitude~[a.u.]");
+        old_axis.set_title("Previous Calibration");
+        old_axis.plots = distributions
+            .iter()
+            .map(|(pad, distribution)| {
+                let rescaling = previous_rescaling.get(pad).unwrap();
+                let distribution = distribution
+                    .clone()
+                    .rescale(*rescaling)
+                    .saturate(negative_saturation, positive_saturation)
+                    .suppress(suppression_threshold);
+
+                CumulativeDistribution::from_distribution(&distribution).plot(POINTS_PER_LINE)
+            })
+            .take(LINES_PER_PLOT)
+            .collect();
+        picture.axes.push(old_axis);
+    }
+
+    picture
 }
