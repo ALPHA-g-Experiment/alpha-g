@@ -15,6 +15,7 @@ use alpha_g_detector::padwing::map::{
 use alpha_g_detector::padwing::{
     self, Chunk, PwbPacket, TryChunkFromSliceError, TryPwbPacketFromChunksError,
 };
+use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -78,6 +79,12 @@ pub enum TryMainEventFromDataBanksError {
     /// The data from the TRG board is invalid.
     #[error("bad trg data")]
     BadTrg(#[from] TryTrgPacketFromSliceError),
+    /// Duplicate trigger data bank found.
+    #[error("duplicate trigger data bank")]
+    DuplicateTrgBank,
+    /// Missing trigger data bank.
+    #[error("missing trigger data bank")]
+    MissingTrgBank,
     /// Mapping an anode wire position failed.
     #[error("wire position mapping failed")]
     WirePositionError(#[from] MapTpcWirePositionError),
@@ -103,6 +110,7 @@ pub enum TryMainEventFromDataBanksError {
 pub struct MainEvent {
     wire_signals: [Option<Vec<f64>>; TPC_ANODE_WIRES],
     pad_signals: [[Option<Vec<f64>>; TPC_PAD_ROWS]; TPC_PAD_COLUMNS],
+    trigger_timestamp: u32,
 }
 impl MainEvent {
     /// Given a run number, try to convert data banks to a [`MainEvent`]. The
@@ -118,6 +126,7 @@ impl MainEvent {
         // I didn't find another way to initialize such large arrays.
         let mut wire_signals = [(); TPC_ANODE_WIRES].map(|_| None);
         let mut pad_signals = [(); TPC_PAD_COLUMNS].map(|_| [(); TPC_PAD_ROWS].map(|_| None));
+        let mut trigger_timestamp = None;
         // Need to group chunks by board and chip.
         let mut pwb_chunks_map: HashMap<_, Vec<_>> = HashMap::new();
 
@@ -174,6 +183,14 @@ impl MainEvent {
 
                     pwb_chunks_map.entry(key).or_default().push(chunk);
                 }
+                MainEventBankName::Trg(_) => {
+                    let packet = TrgPacket::try_from(data_slice)?;
+                    if trigger_timestamp.is_some() {
+                        return Err(TryMainEventFromDataBanksError::DuplicateTrgBank);
+                    } else {
+                        trigger_timestamp = Some(packet.timestamp());
+                    }
+                }
                 _ => {}
             }
         }
@@ -217,6 +234,8 @@ impl MainEvent {
         Ok(Self {
             wire_signals,
             pad_signals,
+            trigger_timestamp: trigger_timestamp
+                .ok_or(TryMainEventFromDataBanksError::MissingTrgBank)?,
         })
     }
 }
