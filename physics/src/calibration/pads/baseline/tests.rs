@@ -53,7 +53,7 @@ fn try_pad_baseline_correctness_9277() {
             let pad_position = TpcPadPosition { row, column };
 
             let baseline = try_pad_baseline(9277, pad_position);
-            if let Err(_) = baseline {
+            if baseline.is_err() {
                 missing += 1;
             }
         }

@@ -116,7 +116,7 @@ impl MainEvent {
     /// Given a run number, try to convert data banks to a [`MainEvent`]. The
     /// data banks are provided as an iterator over tuples of bank name and data
     /// slice.
-    pub fn try_from_data_banks<'a, I>(
+    pub fn try_from_banks<'a, I>(
         run_number: u32,
         banks: I,
     ) -> Result<Self, TryMainEventFromDataBanksError>

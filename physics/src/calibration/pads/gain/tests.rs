@@ -27,7 +27,7 @@ fn try_pad_gain_correctness_9277() {
             let pad_position = TpcPadPosition { row, column };
 
             let gain = try_pad_gain(9277, pad_position);
-            if let Err(_) = gain {
+            if gain.is_err() {
                 missing += 1;
             }
         }
