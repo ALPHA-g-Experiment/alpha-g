@@ -37,6 +37,9 @@ pub use crate::calibration::wires::gain::MapWireGainError;
 // believe it should be moved to a separate `alpha_g_calibration` crate.
 mod calibration;
 
+// Extract avalanche time and positions from the anode wire signals.
+mod anode_analysis;
+
 /// The error type returned when conversion from data banks to a [`MainEvent`]
 /// fails.
 #[derive(Error, Debug)]
@@ -108,6 +111,16 @@ pub enum TryMainEventFromDataBanksError {
 /// ALPHA-g main event.
 #[derive(Debug, Clone)]
 pub struct MainEvent {
+    // These are `Option` given that a channel could simply not have any data
+    // for a given event (data suppression, etc.).
+    //
+    // As explained in the `alpha_g_detector` documentation, the
+    // TpcWirePosition::try_from(0) does not necessarily mean `phi = 0`. We
+    // should make no assumptions from this `unsigned index` value. Nonetheless,
+    // contiguous wire channels are expected to have contiguous indices.
+    // It is just easier to work with an array (and their indices) than a map
+    // with a `TpcWirePosition` key. (As long as we are careful about the
+    // 0th wire channel.)
     wire_signals: [Option<Vec<f64>>; TPC_ANODE_WIRES],
     pad_signals: [[Option<Vec<f64>>; TPC_PAD_ROWS]; TPC_PAD_COLUMNS],
     trigger_timestamp: u32,
