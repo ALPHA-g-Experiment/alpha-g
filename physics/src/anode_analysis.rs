@@ -246,6 +246,7 @@ fn landweber_iteration(y: faer_core::MatRef<f64>) -> faer_core::Mat<f64> {
     let mut x = faer_core::Mat::zeros(i, j);
     // Each iteration is:
     // x_{k+1} = x_k + omega * R^T * (y - R * x_k)
+    // Random number of iterations. This has to be tuned
     for _ in 0..50 {
         let mut y = y.to_owned();
         faer_core::mul::triangular::matmul_with_conj(
@@ -274,6 +275,12 @@ fn landweber_iteration(y: faer_core::MatRef<f64>) -> faer_core::Mat<f64> {
             omega,
             faer_core::Parallelism::None,
         );
+        // Non-negative constraint
+        x.as_mut().cwise().for_each(|mut x| {
+            if x.read() < 0.0 {
+                x.write(0.0)
+            }
+        });
     }
 
     x
