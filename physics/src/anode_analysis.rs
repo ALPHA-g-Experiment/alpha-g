@@ -73,26 +73,10 @@ const NEIGHBOR_FACTORS: [f64; 5] = [1.0, -0.1275, -0.0365, -0.012, -0.0042];
 //
 // Each of these blocks can be treated independently e.g. analyzed in parallel,
 // etc.
-fn contiguous_ranges(wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES]) -> Vec<(usize, usize)> {
-    let mut ranges = Vec::new();
-    let mut start = 0;
-    let mut end = 0;
-    let mut in_range = false;
-    for (i, signal) in wire_signals.iter().enumerate() {
-        if signal.is_some() {
-            if !in_range {
-                start = i;
-                in_range = true;
-            }
-            end = i + 1;
-        } else if in_range {
-            ranges.push((start, end));
-            in_range = false;
-        }
-    }
-    if in_range {
-        ranges.push((start, end));
-    }
+pub(crate) fn contiguous_ranges(
+    wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES],
+) -> Vec<(usize, usize)> {
+    let mut ranges = crate::common::contiguous_ranges(wire_signals);
     // The array is actually a ring, hence the last signal can be contiguous
     // with the first one.
     // Merge these into a single block.
@@ -107,6 +91,73 @@ fn contiguous_ranges(wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES]) -> Vec<
     }
 
     ranges
+}
+
+// I can express my problem as the matrix equation:
+// Y = R * X * A
+// where:
+// - Y is the observed signals.
+// - R is the response matrix.
+// - X is the unknown/wanted avalanches.
+// - A is an induction coefficients matrix.
+//
+// Each column of X (and Y) is a channel. Each row of X (and Y) is a time bin.
+// I just need to create all the matrices and solve for X.
+
+// Solve for X given a range of signals.
+// Y = R * X * A
+pub(crate) fn solve_x(
+    wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES],
+    range: (usize, usize),
+) -> faer_core::Mat<f64> {
+    let (i, j) = problem_dimensions(wire_signals, range);
+    let mut a = a_matrix(j);
+    let mut y = y_matrix(wire_signals, range);
+
+    let mut mem = dyn_stack::GlobalMemBuffer::new(
+        faer_cholesky::llt::compute::cholesky_in_place_req::<f64>(
+            j,
+            faer_core::Parallelism::None,
+            Default::default(),
+        )
+        .unwrap(),
+    );
+    let mut stack = dyn_stack::DynStack::new(&mut mem);
+    faer_cholesky::llt::compute::cholesky_in_place(
+        a.as_mut(),
+        faer_core::Parallelism::None,
+        stack.rb_mut(),
+        Default::default(),
+    )
+    .unwrap();
+
+    let mut mem = dyn_stack::GlobalMemBuffer::new(
+        faer_cholesky::llt::solve::solve_transpose_in_place_req::<f64>(
+            j,
+            i,
+            faer_core::Parallelism::None,
+        )
+        .unwrap(),
+    );
+    let mut stack = dyn_stack::DynStack::new(&mut mem);
+    faer_cholesky::llt::solve::solve_transpose_in_place_with_conj(
+        a.as_ref(),
+        faer_core::Conj::No,
+        y.as_mut().transpose(),
+        faer_core::Parallelism::None,
+        stack.rb_mut(),
+    );
+    // At this point I have the system:
+    // Y = R * X
+    //
+    // R has a huge condition number, so the problem is basically ill-formed.
+    // Solve by minimizing |R * X - Y|_2.
+    crate::common::nn_landweber(
+        BIG_R_MATRIX.as_ref().submatrix(0, 0, i, i),
+        y.as_ref(),
+        2.0 / LARGEST_SVD[i].powi(2),
+        100,
+    )
 }
 
 // Given a range [first, last), return an iterator over the indices.
@@ -128,16 +179,6 @@ fn range_to_len(range: (usize, usize)) -> usize {
         TPC_ANODE_WIRES - first + last
     }
 }
-
-// I can express my problem as the matrix equation:
-// Y = R * X * A
-// where:
-// - Y is the observed signals.
-// - R is the response matrix.
-// - X is the unknown/wanted avalanches.
-// - A is an induction coefficients matrix.
-//
-// I just need to create all the matrices and solve for X.
 
 // Create the A matrix for a given size.
 fn a_matrix(n: usize) -> faer_core::Mat<f64> {
@@ -184,104 +225,4 @@ fn y_matrix(
             0.0
         }
     })
-}
-
-// Solve for X given a range of signals.
-// Y = R * X * A
-fn solve_x(
-    wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES],
-    range: (usize, usize),
-) -> faer_core::Mat<f64> {
-    let (i, j) = problem_dimensions(wire_signals, range);
-    let mut a = a_matrix(j);
-    let mut y = y_matrix(wire_signals, range);
-
-    let mut mem = dyn_stack::GlobalMemBuffer::new(
-        faer_cholesky::llt::compute::cholesky_in_place_req::<f64>(
-            j,
-            faer_core::Parallelism::None,
-            Default::default(),
-        )
-        .unwrap(),
-    );
-    let mut stack = dyn_stack::DynStack::new(&mut mem);
-    faer_cholesky::llt::compute::cholesky_in_place(
-        a.as_mut(),
-        faer_core::Parallelism::None,
-        stack.rb_mut(),
-        Default::default(),
-    )
-    .unwrap();
-
-    let mut mem = dyn_stack::GlobalMemBuffer::new(
-        faer_cholesky::llt::solve::solve_transpose_in_place_req::<f64>(
-            j,
-            i,
-            faer_core::Parallelism::None,
-        )
-        .unwrap(),
-    );
-    let mut stack = dyn_stack::DynStack::new(&mut mem);
-    faer_cholesky::llt::solve::solve_transpose_in_place_with_conj(
-        a.as_ref(),
-        faer_core::Conj::No,
-        y.as_mut().transpose(),
-        faer_core::Parallelism::None,
-        stack.rb_mut(),
-    );
-    // At this point I have the system:
-    // Y = R * X
-    //
-    // R has a huge condition number, so the problem is basically ill-formed.
-    // Solve by minimizing |R * X - Y|_2.
-    landweber_iteration(y.as_ref())
-}
-
-fn landweber_iteration(y: faer_core::MatRef<f64>) -> faer_core::Mat<f64> {
-    let i = y.nrows();
-    let j = y.ncols();
-    let omega = 2.0 / LARGEST_SVD[i].powi(2);
-    let r = BIG_R_MATRIX.as_ref().submatrix(0, 0, i, i);
-
-    let mut x = faer_core::Mat::zeros(i, j);
-    // Each iteration is:
-    // x_{k+1} = x_k + omega * R^T * (y - R * x_k)
-    // Random number of iterations. This has to be tuned
-    for _ in 0..50 {
-        let mut y = y.to_owned();
-        faer_core::mul::triangular::matmul_with_conj(
-            y.as_mut(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            r,
-            faer_core::mul::triangular::BlockStructure::TriangularLower,
-            faer_core::Conj::No,
-            x.as_ref(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            faer_core::Conj::No,
-            Some(1.0),
-            -1.0,
-            faer_core::Parallelism::None,
-        );
-        faer_core::mul::triangular::matmul_with_conj(
-            x.as_mut(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            r.transpose(),
-            faer_core::mul::triangular::BlockStructure::TriangularUpper,
-            faer_core::Conj::No,
-            y.as_ref(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            faer_core::Conj::No,
-            Some(1.0),
-            omega,
-            faer_core::Parallelism::None,
-        );
-        // Non-negative constraint
-        x.as_mut().cwise().for_each(|mut x| {
-            if x.read() < 0.0 {
-                x.write(0.0)
-            }
-        });
-    }
-
-    x
 }

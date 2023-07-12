@@ -37,6 +37,8 @@ pub use crate::calibration::wires::gain::MapWireGainError;
 // believe it should be moved to a separate `alpha_g_calibration` crate.
 mod calibration;
 
+// Common tools useful for wire and pad analysis
+mod common;
 // Extract avalanche time and wire from the anode wire signals.
 mod anode_analysis;
 
