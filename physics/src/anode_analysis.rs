@@ -55,9 +55,7 @@ lazy_static! {
     // For short runs, the time it took to calculate the SVD was large compared
     // to the rest of the analysis, hence I decided to simply load them from a
     // file.
-    static ref LARGEST_SVD: Vec<f64> = {
-        serde_json::from_slice(SVD_BYTES).unwrap()
-    };
+    static ref LARGEST_SVD: Vec<f64> = serde_json::from_slice(SVD_BYTES).unwrap();
 }
 // "Strength" of the signal induced on a neighboring wire.
 const NEIGHBOR_FACTORS: [f64; 5] = [1.0, -0.1275, -0.0365, -0.012, -0.0042];

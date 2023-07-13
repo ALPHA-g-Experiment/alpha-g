@@ -41,6 +41,8 @@ mod calibration;
 mod common;
 // Extract avalanche time and wire from the anode wire signals.
 mod anode_analysis;
+// Extract pad induced signals from the cathode pads.
+mod pad_analysis;
 
 /// The error type returned when conversion from data banks to a [`MainEvent`]
 /// fails.
