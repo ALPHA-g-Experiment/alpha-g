@@ -38,11 +38,7 @@ lazy_static! {
         faer_core::Mat::with_dims(MAX_SAMPLES, MAX_SAMPLES, |i, j| {
             if i >= j {
                 let diff = i - j;
-                if diff < WIRE_RESPONSE.len() {
-                    WIRE_RESPONSE[diff]
-                } else {
-                    0.0
-                }
+                WIRE_RESPONSE.get(diff).copied().unwrap_or(0.0)
             } else {
                 0.0
             }
@@ -74,7 +70,19 @@ const NEIGHBOR_FACTORS: [f64; 5] = [1.0, -0.1275, -0.0365, -0.012, -0.0042];
 pub(crate) fn contiguous_ranges(
     wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES],
 ) -> Vec<(usize, usize)> {
-    let mut ranges = crate::common::contiguous_ranges(wire_signals);
+    let mut ranges = Vec::new();
+    let mut start = 0;
+    let mut end = 0;
+    while start < TPC_ANODE_WIRES {
+        while end < TPC_ANODE_WIRES && wire_signals[end].is_some() {
+            end += 1;
+        }
+        if start < end {
+            ranges.push((start, end));
+        }
+        start = end + 1;
+        end = start;
+    }
     // The array is actually a ring, hence the last signal can be contiguous
     // with the first one.
     // Merge these into a single block.
@@ -150,7 +158,7 @@ pub(crate) fn solve_x(
     //
     // R has a huge condition number, so the problem is basically ill-formed.
     // Solve by minimizing |R * X - Y|_2.
-    crate::common::nn_landweber(
+    nn_landweber(
         BIG_R_MATRIX.as_ref().submatrix(0, 0, i, i),
         y.as_ref(),
         2.0 / LARGEST_SVD[i].powi(2),
@@ -182,11 +190,7 @@ fn range_to_len(range: (usize, usize)) -> usize {
 fn a_matrix(n: usize) -> faer_core::Mat<f64> {
     faer_core::Mat::with_dims(n, n, |i, j| {
         let diff = if i > j { i - j } else { j - i };
-        if diff < NEIGHBOR_FACTORS.len() {
-            NEIGHBOR_FACTORS[diff]
-        } else {
-            0.0
-        }
+        NEIGHBOR_FACTORS.get(diff).copied().unwrap_or(0.0)
     })
 }
 
@@ -216,11 +220,67 @@ fn y_matrix(
 
     faer_core::Mat::with_dims(i, j, |i, j| {
         let wire = range_to_indices(range).nth(j).unwrap();
-        let signal = wire_signals[wire].as_ref().unwrap();
-        if i < signal.len() {
-            signal[i]
-        } else {
-            0.0
-        }
+        wire_signals[wire]
+            .as_ref()
+            .unwrap()
+            .get(i)
+            .copied()
+            .unwrap_or(0.0)
     })
+}
+
+// Non-negative Landweber iterations.
+//
+// Given a matrix equation rx = y, minimize |rx - y|^2 with non-negative
+// constraints on x.
+// Given our use case, the following characteristics of r can be assumed:
+// 1. Square matrix
+// 2. Lower triangular
+// 3. Toeplitz
+fn nn_landweber(
+    r: faer_core::MatRef<f64>,
+    y: faer_core::MatRef<f64>,
+    omega: f64,
+    iterations: usize,
+) -> faer_core::Mat<f64> {
+    let mut x = faer_core::Mat::zeros(y.nrows(), y.ncols());
+    // Each iteration is:
+    // x_{k+1} = x_k + omega * r.T * (y - r * x_k)
+    for _ in 0..iterations {
+        let mut y = y.to_owned();
+        faer_core::mul::triangular::matmul_with_conj(
+            y.as_mut(),
+            faer_core::mul::triangular::BlockStructure::Rectangular,
+            r,
+            faer_core::mul::triangular::BlockStructure::TriangularLower,
+            faer_core::Conj::No,
+            x.as_ref(),
+            faer_core::mul::triangular::BlockStructure::Rectangular,
+            faer_core::Conj::No,
+            Some(1.0),
+            -1.0,
+            faer_core::Parallelism::None,
+        );
+        faer_core::mul::triangular::matmul_with_conj(
+            x.as_mut(),
+            faer_core::mul::triangular::BlockStructure::Rectangular,
+            r.transpose(),
+            faer_core::mul::triangular::BlockStructure::TriangularUpper,
+            faer_core::Conj::No,
+            y.as_ref(),
+            faer_core::mul::triangular::BlockStructure::Rectangular,
+            faer_core::Conj::No,
+            Some(1.0),
+            omega,
+            faer_core::Parallelism::None,
+        );
+        // Non-negative constraint
+        x.as_mut().cwise().for_each(|mut x| {
+            if x.read() < 0.0 {
+                x.write(0.0)
+            }
+        });
+    }
+
+    x
 }
