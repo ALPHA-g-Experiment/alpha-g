@@ -3,7 +3,7 @@ use crate::calibration::pads::gain::try_pad_gain;
 use crate::calibration::wires::baseline::try_wire_baseline;
 use crate::calibration::wires::gain::try_wire_gain;
 use alpha_g_detector::alpha16::aw_map::{
-    MapTpcWirePositionError, TpcWirePosition, TPC_ANODE_WIRES,
+    self, MapTpcWirePositionError, TpcWirePosition, TPC_ANODE_WIRES,
 };
 use alpha_g_detector::alpha16::{self, AdcPacket, TryAdcPacketFromSliceError};
 use alpha_g_detector::midas::{
@@ -19,6 +19,7 @@ use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
 use std::collections::HashMap;
 use thiserror::Error;
+use uom::si::f64::*;
 
 pub use crate::calibration::pads::baseline::MapPadBaselineError;
 pub use crate::calibration::pads::gain::MapPadGainError;
@@ -40,6 +41,35 @@ mod calibration;
 // Extract avalanche time and amplitude information from the wire and pad
 // signals.
 mod deconvolution;
+
+/// Townsend avalanche generated in the multiplying region near an anode wire
+/// surface.
+///
+/// All avalanches happen at the same radius equal to [`ANODE_WIRES_RADIUS`].
+#[derive(Clone, Copy, Debug)]
+pub struct Avalanche {
+    /// Time with respect to the first avalanche in the same event.
+    pub t: Time,
+    /// Azimuthal angle of the avalanche.
+    pub phi: Angle,
+    /// Axial position of the avalanche. The center of the detector is at
+    /// `z = 0`.
+    pub z: Length,
+    /// Amplitude of the avalanche in arbitrary units. Useful for relative
+    /// comparisons between avalanches in the same event.
+    ///
+    /// The absolute magnitude of this amplitude is subject to change at any
+    /// time without being considered a breaking change.  Do not use this value
+    /// to apply e.g. threshold cuts, etc.
+    pub amplitude: f64,
+}
+
+/// Radial position of the anode wires.
+pub const ANODE_WIRES_RADIUS: Length = Length {
+    dimension: uom::lib::marker::PhantomData,
+    units: uom::lib::marker::PhantomData,
+    value: aw_map::ANODE_WIRES_RADIUS,
+};
 
 /// The error type returned when conversion from data banks to a [`MainEvent`]
 /// fails.
@@ -253,3 +283,6 @@ impl MainEvent {
         })
     }
 }
+
+#[cfg(test)]
+mod tests;

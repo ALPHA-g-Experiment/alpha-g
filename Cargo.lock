@@ -66,6 +66,7 @@ dependencies = [
  "ron",
  "serde_json",
  "thiserror",
+ "uom",
 ]
 
 [[package]]
@@ -1496,6 +1497,16 @@ name = "unicode-width"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
+
+[[package]]
+name = "uom"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8362194c7a9845a7a7f3562173d6e1da3f24f7132018cb78fe77a5b4474187b2"
+dependencies = [
+ "num-traits",
+ "typenum",
+]
 
 [[package]]
 name = "version_check"

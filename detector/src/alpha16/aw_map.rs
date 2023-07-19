@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use thiserror::Error;
 
+/// Radius (in meters) of the position of the anode wires.
+pub const ANODE_WIRES_RADIUS: f64 = 0.182;
 /// Number of anode wires in the rTPC.
 pub const TPC_ANODE_WIRES: usize = 256;
 /// Angle (in radians) between two adjacent anode wires in the azimuthal
