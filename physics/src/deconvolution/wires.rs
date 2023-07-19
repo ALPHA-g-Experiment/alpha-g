@@ -1,10 +1,7 @@
-// This internal module contains all the analysis of the anode wire signals.
 // Our internal representation of the anode wires is:
 // [Option<Vec<f64>>; TPC_ANODE_WIRES] where an empty channel is `None`.
-// The index of a Vector in the array `i` maps to a wire position in the
-// detector as `TpcWirePosition::try_from(i).unwrap()`.
-// IMPORTANT to keep in mind that index 0 does not correspond to `phi = 0`.
 
+use crate::deconvolution::ls_deconvolution;
 use alpha_g_detector::alpha16::{aw_map::TPC_ANODE_WIRES, ADC32_RATE};
 use dyn_stack::ReborrowMut;
 use lazy_static::lazy_static;
@@ -12,8 +9,7 @@ use lazy_static::lazy_static;
 // Width in nanoseconds of each wire signal bin.
 const BIN_WIDTH: usize = (1.0e9 / ADC32_RATE) as usize;
 
-const RESPONSE_BYTES: &[u8] = include_bytes!("../data/simulation/tpc_response/wires.json");
-const SVD_BYTES: &[u8] = include_bytes!("../data/optimization/anode_analysis/largest_svd.json");
+const RESPONSE_BYTES: &[u8] = include_bytes!("../../data/simulation/tpc_response/wires.json");
 
 lazy_static! {
     // The format of the file is a serialized vector with the response every
@@ -26,32 +22,6 @@ lazy_static! {
             .map(|chunk| chunk.iter().sum())
             .collect()
     };
-    // The "r" matrix (see below) is usually big (400 x 400 ish) and it needs to
-    // be calculated for every cluster of wires. Given the nature of the matrix
-    // (Toeplitz and lower triangular) it is cheaper to calculate it once and
-    // then get a reference to the (smaller) submatrix required for each
-    // cluster.
-    static ref BIG_R_MATRIX: faer_core::Mat<f64> = {
-        // Random large number. Larger than the maximum wire signal length.
-        // The actual maximum is 513 (I think).
-        const MAX_SAMPLES: usize = 600;
-        faer_core::Mat::with_dims(MAX_SAMPLES, MAX_SAMPLES, |i, j| {
-            if i >= j {
-                let diff = i - j;
-                WIRE_RESPONSE.get(diff).copied().unwrap_or(0.0)
-            } else {
-                0.0
-            }
-        })
-    };
-    // Cache the largest singular value of all submatrices of the BIG_R_MATRIX
-    // It is too expensive to calculate it every time.
-    // LARGEST_SVD[i] corresponds to the value from the matrix of size i x i.
-    // For very large runs, computing this was relatively short.
-    // For short runs, the time it took to calculate the SVD was large compared
-    // to the rest of the analysis, hence I decided to simply load them from a
-    // file.
-    static ref LARGEST_SVD: Vec<f64> = serde_json::from_slice(SVD_BYTES).unwrap();
 }
 // "Strength" of the signal induced on a neighboring wire.
 const NEIGHBOR_FACTORS: [f64; 5] = [1.0, -0.1275, -0.0365, -0.012, -0.0042];
@@ -99,27 +69,22 @@ pub(crate) fn contiguous_ranges(
     ranges
 }
 
-// I can express my problem as the matrix equation:
-// Y = R * X * A
-// where:
-// - Y is the observed signals.
-// - R is the response matrix.
-// - X is the unknown/wanted avalanches.
-// - A is an induction coefficients matrix.
+// The range should be one of the ones returned by `contiguous_ranges`.
+// Basically this assumes:
+//     1. The range is not empty.
+//     2. All signals in the range [first, last) are `Some`.
 //
-// Each column of X (and Y) is a channel. Each row of X (and Y) is a time bin.
-// I just need to create all the matrices and solve for X.
-
-// Solve for X given a range of signals.
-// Y = R * X * A
-pub(crate) fn solve_x(
+//  The returned vector has the same length as the input range. Vector `0`
+//  corresponds to `first`, element `1` to `first.next()`, etc.
+pub(crate) fn wire_range_deconvolution(
     wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES],
     range: (usize, usize),
-) -> faer_core::Mat<f64> {
+) -> Vec<Vec<f64>> {
     let (i, j) = problem_dimensions(wire_signals, range);
     let mut a = a_matrix(j);
     let mut y = y_matrix(wire_signals, range);
-
+    // I can remove the cross-talk between channels as:
+    // Y * A^-1 = Y' = R * X
     let mut mem = dyn_stack::GlobalMemBuffer::new(
         faer_cholesky::llt::compute::cholesky_in_place_req::<f64>(
             j,
@@ -154,16 +119,18 @@ pub(crate) fn solve_x(
         stack.rb_mut(),
     );
     // At this point I have the system:
-    // Y = R * X
-    //
-    // R has a huge condition number, so the problem is basically ill-formed.
-    // Solve by minimizing |R * X - Y|_2.
-    nn_landweber(
-        BIG_R_MATRIX.as_ref().submatrix(0, 0, i, i),
-        y.as_ref(),
-        2.0 / LARGEST_SVD[i].powi(2),
-        100,
-    )
+    // Y' = R * X
+    // Each channel is just an independent system.
+    let mut sol = Vec::with_capacity(j);
+    for column in 0..j {
+        let signal = y.col_as_slice(column);
+        // The best `offset` and `look_ahead` are highly concentrated in the
+        // following ranges chosen. To reproduce just make a 2D histogram; there
+        // is barely anything outside these ranges.
+        sol.push(ls_deconvolution(signal, &WIRE_RESPONSE, 0..=1, 3..=12));
+    }
+
+    sol
 }
 
 // Given a range [first, last), return an iterator over the indices.
@@ -185,6 +152,17 @@ fn range_to_len(range: (usize, usize)) -> usize {
         TPC_ANODE_WIRES - first + last
     }
 }
+
+// I can express a set of wire signals as the matrix equation:
+// Y = R * X * A
+// where:
+// - Y is the observed signals.
+// - R is the response matrix.
+// - X is the unknown/wanted avalanches.
+// - A is an induction coefficients matrix.
+//
+// Each column of X (and Y) is a channel. Each row of X (and Y) is a time bin.
+// I just need to create all the matrices and solve for X.
 
 // Create the A matrix for a given size.
 fn a_matrix(n: usize) -> faer_core::Mat<f64> {
@@ -229,58 +207,5 @@ fn y_matrix(
     })
 }
 
-// Non-negative Landweber iterations.
-//
-// Given a matrix equation rx = y, minimize |rx - y|^2 with non-negative
-// constraints on x.
-// Given our use case, the following characteristics of r can be assumed:
-// 1. Square matrix
-// 2. Lower triangular
-// 3. Toeplitz
-fn nn_landweber(
-    r: faer_core::MatRef<f64>,
-    y: faer_core::MatRef<f64>,
-    omega: f64,
-    iterations: usize,
-) -> faer_core::Mat<f64> {
-    let mut x = faer_core::Mat::zeros(y.nrows(), y.ncols());
-    // Each iteration is:
-    // x_{k+1} = x_k + omega * r.T * (y - r * x_k)
-    for _ in 0..iterations {
-        let mut y = y.to_owned();
-        faer_core::mul::triangular::matmul_with_conj(
-            y.as_mut(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            r,
-            faer_core::mul::triangular::BlockStructure::TriangularLower,
-            faer_core::Conj::No,
-            x.as_ref(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            faer_core::Conj::No,
-            Some(1.0),
-            -1.0,
-            faer_core::Parallelism::None,
-        );
-        faer_core::mul::triangular::matmul_with_conj(
-            x.as_mut(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            r.transpose(),
-            faer_core::mul::triangular::BlockStructure::TriangularUpper,
-            faer_core::Conj::No,
-            y.as_ref(),
-            faer_core::mul::triangular::BlockStructure::Rectangular,
-            faer_core::Conj::No,
-            Some(1.0),
-            omega,
-            faer_core::Parallelism::None,
-        );
-        // Non-negative constraint
-        x.as_mut().cwise().for_each(|mut x| {
-            if x.read() < 0.0 {
-                x.write(0.0)
-            }
-        });
-    }
-
-    x
-}
+#[cfg(test)]
+mod tests;

@@ -37,10 +37,9 @@ pub use crate::calibration::wires::gain::MapWireGainError;
 // believe it should be moved to a separate `alpha_g_calibration` crate.
 mod calibration;
 
-// Extract avalanche time and wire from the anode wire signals.
-mod anode_analysis;
-// Extract induced signal information from the cathode pads.
-mod pad_analysis;
+// Extract avalanche time and amplitude information from the wire and pad
+// signals.
+mod deconvolution;
 
 /// The error type returned when conversion from data banks to a [`MainEvent`]
 /// fails.
