@@ -23,25 +23,51 @@ fn nn_greedy_deconvolution(
     look_ahead: usize,
     // Return the sum of residuals squared together with the reconstructed input
 ) -> (f64, Vec<f64>) {
+    let response_window = &response[offset..][..look_ahead];
+    // The response is always negative in the range we are looking at. This is
+    // particularly important for the optimization done below.
+    // This assert is here just to panic if this assumption is violated
+    // accidentally at some point in the future.
+    assert!(response_window.iter().all(|&x| x < 0.0));
+
     let mut residual = signal.to_vec();
     let mut input = vec![0.0; signal.len()];
-
-    for i in 0..(residual.len() - offset - look_ahead) {
-        let val = residual[i + offset..][..look_ahead]
+    // Unnatural way of sliding the window, but it allows a 2x speedup by
+    // jumping over chunks of the signal at a time.
+    let mut i = 0;
+    while i < residual.len() - offset - look_ahead {
+        let residual_window = &residual[i + offset..][..look_ahead];
+        // Find the index of the last non-negative value in the residual window.
+        // If there is any non-negative value, it means that there was no input,
+        // furthermore we can skip time bins until this particular value goes
+        // out of the window.
+        let last_positive = residual_window
             .iter()
-            .zip(response[offset..][..look_ahead].iter())
-            .map(|(s, r)| s / r)
-            .reduce(f64::min)
-            .unwrap();
+            .enumerate()
+            .rev()
+            .find(|(_, x)| **x >= 0.0)
+            .map(|(i, _)| i);
 
-        if val > 0.0 {
+        if let Some(last_positive) = last_positive {
+            i += last_positive + 1;
+        } else {
+            let val = residual_window
+                .iter()
+                .zip(response_window)
+                .map(|(s, r)| s / r)
+                .reduce(f64::min)
+                .unwrap();
+
             input[i] = val;
             residual[i..]
                 .iter_mut()
                 .zip(response)
                 .for_each(|(s, r)| *s -= val * r);
+
+            i += 1;
         }
     }
+
     let residual = residual.iter().map(|x| x.powi(2)).sum();
 
     (residual, input)
