@@ -1,12 +1,5 @@
-// Internal representation of the pad signals is:
-// [[Option<Vec<f64>>; TPC_PAD_ROWS]; TPC_PAD_COLUMNS] where an empty channel is
-// `None`.
-
 use crate::deconvolution::ls_deconvolution;
-use alpha_g_detector::padwing::{
-    map::{TPC_PAD_COLUMNS, TPC_PAD_ROWS},
-    PWB_RATE,
-};
+use alpha_g_detector::padwing::PWB_RATE;
 use lazy_static::lazy_static;
 
 // Width in nanoseconds of each pad signal bin.
@@ -29,14 +22,7 @@ lazy_static! {
     };
 }
 
-// The row and column are assumed to be in the correct range.
-// Furthermore, the signal is assumed to be `Some`.
-pub(crate) fn pad_deconvolution(
-    pad_signals: &[[Option<Vec<f64>>; TPC_PAD_ROWS]; TPC_PAD_COLUMNS],
-    row: usize,
-    column: usize,
-) -> Vec<f64> {
-    let signal = &pad_signals[column][row].as_ref().unwrap();
+pub(crate) fn pad_deconvolution(signal: &[f64]) -> Vec<f64> {
     // A 2D histogram of `best_offset` and `best_look_ahead` is not as
     // concentrated for the pad signals as it is for the wires. But it is not
     // too bad either. The "problem" is that there are way more pad signals
