@@ -426,7 +426,7 @@ impl TryFrom<usize> for TpcPadColumn {
 
     /// Convert from a `usize` (`0..=31`) to a [`TpcPadColumn`]. Do not assume
     /// angular position of a pad column based on this index; the
-    /// [`TpcPadPosition::phi()`] method should be used instead.
+    /// [`TpcPadColumn::phi()`] method should be used instead.
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if value < TPC_PAD_COLUMNS {
             Ok(TpcPadColumn(value))
@@ -443,12 +443,19 @@ impl From<TpcPadColumn> for usize {
     /// Convert to the `u: usize` such that
     /// `TpcPadColumn::try_from(u).unwrap() == self`. Do not assume angular
     /// position of a pad column based on this index; the
-    /// [`TpcPadPosition::phi()`] method should always be used instead.
+    /// [`TpcPadColumn::phi()`] method should always be used instead.
     ///
     /// If you are explicitly using this conversion, you are probably doing
     /// something wrong.
     fn from(pad_column: TpcPadColumn) -> Self {
         pad_column.0
+    }
+}
+impl TpcPadColumn {
+    /// Return the `phi` coordinate (in radians) of the pad column.
+    pub fn phi(&self) -> f64 {
+        let column = self.0;
+        (column as f64 + 0.5) * PAD_PITCH_PHI
     }
 }
 
@@ -463,7 +470,7 @@ impl TryFrom<usize> for TpcPadRow {
 
     /// Convert from a `usize` (`0..=575`) to a [`TpcPadRow`]. Do not assume a
     /// `z` position of a pad row based on this index; the
-    /// [`TpcPadPosition::z()`] method should be used instead.
+    /// [`TpcPadRow::z()`] method should be used instead.
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if value < TPC_PAD_ROWS {
             Ok(TpcPadRow(value))
@@ -478,13 +485,22 @@ impl TryFrom<usize> for TpcPadRow {
 impl From<TpcPadRow> for usize {
     /// Convert to the `u: usize` such that
     /// `TpcPadRow::try_from(u).unwrap() == self`. Do not assume `z` position of
-    /// a pad row based on this index; the [`TpcPadPosition::z()`] method should
+    /// a pad row based on this index; the [`TpcPadRow::z()`] method should
     /// always be used instead.
     ///
     /// If you are explicitly using this conversion, you are probably doing
     /// something wrong.
     fn from(pad_row: TpcPadRow) -> Self {
         pad_row.0
+    }
+}
+impl TpcPadRow {
+    /// Return the `z` coordinate (in meters) of the pad row. The `z` coordinate
+    /// is measured from the center of the rTPC (positive upward).
+    pub fn z(&self) -> f64 {
+        let row = self.0;
+        const DETECTOR_HALF_LENGTH: f64 = 0.5 * DETECTOR_LENGTH;
+        (row as f64 + 0.5) * PAD_PITCH_Z - DETECTOR_HALF_LENGTH
     }
 }
 
@@ -592,9 +608,7 @@ impl TpcPadPosition {
     /// # }
     /// ```
     pub fn z(&self) -> f64 {
-        let TpcPadRow(row) = self.row;
-        const DETECTOR_HALF_LENGTH: f64 = 0.5 * DETECTOR_LENGTH;
-        (row as f64 + 0.5) * PAD_PITCH_Z - DETECTOR_HALF_LENGTH
+        self.row.z()
     }
     /// Return the `phi` coordinate (in radians) of the pad center within the
     /// rTPC.
@@ -618,8 +632,7 @@ impl TpcPadPosition {
     /// # }
     /// ```
     pub fn phi(&self) -> f64 {
-        let TpcPadColumn(column) = self.column;
-        (column as f64 + 0.5) * PAD_PITCH_PHI
+        self.column.phi()
     }
 }
 
