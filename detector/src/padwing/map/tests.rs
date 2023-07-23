@@ -534,6 +534,14 @@ fn tpc_pad_column_ron_roundtrip() {
 }
 
 #[test]
+fn tpc_pad_column_phi() {
+    for i in 0..=31 {
+        let pad_column = TpcPadColumn::try_from(i).unwrap();
+        assert_eq!(pad_column.phi(), (i as f64 + 0.5) * 2.0 * PI / 32.0);
+    }
+}
+
+#[test]
 fn try_from_index_tpc_pad_row() {
     for i in 0..=575 {
         assert_eq!(TpcPadRow::try_from(i).unwrap(), TpcPadRow(i));
@@ -558,6 +566,16 @@ fn tpc_pad_row_ron_roundtrip() {
         let pad_row_ron = ron::to_string(&pad_row).unwrap();
         let pad_row_deserialized: TpcPadRow = ron::from_str(&pad_row_ron).unwrap();
         assert_eq!(pad_row, pad_row_deserialized);
+    }
+}
+
+#[test]
+fn tpc_pad_row_z() {
+    let start = -0.5 * DETECTOR_LENGTH;
+    for i in 0..=575 {
+        let pad_row = TpcPadRow::try_from(i).unwrap();
+        let z = start + (i as f64 + 0.5) * PAD_PITCH_Z;
+        assert_eq!(pad_row.z(), z);
     }
 }
 

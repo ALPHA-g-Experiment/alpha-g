@@ -676,3 +676,76 @@ fn trigger_bank_name_pattern_mismatch() {
 fn trigger_bank_name_valid() {
     assert!(TriggerBankName::try_from("ATAT").is_ok());
 }
+
+#[test]
+fn trb3_bank_name_pattern_mismatch() {
+    match Trb3BankName::try_from("trba") {
+        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "trba");
+        }
+        _ => unreachable!(),
+    }
+    match Trb3BankName::try_from("Trba") {
+        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "Trba");
+        }
+        _ => unreachable!(),
+    }
+    match Trb3BankName::try_from("tRba") {
+        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "tRba");
+        }
+        _ => unreachable!(),
+    }
+    match Trb3BankName::try_from("trBa") {
+        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "trBa");
+        }
+        _ => unreachable!(),
+    }
+    match Trb3BankName::try_from("trbA") {
+        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
+            assert_eq!(input, "trbA");
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn trb3_bank_name_valid() {
+    assert!(Trb3BankName::try_from("TRBA").is_ok());
+}
+
+#[test]
+fn main_event_bank_name_invalid() {
+    assert!(MainEventBankName::try_from("atat").is_err());
+    assert!(MainEventBankName::try_from("Atat").is_err());
+    assert!(MainEventBankName::try_from("B09").is_err());
+    assert!(MainEventBankName::try_from("C09").is_err());
+    assert!(MainEventBankName::try_from("PCXX").is_err());
+    assert!(MainEventBankName::try_from("Trba").is_err());
+}
+
+#[test]
+fn main_event_bank_name_valid() {
+    assert!(matches!(
+        MainEventBankName::try_from("ATAT").unwrap(),
+        MainEventBankName::Trg(_)
+    ));
+    assert!(matches!(
+        MainEventBankName::try_from("B09A").unwrap(),
+        MainEventBankName::Alpha16(_)
+    ));
+    assert!(matches!(
+        MainEventBankName::try_from("C09A").unwrap(),
+        MainEventBankName::Alpha16(_)
+    ));
+    assert!(matches!(
+        MainEventBankName::try_from("PC00").unwrap(),
+        MainEventBankName::Padwing(_)
+    ));
+    assert!(matches!(
+        MainEventBankName::try_from("TRBA").unwrap(),
+        MainEventBankName::Trb3(_)
+    ));
+}

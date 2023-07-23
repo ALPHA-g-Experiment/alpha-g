@@ -380,5 +380,82 @@ impl TryFrom<&str> for TriggerBankName {
     }
 }
 
+/// The error type returned when parsing a TRB3 bank name fails.
+#[derive(Error, Debug)]
+pub enum ParseTrb3BankNameError {
+    /// Input string pattern doesn't match the expected TRB3 bank name
+    /// pattern.
+    #[error("input string `{input}` doesn't match Trb3BankName pattern")]
+    PatternMismatch { input: String },
+}
+
+/// Name of a MIDAS bank with data from the TRB3 board.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Trb3BankName;
+impl TryFrom<&str> for Trb3BankName {
+    type Error = ParseTrb3BankNameError;
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if name != "TRBA" {
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
+        }
+        Ok(Trb3BankName)
+    }
+}
+
+/// The error type returned when parsing a main event bank name fails.
+#[derive(Error, Debug)]
+pub enum ParseMainEventBankNameError {
+    /// Input string pattern doesn't match any main event bank name pattern.
+    #[error("input string `{input}` doesn't match any main event bank name pattern")]
+    PatternMismatch { input: String },
+    /// Input string partially matches an [`Alpha16BankName`] pattern but
+    /// doesn't match the full pattern.
+    #[error("bad alpha16 bank name")]
+    BadAlpha16(#[from] ParseAlpha16BankNameError),
+    /// Input string partially matches a [`PadwingBankName`] pattern but doesn't
+    /// match the full pattern.
+    #[error("bad padwing bank name")]
+    BadPadwing(#[from] ParsePadwingBankNameError),
+    /// Input string partially matches a [`TriggerBankName`] pattern but doesn't
+    /// match the full pattern.
+    #[error("bad trigger bank name")]
+    BadTrigger(#[from] ParseTriggerBankNameError),
+    /// Input string partially matches a [`Trb3BankName`] pattern but doesn't
+    /// match the full pattern.
+    #[error("bad trb3 bank name")]
+    BadTrb3(#[from] ParseTrb3BankNameError),
+}
+
+/// Name of a MIDAS bank in a main event (i.e. with an event id [`EventId::Main`]).
+#[derive(Clone, Copy, Debug)]
+pub enum MainEventBankName {
+    /// Name of a MIDAS bank with data from the Alpha16 board.
+    Alpha16(Alpha16BankName),
+    /// Name of a MIDAS bank with data from the cathode pads of the radial Time
+    /// Projection Chamber.
+    Padwing(PadwingBankName),
+    /// Name of a MIDAS bank with data from the Trigger board.
+    Trg(TriggerBankName),
+    /// Name of a MIDAS bank with data from the TRB3 board.
+    Trb3(Trb3BankName),
+}
+impl TryFrom<&str> for MainEventBankName {
+    type Error = ParseMainEventBankNameError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        match name.chars().next() {
+            Some('A') => Ok(Self::Trg(TriggerBankName::try_from(name)?)),
+            Some('B' | 'C') => Ok(Self::Alpha16(Alpha16BankName::try_from(name)?)),
+            Some('P') => Ok(Self::Padwing(PadwingBankName::try_from(name)?)),
+            Some('T') => Ok(Self::Trb3(Trb3BankName::try_from(name)?)),
+            _ => Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            }),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;

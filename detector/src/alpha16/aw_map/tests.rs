@@ -1,5 +1,13 @@
 use super::*;
+use crate::padwing::map::CATHODE_PADS_RADIUS;
 use std::collections::HashSet;
+
+#[test]
+fn anode_wires_radius() {
+    let gap = CATHODE_PADS_RADIUS - ANODE_WIRES_RADIUS;
+    let diff = gap - 0.008;
+    assert!(diff.abs() < 1e-10);
+}
 
 #[test]
 fn tpc_anode_wires() {
