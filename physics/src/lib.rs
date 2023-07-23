@@ -20,8 +20,8 @@ use alpha_g_detector::padwing::map::{
 use alpha_g_detector::padwing::{
     self, Chunk, PwbPacket, TryChunkFromSliceError, TryPwbPacketFromChunksError,
 };
-use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
+use alpha_g_detector::trigger::{self, TrgPacket};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 use uom::si::f64::*;
@@ -76,6 +76,13 @@ pub const ANODE_WIRES_RADIUS: Length = Length {
     dimension: uom::lib::marker::PhantomData,
     units: uom::lib::marker::PhantomData,
     value: aw_map::ANODE_WIRES_RADIUS,
+};
+
+/// Frequency of the internal TRG clock.
+pub const TRG_CLOCK_FREQ: Frequency = Frequency {
+    dimension: uom::lib::marker::PhantomData,
+    units: uom::lib::marker::PhantomData,
+    value: trigger::TRG_CLOCK_FREQ,
 };
 
 /// The error type returned when conversion from data banks to a [`MainEvent`]
@@ -329,6 +336,13 @@ impl MainEvent {
         }
 
         avalanches
+    }
+    /// Return the trigger timestamp of the event. This is a counter that
+    /// increments at a frequency of [`TRG_CLOCK_FREQ`].
+    ///
+    /// Note that this counter wraps around after a certain amount of time.
+    pub fn timestamp(&self) -> u32 {
+        self.trigger_timestamp
     }
 }
 
