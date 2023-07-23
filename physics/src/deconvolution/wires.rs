@@ -123,11 +123,11 @@ pub(crate) fn wire_range_deconvolution(
     // Each channel is just an independent system.
     let mut sol = Vec::with_capacity(j);
     for column in 0..j {
-        let signal = y.col_as_slice(column);
+        let signal = (0..i).map(|row| y.read(row, column)).collect::<Vec<_>>();
         // The best `offset` and `look_ahead` are highly concentrated in the
         // following ranges chosen. To reproduce just make a 2D histogram; there
         // is barely anything outside these ranges.
-        sol.push(ls_deconvolution(signal, &WIRE_RESPONSE, 0..=1, 3..=12));
+        sol.push(ls_deconvolution(&signal, &WIRE_RESPONSE, 0..=1, 3..=12));
     }
 
     range_to_indices(range).zip(sol).collect()
