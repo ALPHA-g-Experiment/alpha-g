@@ -2,6 +2,11 @@ use crate::calibration::pads::baseline::try_pad_baseline;
 use crate::calibration::pads::gain::try_pad_gain;
 use crate::calibration::wires::baseline::try_wire_baseline;
 use crate::calibration::wires::gain::try_wire_gain;
+use crate::deconvolution::pads::pad_deconvolution;
+use crate::deconvolution::wires::{
+    contiguous_ranges, remove_noise_after_t, wire_range_deconvolution,
+};
+use crate::matching::{match_column_inputs, pad_column_to_wires, t_min, wire_to_pad_column};
 use alpha_g_detector::alpha16::aw_map::{
     self, MapTpcWirePositionError, TpcWirePosition, TPC_ANODE_WIRES,
 };
@@ -17,7 +22,7 @@ use alpha_g_detector::padwing::{
 };
 use alpha_g_detector::trigger::TrgPacket;
 use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 use uom::si::f64::*;
 
@@ -41,6 +46,8 @@ mod calibration;
 // Extract avalanche time and amplitude information from the wire and pad
 // signals.
 mod deconvolution;
+// Match wire and pad signals to obtain Avalanches.
+mod matching;
 
 /// Townsend avalanche generated in the multiplying region near an anode wire
 /// surface.
@@ -281,6 +288,47 @@ impl MainEvent {
             trigger_timestamp: trigger_timestamp
                 .ok_or(TryMainEventFromDataBanksError::MissingTrgBank)?,
         })
+    }
+    /// Return all reconstructed avalanches in the event.
+    pub fn avalanches(&self) -> Vec<Avalanche> {
+        // Match wire and pad signals only on columns that have both.
+        let mut pad_columns = HashSet::new();
+        // Deconvolution of wires needs to be done in chunks of contiguous wires.
+        let mut wire_inputs = [(); TPC_ANODE_WIRES].map(|_| Vec::new());
+        for range in contiguous_ranges(&self.wire_signals) {
+            for (i, input) in wire_range_deconvolution(&self.wire_signals, range) {
+                wire_inputs[i] = input;
+                pad_columns.insert(wire_to_pad_column(i));
+            }
+        }
+        let t_min = t_min(&wire_inputs);
+        // Anything before `t_min` is assumed to be noise. Use that to remove
+        // the noise in the region of interest, i.e. after `t_min`.
+        // 4/5 is just an arbitrary number that leaves some wiggle room in front
+        // of `t_min` to account for some jitter in the deconvolution.
+        // The typical `tmin` is 100ish or greater. This just leaves about 20
+        // or more time bins.
+        remove_noise_after_t(&mut wire_inputs, 4 * t_min / 5);
+
+        let mut avalanches = Vec::new();
+        for column in pad_columns {
+            let mut pad_inputs_column = [(); TPC_PAD_ROWS].map(|_| Vec::new());
+            for (row, input) in pad_inputs_column.iter_mut().enumerate() {
+                if let Some(signal) = self.pad_signals[column][row].as_ref() {
+                    *input = pad_deconvolution(signal);
+                }
+            }
+
+            let wire_indices = pad_column_to_wires(column);
+            avalanches.extend(match_column_inputs(
+                wire_indices.clone().collect::<Vec<_>>().try_into().unwrap(),
+                wire_inputs[wire_indices].try_into().unwrap(),
+                &pad_inputs_column,
+                t_min,
+            ));
+        }
+
+        avalanches
     }
 }
 

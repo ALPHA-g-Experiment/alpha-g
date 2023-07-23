@@ -43,8 +43,7 @@ fn trivial_single_wire_deconvolution() {
         .collect::<Vec<_>>();
     signals[0] = Some(signal);
 
-    let deconvolved = wire_range_deconvolution(&signals, (0, 1));
-    for (channel, recovered) in deconvolved.iter().enumerate() {
+    for (channel, recovered) in wire_range_deconvolution(&signals, (0, 1)) {
         for (t, sample) in recovered.iter().enumerate() {
             if channel == 0 && t == 10 {
                 let diff = sample - scale;
@@ -73,10 +72,9 @@ fn trivial_multiple_wires_deconvolution() {
         }
     }
 
-    let deconvolved = wire_range_deconvolution(&signals, (252, 5));
-    for (channel, recovered) in deconvolved.iter().enumerate() {
+    for (channel, recovered) in wire_range_deconvolution(&signals, (252, 5)) {
         for (t, sample) in recovered.iter().enumerate() {
-            if channel == 4 && t == offset {
+            if channel == 0 && t == offset {
                 let diff = sample - scale;
                 assert!(diff.abs() < 1e-6);
             } else {
@@ -84,4 +82,19 @@ fn trivial_multiple_wires_deconvolution() {
             }
         }
     }
+}
+
+#[test]
+fn wire_inputs_remove_noise_after_t() {
+    let mut wire_inputs = [(); TPC_ANODE_WIRES].map(|_| Vec::new());
+    wire_inputs[0] = vec![1.0, 2.0, 0.5, 1.1, 1.0, 2.5];
+
+    remove_noise_after_t(&mut wire_inputs, 0);
+    assert_eq!(wire_inputs[0], vec![1.0, 2.0, 0.5, 1.1, 1.0, 2.5]);
+
+    remove_noise_after_t(&mut wire_inputs, 1);
+    assert_eq!(wire_inputs[0], vec![1.0, 2.0, 0.0, 1.1, 0.0, 2.5]);
+
+    remove_noise_after_t(&mut wire_inputs, 2);
+    assert_eq!(wire_inputs[0], vec![1.0, 2.0, 0.0, 0.0, 0.0, 2.5]);
 }

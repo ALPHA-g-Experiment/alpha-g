@@ -79,7 +79,7 @@ pub(crate) fn contiguous_ranges(
 pub(crate) fn wire_range_deconvolution(
     wire_signals: &[Option<Vec<f64>>; TPC_ANODE_WIRES],
     range: (usize, usize),
-) -> Vec<Vec<f64>> {
+) -> Vec<(usize, Vec<f64>)> {
     let (i, j) = problem_dimensions(wire_signals, range);
     let mut a = a_matrix(j);
     let mut y = y_matrix(wire_signals, range);
@@ -130,7 +130,21 @@ pub(crate) fn wire_range_deconvolution(
         sol.push(ls_deconvolution(signal, &WIRE_RESPONSE, 0..=1, 3..=12));
     }
 
-    sol
+    range_to_indices(range).zip(sol).collect()
+}
+
+// Given a time bin `t`, remove the noise of all channels from `t` onwards.
+// For each channel, the noise threshold is the maximum value in the range
+// [0, t).
+pub(crate) fn remove_noise_after_t(wire_inputs: &mut [Vec<f64>; TPC_ANODE_WIRES], t: usize) {
+    for input in wire_inputs {
+        let noise_threshold = input.iter().take(t).copied().fold(0.0, f64::max);
+        for value in input.iter_mut().skip(t) {
+            if *value <= noise_threshold {
+                *value = 0.0;
+            }
+        }
+    }
 }
 
 // Given a range [first, last), return an iterator over the indices.
