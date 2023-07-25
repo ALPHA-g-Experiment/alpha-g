@@ -717,6 +717,17 @@ fn trb3_bank_name_valid() {
 }
 
 #[test]
+fn mc_vertex_bank_name_pattern_mismatch() {
+    assert!(McVertexBankName::try_from("mcvx").is_err());
+    assert!(McVertexBankName::try_from("Mcvx").is_err());
+}
+
+#[test]
+fn mc_vertex_bank_name_valid() {
+    assert!(McVertexBankName::try_from("MCVX").is_ok());
+}
+
+#[test]
 fn main_event_bank_name_invalid() {
     assert!(MainEventBankName::try_from("atat").is_err());
     assert!(MainEventBankName::try_from("Atat").is_err());
@@ -724,6 +735,7 @@ fn main_event_bank_name_invalid() {
     assert!(MainEventBankName::try_from("C09").is_err());
     assert!(MainEventBankName::try_from("PCXX").is_err());
     assert!(MainEventBankName::try_from("Trba").is_err());
+    assert!(MainEventBankName::try_from("Mcvx").is_err());
 }
 
 #[test]
@@ -747,5 +759,9 @@ fn main_event_bank_name_valid() {
     assert!(matches!(
         MainEventBankName::try_from("TRBA").unwrap(),
         MainEventBankName::Trb3(_)
+    ));
+    assert!(matches!(
+        MainEventBankName::try_from("MCVX").unwrap(),
+        MainEventBankName::McVertex(_)
     ));
 }

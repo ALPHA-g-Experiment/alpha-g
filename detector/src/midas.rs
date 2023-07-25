@@ -404,6 +404,30 @@ impl TryFrom<&str> for Trb3BankName {
     }
 }
 
+/// The error type returned when parsing a Monte Carlo vertex bank name fails.
+#[derive(Error, Debug)]
+pub enum ParseMcVertexBankNameError {
+    /// Input string pattern doesn't match the expected Monte Carlo vertex bank
+    /// name pattern.
+    #[error("input string `{input}` doesn't match McVertexBankName pattern")]
+    PatternMismatch { input: String },
+}
+
+/// Name of a MIDAS bank with a Monte Carlo vertex data.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct McVertexBankName;
+impl TryFrom<&str> for McVertexBankName {
+    type Error = ParseMcVertexBankNameError;
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if name != "MCVX" {
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
+        }
+        Ok(McVertexBankName)
+    }
+}
+
 /// The error type returned when parsing a main event bank name fails.
 #[derive(Error, Debug)]
 pub enum ParseMainEventBankNameError {
@@ -426,6 +450,10 @@ pub enum ParseMainEventBankNameError {
     /// match the full pattern.
     #[error("bad trb3 bank name")]
     BadTrb3(#[from] ParseTrb3BankNameError),
+    /// Input string partially matches a [`McVertexBankName`] pattern but
+    /// doesn't match the full pattern.
+    #[error("bad mc vertex bank name")]
+    BadMcVertex(#[from] ParseMcVertexBankNameError),
 }
 
 /// Name of a MIDAS bank in a main event (i.e. with an event id [`EventId::Main`]).
@@ -440,6 +468,8 @@ pub enum MainEventBankName {
     Trg(TriggerBankName),
     /// Name of a MIDAS bank with data from the TRB3 board.
     Trb3(Trb3BankName),
+    /// Name of a MIDAS bank with a Monte Carlo vertex data.
+    McVertex(McVertexBankName),
 }
 impl TryFrom<&str> for MainEventBankName {
     type Error = ParseMainEventBankNameError;
@@ -450,6 +480,7 @@ impl TryFrom<&str> for MainEventBankName {
             Some('B' | 'C') => Ok(Self::Alpha16(Alpha16BankName::try_from(name)?)),
             Some('P') => Ok(Self::Padwing(PadwingBankName::try_from(name)?)),
             Some('T') => Ok(Self::Trb3(Trb3BankName::try_from(name)?)),
+            Some('M') => Ok(Self::McVertex(McVertexBankName::try_from(name)?)),
             _ => Err(Self::Error::PatternMismatch {
                 input: name.to_string(),
             }),
