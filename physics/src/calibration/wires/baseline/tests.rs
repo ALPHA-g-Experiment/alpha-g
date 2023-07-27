@@ -18,6 +18,7 @@ fn all_within_limits(run_number: u32) -> bool {
 #[test]
 fn all_within_limits_in_baseline_map() {
     assert!(all_within_limits(7026));
+    assert!(all_within_limits(u32::MAX));
 }
 
 #[test]
@@ -70,4 +71,20 @@ fn try_wire_baseline_correctness_7026() {
         try_wire_baseline(7026, TpcWirePosition::try_from(224).unwrap()).unwrap(),
         2966
     );
+}
+
+#[test]
+fn try_wire_baseline_correctness_sim() {
+    for i in 0..TPC_ANODE_WIRES {
+        let wire = TpcWirePosition::try_from(i).unwrap();
+        let baseline = try_wire_baseline(u32::MAX, wire).unwrap();
+        assert_eq!(baseline, 3000);
+    }
+}
+
+#[test]
+#[should_panic]
+fn safe_guard_try_wire_baseline() {
+    let wire = TpcWirePosition::try_from(0).unwrap();
+    let _ = try_wire_baseline(u32::MAX - 1, wire);
 }

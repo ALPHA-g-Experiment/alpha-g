@@ -1,5 +1,5 @@
 use alpha_g_detector::alpha16::aw_map::TpcWirePosition;
-use lazy_static::lazy_static;
+use lazy_static::{__Deref, lazy_static};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -7,6 +7,7 @@ includes! {
     DATA_PATH = "../../../data/calibration/wires/baseline/";
     // All the following files are embedded at compile time.
     // Add new files to the list below to include them.
+    BYTES_SIMULATION = "simulation_complete.json",
     BYTES_7026 = "7026_complete.json",
 }
 
@@ -18,6 +19,7 @@ lazy_static! {
     // complete_from_bytes(BYTES_NUMBER)
     // or
     // update_previous_from_bytes(&PREVIOUS_HASHMAP, BYTES_NUMBER)
+    static ref MAP_SIMULATION: HashMap<TpcWirePosition, i16> = complete_from_bytes(BYTES_SIMULATION);
     static ref MAP_7026: HashMap<TpcWirePosition, i16> = complete_from_bytes(BYTES_7026);
 }
 /// Try to get the baseline for a given wire. Return an error if there is no map
@@ -29,7 +31,12 @@ pub(crate) fn try_wire_baseline(
 ) -> Result<i16, MapWireBaselineError> {
     // This map should be updated whenever a new file is added.
     let map = match run_number {
-        7026.. => &MAP_7026,
+        // u32::MAX corresponds to a simulation run.
+        u32::MAX => MAP_SIMULATION.deref(),
+        // Safe guard in case I die and nobody notices that they haven't
+        // calibrated the detector in a very long time.
+        10418.. => panic!("bump by another 2000 runs if current calibration is still valid"),
+        7026.. => MAP_7026.deref(),
         _ => return Err(MapWireBaselineError::MissingMap { run_number }),
     };
 
