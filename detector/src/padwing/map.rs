@@ -172,6 +172,12 @@ impl TpcPwbPosition {
     /// # }
     pub fn try_new(run_number: u32, board_id: BoardId) -> Result<Self, MapTpcPwbPositionError> {
         let position_map = match run_number {
+            // u32::MAX corresponds to a simulation run. The simulation mapping
+            // was done to match the mapping of run number 5000.
+            u32::MAX => &INV_PADWING_BOARDS_4418,
+            // Safe guard in case I die and nobody notices they have been using
+            // the wrong map for a long time.
+            10418.. => panic!("bump by another 2000 runs if the mapping has not changed"),
             4418.. => &INV_PADWING_BOARDS_4418,
             _ => return Err(MapTpcPwbPositionError::MissingMap { run_number }),
         };
@@ -366,6 +372,9 @@ impl PwbPadPosition {
         after_id: AfterId,
         pad_channel_id: PadChannelId,
     ) -> Result<PwbPadPosition, MapPwbPadPositionError> {
+        // If this ever changes (and becomes a function of run number), recall
+        // that simulation (run number u32::MAX) was written to match the map
+        // from run number 5000.
         let position_map = &INV_PADS_0;
         Ok(*position_map.get(&(after_id, pad_channel_id)).unwrap())
     }

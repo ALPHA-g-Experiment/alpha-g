@@ -188,6 +188,28 @@ fn tpc_pwb_position_missing_map() {
 }
 
 #[test]
+fn tpc_pwb_position_sim_correctness() {
+    for name in PADWING_BOARDS_4418.iter().flatten() {
+        let board_id = BoardId::try_from(*name).unwrap();
+
+        let pos_5000 = TpcPwbPosition::try_new(5000, board_id).unwrap();
+        let pos_sim = TpcPwbPosition::try_new(u32::MAX, board_id).unwrap();
+
+        assert_eq!(pos_5000, pos_sim);
+    }
+}
+
+#[test]
+#[should_panic]
+fn tpc_pwb_position_changed_map_safeguard() {
+    for (name, _, _) in PADWING_BOARDS {
+        let board_id = BoardId::try_from(name).unwrap();
+
+        let _ = TpcPwbPosition::try_new(u32::MAX - 1, board_id);
+    }
+}
+
+#[test]
 fn inverse_map_tpc_pwb_position_4418() {
     for run_number in 4418..=10000 {
         for (i, row) in REGRESSION_GATE_KEEPER_4418.iter().enumerate() {
