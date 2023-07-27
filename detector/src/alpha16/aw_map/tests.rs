@@ -198,6 +198,32 @@ fn tpc_wire_position_correctness_2941() {
 }
 
 #[test]
+fn tpc_wire_position_correctness_sim() {
+    let board_names = ["09", "10", "11", "12", "13", "14", "18", "16"];
+
+    for board_name in board_names {
+        let board_id = BoardId::try_from(board_name).unwrap();
+        for channel_id in 0..=31 {
+            let channel_id = Adc32ChannelId::try_from(channel_id).unwrap();
+
+            let wire_5000 = TpcWirePosition::try_new(5000, board_id, channel_id).unwrap();
+            let wire_sim = TpcWirePosition::try_new(u32::MAX, board_id, channel_id).unwrap();
+
+            assert_eq!(wire_5000, wire_sim);
+        }
+    }
+}
+
+#[test]
+#[should_panic]
+fn tpc_wire_position_map_changed_safeguard() {
+    let board_id = BoardId::try_from("09").unwrap();
+    let channel_id = Adc32ChannelId::try_from(0).unwrap();
+
+    let _ = TpcWirePosition::try_new(u32::MAX - 1, board_id, channel_id);
+}
+
+#[test]
 fn tpc_wire_position_phi() {
     for i in 0..TPC_ANODE_WIRES {
         let wire_position = TpcWirePosition::try_from(i).unwrap();

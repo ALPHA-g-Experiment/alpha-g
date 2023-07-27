@@ -159,11 +159,23 @@ impl TpcWirePosition {
     ) -> Result<Self, MapTpcWirePositionError> {
         // This map changes whenever a board is replaced/moved.
         let preamp_map = match run_number {
+            // u32::MAX corresponds to a simulation run. The simulation mapping
+            // was done to match the mapping of run number 5000.
+            u32::MAX => &PREAMPS_MAP_2941,
+            // Safe guard in case I die and nobody notices they have been using
+            // the wrong map for a long time.
+            10418.. => panic!("bump by another 2000 runs if mapping has not changed"),
             2941.. => &PREAMPS_MAP_2941,
             _ => return Err(MapTpcWirePositionError::MissingPreampMap { run_number }),
         };
         // This map will rarely change. Needs new revision of Alpha16 boards.
         let channel_map = match run_number {
+            // u32::MAX corresponds to a simulation run. The simulation mapping
+            // was done to match the mapping of run number 5000.
+            u32::MAX => &INV_CHANNELS_2724,
+            // Safe guard in case I die and nobody notices they have been using
+            // the wrong map for a long time.
+            10418.. => panic!("bump by another 2000 runs if mapping has not changed"),
             2724.. => &INV_CHANNELS_2724,
             _ => return Err(MapTpcWirePositionError::MissingWireMap { run_number }),
         };
