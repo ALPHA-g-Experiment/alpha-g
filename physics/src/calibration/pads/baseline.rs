@@ -7,6 +7,7 @@ includes! {
     DATA_PATH = "../../../data/calibration/pads/baseline/";
     // All the following files are embedded at compile time.
     // Add new files to the list below.
+    BYTES_SIMULATION = "simulation_complete.ron",
     BYTES_9277 = "9277_complete_handwritten_cherry_picked_see_commit.ron",
 }
 
@@ -18,6 +19,7 @@ lazy_static! {
     // complete_from_bytes(BYTES_NUMBER)
     // or
     // update_previous_from_bytes(&PREVIOUS_HASHMAP, BYTES_NUMBER)
+    static ref MAP_SIMULATION: HashMap<TpcPadPosition, i16> = complete_from_bytes(BYTES_SIMULATION);
     static ref MAP_9277: HashMap<TpcPadPosition, i16> = complete_from_bytes(BYTES_9277);
 }
 
@@ -30,7 +32,12 @@ pub(crate) fn try_pad_baseline(
 ) -> Result<i16, MapPadBaselineError> {
     // This map should be updated whenever a new file is added.
     let map = match run_number {
-        9277.. => &MAP_9277,
+        // u32::MAX corresponds to a simulation run.
+        u32::MAX => &*MAP_SIMULATION,
+        // Safe guard in case I die and nobody notices that they haven't
+        // calibrated the detector in a very long time.
+        10418.. => panic!("bump by another 2000 runs if current calibration is still valid"),
+        9277.. => &*MAP_9277,
         _ => return Err(MapPadBaselineError::MissingMap { run_number }),
     };
 

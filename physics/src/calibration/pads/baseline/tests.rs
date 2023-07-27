@@ -25,6 +25,7 @@ fn all_within_limits(run_number: u32) -> bool {
 #[test]
 fn all_within_limits_in_baseline_map() {
     assert!(all_within_limits(9277));
+    assert!(all_within_limits(u32::MAX));
 }
 
 #[test]
@@ -93,4 +94,28 @@ fn try_pad_baseline_correctness_9277() {
         .unwrap(),
         1714
     );
+}
+
+#[test]
+fn try_pad_baseline_correctness_sim() {
+    for column in 0..TPC_PAD_COLUMNS {
+        let column = TpcPadColumn::try_from(column).unwrap();
+        for row in 0..TPC_PAD_ROWS {
+            let row = TpcPadRow::try_from(row).unwrap();
+            let pad_position = TpcPadPosition { row, column };
+
+            let baseline = try_pad_baseline(u32::MAX, pad_position).unwrap();
+            assert_eq!(baseline, 1725);
+        }
+    }
+}
+
+#[test]
+#[should_panic]
+fn safe_guard_try_pad_basline() {
+    let column = TpcPadColumn::try_from(0).unwrap();
+    let row = TpcPadRow::try_from(0).unwrap();
+    let pad_position = TpcPadPosition { row, column };
+
+    let _ = try_pad_baseline(u32::MAX - 1, pad_position);
 }
