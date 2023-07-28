@@ -7,6 +7,7 @@ includes! {
     DATA_PATH = "../../../data/calibration/pads/gain/";
     // All the following files are embedded at compile time.
     // Add new files to the list below.
+    BYTES_SIMULATION = "simulation_complete.ron",
     BYTES_9277 = "9277_complete.ron",
 }
 
@@ -16,6 +17,7 @@ lazy_static! {
     //
     // Adding a new map is as simple as:
     // complete_from_bytes(BYTES_NUMBER)
+    static ref MAP_SIMULATION: HashMap<TpcPadPosition, f64> = complete_from_bytes(BYTES_SIMULATION);
     static ref MAP_9277: HashMap<TpcPadPosition, f64> = complete_from_bytes(BYTES_9277);
 }
 /// Try to get the gain for a given pad. Return an error if there is no map
@@ -24,7 +26,12 @@ lazy_static! {
 pub(crate) fn try_pad_gain(run_number: u32, pad: TpcPadPosition) -> Result<f64, MapPadGainError> {
     // This map should be updated whenever a new file is added.
     let map = match run_number {
-        9277.. => &MAP_9277,
+        // u32::MAX corresponds to a simulation run.
+        u32::MAX => &*MAP_SIMULATION,
+        // Safe guard in case I die and nobody notices that they haven't
+        // calibrated the detector in a very long time.
+        10418.. => panic!("bump by another 2000 runs if the current calibration is still valid"),
+        9277.. => &*MAP_9277,
         _ => return Err(MapPadGainError::MissingMap { run_number }),
     };
 
