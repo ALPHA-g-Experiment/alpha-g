@@ -48,8 +48,7 @@ pub(crate) fn try_pad_baseline(
 
 // Nothing below this line needs to be changed when adding a new file.
 
-/// The error type returned when the baseline calibration map is not available
-/// for a given run number and pad.
+/// The error type returned when the baseline calibration map is not available.
 #[derive(Debug, Error)]
 pub enum MapPadBaselineError {
     #[error("no pad baseline calibration available for run number `{run_number}`")]
