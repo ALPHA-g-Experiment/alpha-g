@@ -60,7 +60,10 @@ pub fn cluster_spacepoints(sp: Vec<SpacePoint>) -> ClusteringResult {
         // Maximum number of Clusters.
         2,
         // Minimum number of SpacePoints per Cluster.
-        1,
+        // We need at least 3 points to get an accurate initial guess for the
+        // helix through a cluster.
+        // Track fitting will panic if this is set to less than 3.
+        3,
         // Number of bins along `rho` in Hough space.
         200,
         // Number of bins along `theta` in Hough space.
@@ -121,8 +124,11 @@ impl Track {
 /// The error type returned when conversion from a [`Cluster`] to a [`Track`]
 /// fails.
 #[derive(Debug, Error)]
-#[error("failed to fit a cluster to a track")]
-pub struct TryTrackFromClusterError;
+pub enum TryTrackFromClusterError {
+    /// Unable to produce initial fit parameters.
+    #[error("unable to produce initial fit parameters")]
+    NoInitialParameters,
+}
 
 impl TryFrom<Cluster> for Track {
     type Error = TryTrackFromClusterError;

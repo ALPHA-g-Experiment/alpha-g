@@ -15,7 +15,7 @@ use uom::typenum::P2;
 // volume is a helix with axis parallel to the z-axis.
 // Minimize the orthogonal distance between the track and the SpacePoints.
 pub(crate) fn fit_cluster_to_helix(
-    mut cluster: Cluster,
+    cluster: Cluster,
     max_num_solver_iter: u64,
     // Nelder-Mead stops whenever the standard deviation between the cost at all
     // simplex vertices is below this threshold.
@@ -29,21 +29,13 @@ pub(crate) fn fit_cluster_to_helix(
     max_num_closest_t_iter: usize,
     closest_t_tolerance: f64,
 ) -> Result<Track, TryTrackFromClusterError> {
-    // In theory, we would expect our tracks to originate from (near) the origin
-    // and travel outwards.
-    // Sort the SpacePoints by radius to get them in their "natural" order.
-    cluster
-        .0
-        .sort_unstable_by(|a, b| a.r.partial_cmp(&b.r).unwrap());
     let sp = cluster.0;
-    // The first, middle, and last SpacePoints are enough to give us a good
-    // initial guess for the helix parameters.
     // This assert is here just to make sure we don't accidentally change the
     // minimum number of points required in a cluster.
     assert!(sp.len() >= 3);
-    let first = sp[0];
-    let last = sp[sp.len() - 1];
-    let middle = sp[sp.len() / 2];
+    // Three points are enough to get a reasonable first guess for the helix
+    // parameters.
+    let (first, middle, last) = three_template_points(&sp)?;
 
     let (x0, y0, r) = circle_through_three_points(
         (first.r * first.phi.cos(), first.r * first.phi.sin()),
@@ -82,7 +74,13 @@ pub(crate) fn fit_cluster_to_helix(
     let mut initial_simplex = vec![initial_guess.clone()];
     for i in 0..initial_guess.len() {
         let mut new_point = initial_guess.clone();
-        new_point[i] *= 1.0 + initial_simplex_delta;
+        if new_point[i] == 0.0 {
+            // Default value from scipy's implementation.
+            // I don't think this is important enough to make it a parameter.
+            new_point[i] = 0.00025;
+        } else {
+            new_point[i] *= 1.0 + initial_simplex_delta;
+        }
         initial_simplex.push(new_point);
     }
 
@@ -168,6 +166,18 @@ impl Helix {
     // Just re-verify the convergence properties of these methods.
     #[allow(non_snake_case)]
     fn closest_t(&self, p: SpacePoint, tolerance: f64, max_num_iter: usize) -> f64 {
+        // If h is zero (i.e. a circle), the following method produces NaNs
+        // (which are bad because they will propagate to the minimizer).
+        // Handle the circle case separately.
+        if self.h == Length::new::<meter>(0.0) {
+            let c = self.at(0.0);
+            return angle_between_vectors(
+                (c.x - self.x0, c.y - self.y0),
+                (p.r * p.phi.cos() - self.x0, p.r * p.phi.sin() - self.y0),
+            )
+            // No need to clamp because atan2 is already in [-pi, pi].
+            .get::<radian>();
+        }
         // Because E is linear in t, then a tolerance on E corresponds to a
         // tolerance on t.
         let tolerance = Angle::new::<radian>(tolerance.abs());
@@ -213,6 +223,52 @@ impl Helix {
         // If t is within the range, then it is the actual global minimum.
         t.get::<radian>().clamp(-PI, PI)
     }
+}
+
+// With 3 spread out points, we can get a decent first guess on the helix
+// parameters.
+fn three_template_points(
+    points: &[SpacePoint],
+    // In theory, we would expect our tracks to originate from (near) the origin
+    // and travel outwards.
+    // Sorting by `r` feels like a natural ordering.
+    // Return the:
+    // (Smallest r, Middle r, Largest r)
+) -> Result<(SpacePoint, SpacePoint, SpacePoint), TryTrackFromClusterError> {
+    let first = points
+        .iter()
+        .min_by(|a, b| a.r.partial_cmp(&b.r).unwrap())
+        .copied()
+        .unwrap();
+    let last = points
+        .iter()
+        .max_by(|a, b| a.r.partial_cmp(&b.r).unwrap())
+        .copied()
+        .unwrap();
+
+    let middle_r = (first.r + last.r) / 2.0;
+    let middle = points
+        .iter()
+        .min_by(|a, b| {
+            (a.r - middle_r)
+                .abs()
+                .partial_cmp(&(b.r - middle_r).abs())
+                .unwrap()
+        })
+        .copied()
+        .unwrap();
+
+    // If any of these points are the same in the (r, phi) plane, then we
+    // cannot give a good first guess because we basically just have 2 points to
+    // estimate the circle containing the helix.
+    if ((first.r == middle.r) && (first.phi == middle.phi))
+        || ((first.r == last.r) && (first.phi == last.phi))
+        || ((middle.r == last.r) && (middle.phi == last.phi))
+    {
+        return Err(TryTrackFromClusterError::NoInitialParameters);
+    }
+
+    Ok((first, middle, last))
 }
 
 // Return the center and radius of the circle that goes through three points.
@@ -312,7 +368,13 @@ impl CostFunction for Problem {
                 let t = helix.closest_t(p, self.tolerance, self.max_num_iter);
                 let closest_point = helix.at(t);
 
-                norm_sqr(p, closest_point)
+                let val = norm_sqr(p, closest_point);
+                // Argmin needs non-NaN values to work properly.
+                // If we got NaN at this point, there is a bug somewhere that
+                // needs to be fixed.
+                assert!(!val.is_nan(), "found NaN in track_fitting::cost_function");
+
+                val
             })
             .sum::<Area>()
             .get::<square_meter>())

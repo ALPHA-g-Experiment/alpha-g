@@ -251,3 +251,33 @@ fn trivial_track_fitting() {
         Length::new::<centimeter>(-50.0),
     );
 }
+
+#[test]
+fn track_fitting_h_equal_zero_regression() {
+    trivial_helix_fit(
+        Length::new::<centimeter>(20.0),
+        Length::new::<centimeter>(-20.0),
+        Length::new::<centimeter>(0.0),
+        Length::new::<centimeter>(30.0),
+        Angle::new::<radian>(3.0 * PI / 4.0),
+        Length::new::<centimeter>(0.0),
+    );
+}
+
+#[test]
+fn track_fitting_bad_initial_parameters_regression() {
+    let mut points = Vec::new();
+    for _ in 0..100 {
+        points.push(SpacePoint {
+            r: Length::new::<centimeter>(15.0),
+            phi: Angle::new::<radian>(0.0),
+            z: Length::new::<centimeter>(0.0),
+        });
+    }
+
+    let clustering_result = cluster_spacepoints(points);
+    assert_eq!(clustering_result.clusters.len(), 1);
+
+    let cluster = clustering_result.clusters[0].clone();
+    assert!(Track::try_from(cluster).is_err());
+}
