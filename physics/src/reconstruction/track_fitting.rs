@@ -39,9 +39,9 @@ pub(crate) fn fit_cluster_to_helix(
     let (first, middle, last) = three_template_points(&sp)?;
 
     let (x0, y0, r) = circle_through_three_points(
-        (first.r * first.phi.cos(), first.r * first.phi.sin()),
-        (middle.r * middle.phi.cos(), middle.r * middle.phi.sin()),
-        (last.r * last.phi.cos(), last.r * last.phi.sin()),
+        (first.x(), first.y()),
+        (middle.x(), middle.y()),
+        (last.x(), last.y()),
     );
 
     let cm = center_of_mass(&sp);
@@ -49,11 +49,8 @@ pub(crate) fn fit_cluster_to_helix(
     let z0 = cm.z;
 
     let theta = angle_between_vectors(
-        (last.r * last.phi.cos() - x0, last.r * last.phi.sin() - y0),
-        (
-            first.r * first.phi.cos() - x0,
-            first.r * first.phi.sin() - y0,
-        ),
+        (last.x() - x0, last.y() - y0),
+        (first.x() - x0, first.y() - y0),
     );
     // The product of the sign of theta and sign of the change in height by
     // rotating from outer to inner gives you the correct sign of h.
@@ -199,8 +196,8 @@ fn center_of_mass(points: &[SpacePoint]) -> Coordinate {
     let mut z = Length::new::<meter>(0.0);
 
     for p in points {
-        x += p.r * p.phi.cos();
-        y += p.r * p.phi.sin();
+        x += p.x();
+        y += p.y();
         z += p.z;
     }
 
@@ -223,8 +220,8 @@ struct Problem {
 
 // Calculate the squared distance between a SpacePoint and a Coordinate.
 fn norm_sqr(sp: SpacePoint, c: Coordinate) -> Area {
-    let x = c.x - sp.r * sp.phi.cos();
-    let y = c.y - sp.r * sp.phi.sin();
+    let x = c.x - sp.x();
+    let y = c.y - sp.y();
     let z = c.z - sp.z;
 
     x.powi(P2::new()) + y.powi(P2::new()) + z.powi(P2::new())

@@ -158,7 +158,7 @@ impl Helix {
             let c = self.at(0.0);
             return angle_between_vectors(
                 (c.x - self.x0, c.y - self.y0),
-                (p.r * p.phi.cos() - self.x0, p.r * p.phi.sin() - self.y0),
+                (p.x() - self.x0, p.y() - self.y0),
             )
             // No need to clamp because atan2 is already in [-pi, pi].
             .get::<radian>();
@@ -167,8 +167,8 @@ impl Helix {
         // tolerance on t.
         let tolerance = Angle::new::<radian>(tolerance.abs());
         // Basically just Algorithm 1 from page 3:
-        let u = p.r * p.phi.cos();
-        let v = p.r * p.phi.sin();
+        let u = p.x();
+        let v = p.y();
         let r = (u - self.x0).hypot(v - self.y0);
         let delta = (v - self.y0).atan2(u - self.x0);
 

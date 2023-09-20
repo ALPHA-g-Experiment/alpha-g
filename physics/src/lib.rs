@@ -99,6 +99,17 @@ pub struct SpacePoint {
     pub z: Length,
 }
 
+impl SpacePoint {
+    /// Return the `x` coordinate of the ionization position.
+    pub fn x(self) -> Length {
+        self.r * self.phi.cos()
+    }
+    /// Return the `y` coordinate of the ionization position.
+    pub fn y(self) -> Length {
+        self.r * self.phi.sin()
+    }
+}
+
 /// The error type returned when conversion from data banks to a [`MainEvent`]
 /// fails.
 #[derive(Error, Debug)]
