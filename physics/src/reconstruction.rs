@@ -287,5 +287,31 @@ impl TryFrom<Cluster> for Track {
     }
 }
 
+/// Information about a reconstructed vertex.
+#[derive(Clone, Debug)]
+pub struct VertexInfo {
+    /// Position of the vertex.
+    pub position: Coordinate,
+    /// [`Track`]s associated to the vertex. Each track is paired with the value
+    /// of `t` at which it is closest to the vertex.
+    pub tracks: Vec<(Track, f64)>,
+}
+
+/// Result of reconstructing the vertices of an event from a set of [`Track`]s.
+#[derive(Clone, Debug)]
+pub struct VertexingResult {
+    /// Primary signal vertex.
+    pub primary: Option<VertexInfo>,
+    /// Secondary vertices.
+    pub secondaries: Vec<VertexInfo>,
+    /// Remaining [`Track`]s that were not associated to any vertex.
+    pub remainder: Vec<Track>,
+}
+
+/// Given a collection of [`Track`]s, reconstruct the vertices of an event.
+pub fn fit_vertices(tracks: Vec<Track>) -> VertexingResult {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests;
