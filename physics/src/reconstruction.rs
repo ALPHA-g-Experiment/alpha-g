@@ -12,6 +12,8 @@ use uom::typenum::P2;
 mod track_finding;
 // Fit a group of SpacePoints to a track.
 mod track_fitting;
+// Fit Tracks from an event to vertices.
+mod vertex_fitting;
 
 /// Collection of [`SpacePoint`]s.
 ///
@@ -100,7 +102,7 @@ pub struct Coordinate {
 //     z = (h / 2pi) * t + z0
 //
 // Where t in [-pi, pi] gives you a single revolution.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct Helix {
     x0: Length,
     y0: Length,
@@ -208,6 +210,14 @@ impl Helix {
         // If t is within the range, then it is the actual global minimum.
         t.get::<radian>().clamp(-PI, PI)
     }
+    // Return the coordinate of the closest point on the helix to the beamline.
+    fn closest_to_beamline(&self) -> Coordinate {
+        let c = self.at(0.0);
+        let t = angle_between_vectors((c.x - self.x0, c.y - self.y0), (-self.x0, -self.y0))
+            .get::<radian>();
+
+        self.at(t)
+    }
 }
 
 /// Trajectory of a charged particle through the detector volume.
@@ -219,7 +229,7 @@ impl Helix {
 ///
 /// It is important to note that `t_inner` is not necessarily smaller than
 /// `t_outer` (`t` is an arbitrary parametrization).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Track {
     // Don't expose the helix. It is just an internal implementation detail that
     // is bound to change at any time.
@@ -310,7 +320,32 @@ pub struct VertexingResult {
 
 /// Given a collection of [`Track`]s, reconstruct the vertices of an event.
 pub fn fit_vertices(tracks: Vec<Track>) -> VertexingResult {
-    todo!()
+    vertex_fitting::fit_vertices(
+        tracks,
+        // Maximum distance of closest approach to the beamline to be considered
+        // for primary vertex seed.
+        Length::new::<centimeter>(5.0),
+        // Maximum clustering distance along the beamline for primary vertex
+        // cluster.
+        Length::new::<centimeter>(5.0),
+        // Delta from the initial guess for each initial simplex vertex.
+        // I just stuck to the default value used by scipy's implementation
+        // of Nelder-Mead. It has worked well.
+        // See:
+        // https://github.com/scipy/scipy/blob/v1.11.2/scipy/optimize/_optimize.py#L833
+        0.05,
+        // Maximum number of iterations to find the closest point on the
+        // helix given a SpacePoint.
+        20,
+        // Tolerance for finding the `t` parameter of the closest point on
+        // the helix given a SpacePoint.
+        f64::EPSILON,
+        // Maximum number of Nelder-Mead iterations per vertex distance
+        // minimization.
+        100,
+        // Nelder-Mead standard deviation tolerance.
+        f64::EPSILON,
+    )
 }
 
 #[cfg(test)]
