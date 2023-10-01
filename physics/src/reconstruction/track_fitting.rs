@@ -147,12 +147,12 @@ fn three_template_points(
         .copied()
         .unwrap();
 
-    // If any of these points are the same in the (r, phi) plane, then we
-    // cannot give a good first guess because we basically just have 2 points to
-    // estimate the circle containing the helix.
-    if ((first.r == middle.r) && (first.phi == middle.phi))
-        || ((first.r == last.r) && (first.phi == last.phi))
-        || ((middle.r == last.r) && (middle.phi == last.phi))
+    // If the 3 points are collinear, then there is no circle containing the
+    // three points( with finite radius).
+    // Also, if any pair of points are the same, then there is no circle
+    // because we effectively have only 2 points.
+    if (last.x() - middle.x()) * (middle.y() - first.y())
+        == (middle.x() - first.x()) * (last.y() - middle.y())
     {
         return Err(TryTrackFromClusterError::NoInitialParameters);
     }

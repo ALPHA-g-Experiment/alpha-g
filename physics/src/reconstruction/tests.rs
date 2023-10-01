@@ -265,11 +265,29 @@ fn track_fitting_h_equal_zero_regression() {
 }
 
 #[test]
-fn track_fitting_bad_initial_parameters_regression() {
+fn track_fitting_bad_initial_parameters_regression_repeated_points() {
     let mut points = Vec::new();
     for _ in 0..100 {
         points.push(SpacePoint {
             r: Length::new::<centimeter>(15.0),
+            phi: Angle::new::<radian>(0.0),
+            z: Length::new::<centimeter>(0.0),
+        });
+    }
+
+    let clustering_result = cluster_spacepoints(points);
+    assert_eq!(clustering_result.clusters.len(), 1);
+
+    let cluster = clustering_result.clusters[0].clone();
+    assert!(Track::try_from(cluster).is_err());
+}
+
+#[test]
+fn track_fitting_bad_initial_parameters_regression_collinear_points() {
+    let mut points = Vec::new();
+    for i in 0..100 {
+        points.push(SpacePoint {
+            r: Length::new::<centimeter>(10.0 + 0.09 * i as f64),
             phi: Angle::new::<radian>(0.0),
             z: Length::new::<centimeter>(0.0),
         });
