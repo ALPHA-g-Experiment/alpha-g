@@ -281,3 +281,47 @@ fn track_fitting_bad_initial_parameters_regression() {
     let cluster = clustering_result.clusters[0].clone();
     assert!(Track::try_from(cluster).is_err());
 }
+
+fn test_trivial_vertex(z: Length) {
+    let mut points = Vec::new();
+
+    let r = Length::new::<centimeter>(20.0);
+    let num_points = 2000;
+    for i in 0..num_points {
+        let theta = Angle::FULL_TURN * i as f64 / num_points as f64;
+        let x = r * theta.cos() + r;
+        let y = r * theta.sin();
+
+        let point = SpacePoint {
+            r: (x * x + y * y).sqrt(),
+            phi: y.atan2(x),
+            z,
+        };
+
+        if is_within_tpc_volume(&point) {
+            points.push(point);
+        }
+    }
+
+    let clusters = cluster_spacepoints(points).clusters;
+    let tracks = clusters
+        .into_iter()
+        .map(|cluster| Track::try_from(cluster).unwrap())
+        .collect();
+    let vertex = fit_vertices(tracks).primary.unwrap().position;
+    let diff_x = (vertex.x - Length::new::<meter>(0.0)).abs();
+    let diff_y = (vertex.y - Length::new::<meter>(0.0)).abs();
+    let diff_z = (vertex.z - z).abs();
+    assert!(diff_x < Length::new::<meter>(1e-6));
+    assert!(diff_y < Length::new::<meter>(1e-6));
+    assert!(diff_z < Length::new::<meter>(1e-6));
+}
+
+#[test]
+fn trivial_vertex_fitting() {
+    test_trivial_vertex(Length::new::<meter>(0.0));
+    test_trivial_vertex(Length::new::<meter>(0.5));
+    test_trivial_vertex(Length::new::<meter>(1.0));
+    test_trivial_vertex(Length::new::<meter>(-0.5));
+    test_trivial_vertex(Length::new::<meter>(-1.0));
+}
