@@ -48,6 +48,8 @@ mod calibration;
 mod deconvolution;
 // Match wire and pad signals to obtain Avalanches.
 mod matching;
+/// Vertex reconstruction.
+pub mod reconstruction;
 
 /// Townsend avalanche generated in the multiplying region near an anode wire
 /// surface.
@@ -84,6 +86,29 @@ pub const TRG_CLOCK_FREQ: Frequency = Frequency {
     units: uom::lib::marker::PhantomData,
     value: trigger::TRG_CLOCK_FREQ,
 };
+
+/// Reconstructed ionization position.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SpacePoint {
+    /// Radial position of the ionization.
+    pub r: Length,
+    /// Azimuthal angle of the ionization position.
+    pub phi: Angle,
+    /// Axial position of the ionization. The center of the detector is at
+    /// `z = 0`.
+    pub z: Length,
+}
+
+impl SpacePoint {
+    /// Return the `x` coordinate of the ionization position.
+    pub fn x(self) -> Length {
+        self.r * self.phi.cos()
+    }
+    /// Return the `y` coordinate of the ionization position.
+    pub fn y(self) -> Length {
+        self.r * self.phi.sin()
+    }
+}
 
 /// The error type returned when conversion from data banks to a [`MainEvent`]
 /// fails.

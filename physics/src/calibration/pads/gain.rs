@@ -42,8 +42,7 @@ pub(crate) fn try_pad_gain(run_number: u32, pad: TpcPadPosition) -> Result<f64, 
 
 // Nothing below this line needs to be changed when adding a new file.
 
-/// The error type returned when the gain calibration map is not available for a
-/// given run number and pad.
+/// The error type returned when the gain calibration map is not available.
 #[derive(Debug, Error)]
 pub enum MapPadGainError {
     #[error("no pad gain calibration available for run number `{run_number}`")]

@@ -45,8 +45,7 @@ pub(crate) fn try_wire_gain(
 
 // Nothing below this line needs to be changed when new files are added.
 
-/// The error type returned when the gain calibration map is not available for
-/// a given run number and wire.
+/// The error type returned when the gain calibration map is not available.
 #[derive(Debug, Error)]
 pub enum MapWireGainError {
     #[error("no wire gain calibration available for run number `{run_number}`")]

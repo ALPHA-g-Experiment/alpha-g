@@ -47,8 +47,7 @@ pub(crate) fn try_wire_baseline(
 
 // Nothing below this line needs to be changed when new files are added.
 
-/// The error type returned when the baseline calibration map is not available
-/// for a given run number and wire.
+/// The error type returned when the baseline calibration map is not available.
 #[derive(Debug, Error)]
 pub enum MapWireBaselineError {
     #[error("no wire baseline calibration available for run number `{run_number}`")]

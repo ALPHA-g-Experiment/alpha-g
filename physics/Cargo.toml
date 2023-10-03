@@ -12,10 +12,13 @@ documentation = "https://docs.rs/alpha_g_physics"
 
 [dependencies]
 alpha_g_detector = { version = "0.2.0", path = "../detector" }
+argmin = { version = "0.8.1", default-features = false }
+argmin-math = "0.3.0"
 dyn-stack = "0.9.0"
 faer-cholesky = "0.9.1"
 faer-core = "0.9.1"
 lazy_static = "1.4.0"
+num-complex = "0.4.4"
 ron = "0.8.0"
 serde_json = "1.0.95"
 thiserror = "1.0.40"
