@@ -33,10 +33,12 @@ pub(crate) fn cluster_spacepoints(
             (u.powi(P2::new()) + v.powi(P2::new())).sqrt()
         })
         .reduce(ReciprocalLength::max)
-            else { return ClusteringResult {
-                clusters: Vec::new(),
-                remainder: sp,
-            }; };
+    else {
+        return ClusteringResult {
+            clusters: Vec::new(),
+            remainder: sp,
+        };
+    };
 
     let mut accumulator = HoughSpaceAccumulator {
         rho_max,

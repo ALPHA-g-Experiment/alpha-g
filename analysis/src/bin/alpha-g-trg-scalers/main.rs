@@ -340,7 +340,9 @@ fn try_valid_mmaps(file_names: impl IntoIterator<Item = PathBuf>) -> Result<Vec<
     // They are sorted, so it is enough to check consecutive elements to have a
     // different timestamp.
     for window in mmaps.windows(2) {
-        let [(path_0, time_0, _), (path_1, time_1, _)] = window else { unreachable!() };
+        let [(path_0, time_0, _), (path_1, time_1, _)] = window else {
+            unreachable!()
+        };
         ensure!(
             time_0 != time_1,
             "duplicate files `{}` and `{}` with the same initial timestamp",

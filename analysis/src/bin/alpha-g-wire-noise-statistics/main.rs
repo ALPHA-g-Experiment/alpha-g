@@ -192,9 +192,9 @@ fn validate_odb_settings(odb: &[u8]) -> Result<()> {
     let Value::Object(trigger_sources) = odb
         .pointer(TRIGGER_SOURCES_JSON_PTR)
         .with_context(|| format!("failed to read `{TRIGGER_SOURCES_JSON_PTR}` from ODB"))?
-        else {
+    else {
         bail!("invalid `{TRIGGER_SOURCES_JSON_PTR}` in ODB");
-        };
+    };
     let active_trigger_sources = trigger_sources
         .values()
         .filter_map(|value| value.as_bool())
@@ -292,7 +292,7 @@ fn try_noise_samples(
                             "Error: anode wire packet `{}` with BV channel_id in event `{}`",
                             bank_view.name(),
                             event_view.serial_number()
-                            ));
+                        ));
                     }
                     continue;
                 };
