@@ -519,17 +519,12 @@ impl Chunk {
             .device_id
             .to_le_bytes()
             .into_iter()
-            .chain(self.packet_sequence.to_le_bytes().into_iter())
-            .chain(self.channel_sequence.to_le_bytes().into_iter())
-            .chain(self.channel_id.to_le_bytes().into_iter())
-            .chain(self.flags.to_le_bytes().into_iter())
-            .chain(self.chunk_id.to_le_bytes().into_iter())
-            .chain(
-                u16::try_from(self.payload.len())
-                    .unwrap()
-                    .to_le_bytes()
-                    .into_iter(),
-            )
+            .chain(self.packet_sequence.to_le_bytes())
+            .chain(self.channel_sequence.to_le_bytes())
+            .chain(self.channel_id.to_le_bytes())
+            .chain(self.flags.to_le_bytes())
+            .chain(self.chunk_id.to_le_bytes())
+            .chain(u16::try_from(self.payload.len()).unwrap().to_le_bytes())
             .collect();
         !crc32c::crc32c(&slice[..])
     }
@@ -750,7 +745,7 @@ impl TryFrom<u16> for ResetChannelId {
     /// `2`, or `3` (NOT the readout index) to a [`ResetChannelId`].
     fn try_from(num: u16) -> Result<Self, Self::Error> {
         match num {
-            1 | 2 | 3 => Ok(Self(num)),
+            1..=3 => Ok(Self(num)),
             _ => Err(Self::Error { input: num }),
         }
     }
@@ -771,7 +766,7 @@ impl TryFrom<u16> for FpnChannelId {
     /// `2`, `3`, or `4` (NOT the readout index) to a [`FpnChannelId`].
     fn try_from(num: u16) -> Result<Self, Self::Error> {
         match num {
-            1 | 2 | 3 | 4 => Ok(Self(num)),
+            1..=4 => Ok(Self(num)),
             _ => Err(Self::Error { input: num }),
         }
     }
@@ -820,12 +815,12 @@ impl TryFrom<u16> for ChannelId {
     /// Perform the conversion from readout index of PWB channel (`1..=79`).
     fn try_from(readout_index: u16) -> Result<Self, Self::Error> {
         match readout_index {
-            1 | 2 | 3 => Ok(ChannelId::Reset(ResetChannelId::try_from(readout_index)?)),
+            1..=3 => Ok(ChannelId::Reset(ResetChannelId::try_from(readout_index)?)),
             16 => Ok(ChannelId::Fpn(FpnChannelId::try_from(1)?)),
             29 => Ok(ChannelId::Fpn(FpnChannelId::try_from(2)?)),
             54 => Ok(ChannelId::Fpn(FpnChannelId::try_from(3)?)),
             67 => Ok(ChannelId::Fpn(FpnChannelId::try_from(4)?)),
-            1..=79 => Ok(ChannelId::Pad(PadChannelId::try_from({
+            4..=79 => Ok(ChannelId::Pad(PadChannelId::try_from({
                 let i = readout_index;
                 i - (i > 16) as u16 - (i > 29) as u16 - (i > 54) as u16 - (i > 67) as u16 - 3
             })?)),
