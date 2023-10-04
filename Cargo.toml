@@ -4,3 +4,4 @@ members = [
     "detector",
     "physics",
 ]
+resolver = "2"

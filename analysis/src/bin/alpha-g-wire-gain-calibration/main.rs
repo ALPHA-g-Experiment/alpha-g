@@ -291,7 +291,7 @@ fn try_amplitude_distributions(
                             "Error: anode wire packet `{}` with BV channel_id in event `{}`",
                             bank_view.name(),
                             event_view.serial_number()
-                            ));
+                        ));
                     }
                     continue;
                 };
