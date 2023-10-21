@@ -4,7 +4,7 @@ use std::f64::consts::PI;
 use thiserror::Error;
 use uom::si::angle::radian;
 use uom::si::f64::{Angle, Length, Ratio};
-use uom::si::length::centimeter;
+use uom::si::length::{centimeter, meter};
 use uom::si::ratio::ratio;
 use uom::typenum::P2;
 
@@ -156,7 +156,9 @@ impl Helix {
         // If h is zero (i.e. a circle), the following method produces NaNs
         // (which are bad because they will propagate to the minimizer).
         // Handle the circle case separately.
-        if self.h == Length::new::<centimeter>(0.0) {
+        // Subnormal values of `h` make `e` (1/h^2) blow up, hence also causing
+        // NaNs.
+        if self.h.abs() < Length::new::<meter>(f64::EPSILON) {
             let c = self.at(0.0);
             return angle_between_vectors(
                 (c.x - self.x0, c.y - self.y0),
