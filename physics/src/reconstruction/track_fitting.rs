@@ -151,8 +151,14 @@ fn three_template_points(
     // three points( with finite radius).
     // Also, if any pair of points are the same, then there is no circle
     // because we effectively have only 2 points.
-    if (last.x() - middle.x()) * (middle.y() - first.y())
-        == (middle.x() - first.x()) * (last.y() - middle.y())
+    // There are 3 possible comparisons to make between slopes. I just did this
+    // one because it exactly matches a fail mode of
+    // `circle_through_three_points`.
+    // Any other comparison (or using this as a test of collinearity to e.g.
+    // resample the points) would require some epsilon distance difference
+    // instead of exact equality (i.e. the usual way of comparing floats).
+    if (last.x() - first.x()) * (middle.y() - first.y())
+        == (middle.x() - first.x()) * (last.y() - first.y())
     {
         return Err(TryTrackFromClusterError::NoInitialParameters);
     }
