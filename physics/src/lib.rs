@@ -6,6 +6,7 @@ use crate::deconvolution::pads::pad_deconvolution;
 use crate::deconvolution::wires::{
     contiguous_ranges, remove_noise_after_t, wire_range_deconvolution,
 };
+use crate::drift::DRIFT_TABLES;
 use crate::matching::{match_column_inputs, pad_column_to_wires, t_min, wire_to_pad_column};
 use alpha_g_detector::alpha16::aw_map::{
     self, MapTpcWirePositionError, TpcWirePosition, TPC_ANODE_WIRES,
@@ -30,6 +31,7 @@ pub use crate::calibration::pads::baseline::MapPadBaselineError;
 pub use crate::calibration::pads::gain::MapPadGainError;
 pub use crate::calibration::wires::baseline::MapWireBaselineError;
 pub use crate::calibration::wires::gain::MapWireGainError;
+pub use crate::drift::TryDriftLookupError;
 
 // Calibration
 //
@@ -42,7 +44,10 @@ pub use crate::calibration::wires::gain::MapWireGainError;
 // If there is ever a compelling reason to expose calibration to the user, I
 // believe it should be moved to a separate `alpha_g_calibration` crate.
 mod calibration;
-
+// Map, as a function of `z` (given that the B field is non-homogeneous through
+// the entire rTPC volume), a given drift time to a radius and Lorentz angle
+// correction.
+mod drift;
 // Extract avalanche time and amplitude information from the wire and pad
 // signals.
 mod deconvolution;
@@ -97,6 +102,20 @@ pub struct SpacePoint {
     /// Axial position of the ionization. The center of the detector is at
     /// `z = 0`.
     pub z: Length,
+}
+
+impl TryFrom<Avalanche> for SpacePoint {
+    type Error = TryDriftLookupError;
+
+    fn try_from(avalanche: Avalanche) -> Result<Self, Self::Error> {
+        let (r, lorentz_correction) = DRIFT_TABLES.at(avalanche.z, avalanche.t)?;
+
+        Ok(SpacePoint {
+            r,
+            phi: avalanche.phi - lorentz_correction,
+            z: avalanche.z,
+        })
+    }
 }
 
 impl SpacePoint {
