@@ -35,7 +35,7 @@ fn nn_greedy_deconvolution(
     // Unnatural way of sliding the window, but it allows a 2x speedup by
     // jumping over chunks of the signal at a time.
     let mut i = 0;
-    while i < residual.len() - offset - look_ahead {
+    while i + offset + look_ahead <= residual.len() {
         let residual_window = &residual[i + offset..][..look_ahead];
         // Find the index of the last non-negative value in the residual window.
         // If there is any non-negative value, it means that there was no input,
