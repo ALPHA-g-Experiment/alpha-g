@@ -16,7 +16,6 @@ use uom::typenum::P2;
 //
 // We can filter potential annihilation tracks (which originate close to the
 // origin) by finding straight lines in the u-v plane.
-
 pub(crate) fn cluster_spacepoints(
     mut sp: Vec<SpacePoint>,
     max_num_clusters: usize,
@@ -119,8 +118,8 @@ struct HoughSpaceAccumulator {
 
 // Conformal transformation from x-y plane to u-v plane.
 fn u_v(point: SpacePoint) -> (ReciprocalLength, ReciprocalLength) {
-    let u = (point.r * point.phi.cos()) / point.r.powi(P2::new());
-    let v = (point.r * point.phi.sin()) / point.r.powi(P2::new());
+    let u = point.x() / point.r.powi(P2::new());
+    let v = point.y() / point.r.powi(P2::new());
 
     (u, v)
 }
@@ -198,13 +197,10 @@ impl HoughSpaceAccumulator {
 
 // Calculate the Euclidean distance between two SpacePoints
 fn distance(a: SpacePoint, b: SpacePoint) -> Length {
-    let x_a = a.r * a.phi.cos();
-    let y_a = a.r * a.phi.sin();
-
-    let x_b = b.r * b.phi.cos();
-    let y_b = b.r * b.phi.sin();
-
-    ((x_a - x_b).powi(P2::new()) + (y_a - y_b).powi(P2::new()) + (a.z - b.z).powi(P2::new())).sqrt()
+    ((a.x() - b.x()).powi(P2::new())
+        + (a.y() - b.y()).powi(P2::new())
+        + (a.z - b.z).powi(P2::new()))
+    .sqrt()
 }
 
 // Given a collection of SpacePoints, find the largest subset of SpacePoints
