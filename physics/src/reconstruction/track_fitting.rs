@@ -4,6 +4,7 @@ use crate::reconstruction::{
 use crate::SpacePoint;
 use argmin::core::{CostFunction, Error, Executor};
 use argmin::solver::neldermead::NelderMead;
+use itertools::Itertools;
 use num_complex::Complex;
 use std::f64::consts::PI;
 use uom::si::angle::radian;
@@ -124,16 +125,7 @@ fn three_template_points(
     // Return the:
     // (Smallest r, Middle r, Largest r)
 ) -> Result<(SpacePoint, SpacePoint, SpacePoint), TryTrackFromClusterError> {
-    let first = points
-        .iter()
-        .min_by(|a, b| a.r.partial_cmp(&b.r).unwrap())
-        .copied()
-        .unwrap();
-    let last = points
-        .iter()
-        .max_by(|a, b| a.r.partial_cmp(&b.r).unwrap())
-        .copied()
-        .unwrap();
+    let (&first, &last) = points.iter().minmax_by_key(|p| p.r).into_option().unwrap();
 
     let middle_r = (first.r + last.r) / 2.0;
     let middle = points
