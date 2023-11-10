@@ -1,7 +1,11 @@
 use crate::reconstruction::{Cluster, ClusteringResult};
 use crate::SpacePoint;
+use itertools::Itertools;
+use statrs::statistics::Statistics;
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use uom::si::f64::{Angle, Length, ReciprocalLength};
+use uom::si::length::meter;
 use uom::si::ratio::ratio;
 use uom::typenum::P2;
 
@@ -176,22 +180,52 @@ impl HoughSpaceAccumulator {
     // Remove a SpacePoint from the accumulator.
     fn remove(&mut self, point: SpacePoint) {
         for bin in self.get_bins(point) {
-            let Some(v) = self.accumulator.get_mut(&bin) else {
-                continue;
-            };
-            if let Some(pos) = v.iter().position(|p| *p == point) {
-                v.swap_remove(pos);
-            }
+            // We know that the point is in the accumulator, so it is safe to
+            // unwrap.
+            let vec = self.accumulator.get_mut(&bin).unwrap();
+            let pos = vec.iter().position(|p| *p == point).unwrap();
+            vec.swap_remove(pos);
         }
     }
     // Return the SpacePoints that voted for the most popular bin. Return an
     // empty vector if the accumulator is empty.
     fn most_popular(&self) -> Vec<SpacePoint> {
+        // The order in which values of a HashMap are iterated over is random.
+        // We need this function to be deterministic, hence we need some tie
+        // breaking for the case where multiple bins have the same maximum
+        // number of votes.
         self.accumulator
             .values()
-            .max_by_key(|v| v.len())
+            .max_set_by_key(|v| v.len())
+            .into_iter()
+            .max_by(|c1, c2| cluster_tie_breaker(c1, c2))
             .cloned()
             .unwrap_or_default()
+    }
+}
+
+// Assign a deterministic ordering/priority of two clusters when they have
+// the same number of points.
+// The better cluster is `Ordering::Greater`.
+fn cluster_tie_breaker(c1: &[SpacePoint], c2: &[SpacePoint]) -> Ordering {
+    let v1 = c1.iter().map(|p| p.r.get::<meter>()).variance();
+    let v2 = c2.iter().map(|p| p.r.get::<meter>()).variance();
+
+    match v1.partial_cmp(&v2) {
+        Some(Ordering::Less) => Ordering::Less,
+        Some(Ordering::Greater) => Ordering::Greater,
+        Some(Ordering::Equal) => {
+            let v1 = c1.iter().map(|p| p.z.get::<meter>()).variance();
+            let v2 = c2.iter().map(|p| p.z.get::<meter>()).variance();
+            // Can't be NaN since they didn't have NaN variance in r.
+            // Therefore, we can unwrap.
+            v2.partial_cmp(&v1).unwrap()
+        }
+        // If the clusters are empty (or are a single point), then we don't
+        // really care about the ordering. It can be random because these points
+        // will never make it pass the `min_num_points_per_cluster` filter (we
+        // need at least 3 for track fitting, etc).
+        None => Ordering::Equal,
     }
 }
 
@@ -235,6 +269,10 @@ fn largest_cluster(mut points: Vec<SpacePoint>, max_distance: Length) -> Vec<Spa
         clusters.push(cluster);
     }
 
-    clusters.sort_by_key(|c| c.len());
-    clusters.pop().unwrap_or_default()
+    clusters
+        .into_iter()
+        .max_set_by_key(|c| c.len())
+        .into_iter()
+        .max_by(|c1, c2| cluster_tie_breaker(c1, c2))
+        .unwrap_or_default()
 }
