@@ -360,6 +360,16 @@ impl MainEvent {
         // The typical `tmin` is 100ish or greater. This just leaves about 20
         // or more time bins.
         remove_noise_after_t(&mut wire_inputs, 4 * t_min / 5);
+        // We need to iterate over the pad columns in a deterministic order.
+        // This is needed for complete deterministic vertex reconstruction
+        // because of the `track_fitting`. Floating point arithmetic is not
+        // associative, hence having SpacePoints in different orders will lead
+        // to some very small differences in the final vertices.
+        let pad_columns = {
+            let mut temp = pad_columns.into_iter().collect::<Vec<_>>();
+            temp.sort_unstable();
+            temp
+        };
 
         let mut avalanches = Vec::new();
         for column in pad_columns {
