@@ -2,6 +2,7 @@ use crate::reconstruction::{Coordinate, Track, VertexInfo, VertexingResult};
 use crate::SpacePoint;
 use argmin::core::{CostFunction, Error, Executor};
 use argmin::solver::neldermead::NelderMead;
+use itertools::Itertools;
 use uom::si::area::square_meter;
 use uom::si::f64::{Area, Length};
 use uom::si::length::meter;
@@ -37,7 +38,15 @@ pub(crate) fn fit_vertices(
     let vertex = beamline_clusters(primary_tracks, max_beamline_clustering_distance)
         .into_iter()
         .filter(|(cluster, _)| cluster.len() > 1)
-        .max_by_key(|(cluster, _)| cluster.len())
+        .max_set_by_key(|(cluster, _)| cluster.len())
+        .into_iter()
+        .max_by(|(c_a, _), (c_b, _)| {
+            c_a.iter()
+                .map(|track| track.helix.r)
+                .sum::<Length>()
+                .partial_cmp(&c_b.iter().map(|track| track.helix.r).sum::<Length>())
+                .unwrap()
+        })
         .map(|(tracks, mean_z)| {
             // Argmin needs all parameters to be same type. Work with internal
             // f64.
