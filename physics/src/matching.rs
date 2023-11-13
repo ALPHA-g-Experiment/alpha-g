@@ -1,12 +1,13 @@
 use crate::Avalanche;
 use alpha_g_detector::alpha16::aw_map::{TpcWirePosition, TPC_ANODE_WIRES};
 use alpha_g_detector::alpha16::ADC32_RATE;
-use alpha_g_detector::padwing::map::{TpcPadRow, TPC_PAD_COLUMNS, TPC_PAD_ROWS};
+use alpha_g_detector::padwing::map::{TpcPadRow, PAD_PITCH_Z, TPC_PAD_COLUMNS, TPC_PAD_ROWS};
 use std::ops::Range;
 use uom::si::angle::radian;
 use uom::si::f64::*;
 use uom::si::length::meter;
 use uom::si::time::second;
+use uom::typenum::P2;
 
 const WIRES_PER_COLUMN: usize = TPC_ANODE_WIRES / TPC_PAD_COLUMNS;
 // From `alpha_g_detector` internal mapping.
@@ -93,7 +94,12 @@ fn pad_hits_at_t(pad_column_inputs: &[Vec<f64>; TPC_PAD_ROWS], t: usize) -> Vec<
         let last = input.get(t).copied().unwrap_or(0.0);
 
         if first > 0.0 && last > 0.0 && middle > first && middle > last {
-            let z = Length::new::<meter>(TpcPadRow::try_from(row - 1).unwrap().z());
+            // See equation 10.3 from "Gaseous Radiation Detectors" by Sauli.
+            let width = Length::new::<meter>(PAD_PITCH_Z);
+            let sigma_squared = width.powi(P2::new()) / (middle.powi(2) / (first * last)).ln();
+            let z = Length::new::<meter>(TpcPadRow::try_from(row - 1).unwrap().z())
+                + (sigma_squared / (2.0 * width)) * (last / first).ln();
+
             let amplitude = middle;
             pad_hits.push(PadHit { z, amplitude });
         }
