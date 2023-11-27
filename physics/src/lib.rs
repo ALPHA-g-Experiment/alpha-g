@@ -69,13 +69,16 @@ pub struct Avalanche {
     /// Axial position of the avalanche. The center of the detector is at
     /// `z = 0`.
     pub z: Length,
-    /// Amplitude of the avalanche in arbitrary units. Useful for relative
-    /// comparisons between avalanches in the same event.
+    /// Amplitude of the avalanche in arbitrary units as perceived by the anode
+    /// wires. Useful for relative comparisons between avalanches in the same
+    /// event.
     ///
     /// The absolute magnitude of this amplitude is subject to change at any
-    /// time without being considered a breaking change.  Do not use this value
+    /// time without being considered a breaking change. Do not use this value
     /// to apply e.g. threshold cuts, etc.
-    pub amplitude: f64,
+    pub wire_amplitude: f64,
+    /// Same as `wire_amplitude`, but for the induced pad signal.
+    pub pad_amplitude: f64,
 }
 
 /// Radial position of the anode wires.

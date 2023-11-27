@@ -143,7 +143,8 @@ pub(crate) fn match_column_inputs(
                     t: Time::new::<second>((t - t_min) as f64 / ADC32_RATE),
                     phi: wire_hit.phi,
                     z: pad_hit.z,
-                    amplitude: wire_hit.amplitude,
+                    wire_amplitude: wire_hit.amplitude,
+                    pad_amplitude: pad_hit.amplitude,
                 }),
         );
     }
