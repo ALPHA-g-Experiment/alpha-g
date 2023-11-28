@@ -3,11 +3,9 @@ use crate::calibration::pads::gain::try_pad_gain;
 use crate::calibration::wires::baseline::try_wire_baseline;
 use crate::calibration::wires::gain::try_wire_gain;
 use crate::deconvolution::pads::pad_deconvolution;
-use crate::deconvolution::wires::{
-    contiguous_ranges, remove_noise_after_t, wire_range_deconvolution,
-};
+use crate::deconvolution::wires::{contiguous_ranges, wire_range_deconvolution};
 use crate::drift::DRIFT_TABLES;
-use crate::matching::{match_column_inputs, pad_column_to_wires, t_min, wire_to_pad_column};
+use crate::matching::{match_column_inputs, pad_column_to_wires, wire_to_pad_column};
 use alpha_g_detector::alpha16::aw_map::{
     self, MapTpcWirePositionError, TpcWirePosition, TPC_ANODE_WIRES,
 };
@@ -355,14 +353,6 @@ impl MainEvent {
                 pad_columns.insert(wire_to_pad_column(i));
             }
         }
-        let t_min = t_min(&wire_inputs);
-        // Anything before `t_min` is assumed to be noise. Use that to remove
-        // the noise in the region of interest, i.e. after `t_min`.
-        // 4/5 is just an arbitrary number that leaves some wiggle room in front
-        // of `t_min` to account for some jitter in the deconvolution.
-        // The typical `tmin` is 100ish or greater. This just leaves about 20
-        // or more time bins.
-        remove_noise_after_t(&mut wire_inputs, 4 * t_min / 5);
         // We need to iterate over the pad columns in a deterministic order.
         // This is needed for complete deterministic vertex reconstruction
         // because of the `track_fitting`. Floating point arithmetic is not
@@ -388,7 +378,6 @@ impl MainEvent {
                 wire_indices.clone().collect::<Vec<_>>().try_into().unwrap(),
                 wire_inputs[wire_indices].try_into().unwrap(),
                 &pad_inputs_column,
-                t_min,
             ));
         }
 
