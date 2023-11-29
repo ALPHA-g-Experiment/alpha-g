@@ -1,6 +1,7 @@
 use crate::calibration::pads::baseline::try_pad_baseline;
 use crate::calibration::pads::gain::try_pad_gain;
 use crate::calibration::wires::baseline::try_wire_baseline;
+use crate::calibration::wires::delay::try_wire_delay;
 use crate::calibration::wires::gain::try_wire_gain;
 use crate::deconvolution::pads::pad_deconvolution;
 use crate::deconvolution::wires::{contiguous_ranges, wire_range_deconvolution};
@@ -28,6 +29,7 @@ use uom::si::f64::*;
 pub use crate::calibration::pads::baseline::MapPadBaselineError;
 pub use crate::calibration::pads::gain::MapPadGainError;
 pub use crate::calibration::wires::baseline::MapWireBaselineError;
+pub use crate::calibration::wires::delay::MapWireDelayError;
 pub use crate::calibration::wires::gain::MapWireGainError;
 pub use crate::drift::TryDriftLookupError;
 
@@ -187,6 +189,9 @@ pub enum TryMainEventFromDataBanksError {
     /// Wire baseline calibration failed.
     #[error("wire baseline calibration failed")]
     WireBaselineError(#[from] MapWireBaselineError),
+    /// Wire delay calibration failed.
+    #[error("wire delay calibration failed")]
+    WireDelayError(#[from] MapWireDelayError),
     /// Wire gain calibration failed.
     #[error("wire gain calibration failed")]
     WireGainError(#[from] MapWireGainError),
@@ -265,13 +270,17 @@ impl MainEvent {
                     } else {
                         let baseline = try_wire_baseline(run_number, wire_position)?;
                         let gain = try_wire_gain(run_number, wire_position)?;
-                        wire_signals[wire_index] = Some(
-                            waveform
-                                .iter()
-                                // Convert to i32 to avoid overflow
-                                .map(|&v| f64::from(i32::from(v) - i32::from(baseline)) * gain)
-                                .collect(),
-                        );
+                        let delay = try_wire_delay(run_number)?;
+
+                        let signal: Vec<_> = waveform
+                            .iter()
+                            .skip(delay)
+                            // Convert to i32 to avoid overflow
+                            .map(|&v| f64::from(i32::from(v) - i32::from(baseline)) * gain)
+                            .collect();
+                        if !signal.is_empty() {
+                            wire_signals[wire_index] = Some(signal);
+                        }
                     }
                 }
                 MainEventBankName::Padwing(bank_name) => {

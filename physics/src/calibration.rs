@@ -9,7 +9,7 @@ macro_rules! includes {
     )
 }
 
-// Anode wires calibration (baseline and gain)
+// Anode wires calibration
 pub(crate) mod wires;
 // Pad calibration (baseline and gain)
 pub(crate) mod pads;
