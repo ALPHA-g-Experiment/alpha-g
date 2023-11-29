@@ -1,4 +1,5 @@
 use crate::calibration::pads::baseline::try_pad_baseline;
+use crate::calibration::pads::delay::try_pad_delay;
 use crate::calibration::pads::gain::try_pad_gain;
 use crate::calibration::wires::baseline::try_wire_baseline;
 use crate::calibration::wires::delay::try_wire_delay;
@@ -27,6 +28,7 @@ use thiserror::Error;
 use uom::si::f64::*;
 
 pub use crate::calibration::pads::baseline::MapPadBaselineError;
+pub use crate::calibration::pads::delay::MapPadDelayError;
 pub use crate::calibration::pads::gain::MapPadGainError;
 pub use crate::calibration::wires::baseline::MapWireBaselineError;
 pub use crate::calibration::wires::delay::MapWireDelayError;
@@ -198,6 +200,9 @@ pub enum TryMainEventFromDataBanksError {
     /// Pad baseline calibration failed.
     #[error("pad baseline calibration failed")]
     PadBaselineError(#[from] MapPadBaselineError),
+    /// Pad delay calibration failed.
+    #[error("pad delay calibration failed")]
+    PadDelayError(#[from] MapPadDelayError),
     /// Pad gain calibration failed.
     #[error("pad gain calibration failed")]
     PadGainError(#[from] MapPadGainError),
@@ -330,14 +335,18 @@ impl MainEvent {
                     } else {
                         let baseline = try_pad_baseline(run_number, pad_position)?;
                         let gain = try_pad_gain(run_number, pad_position)?;
-                        pad_signals[pad_index.0][pad_index.1] = Some(
-                            waveform
-                                .iter()
-                                // Given the ranges of PWB samples, overflow is
-                                // not possible.
-                                .map(|&v| f64::from(v.checked_sub(baseline).unwrap()) * gain)
-                                .collect(),
-                        );
+                        let delay = try_pad_delay(run_number)?;
+
+                        let signal: Vec<_> = waveform
+                            .iter()
+                            .skip(delay)
+                            // Given the ranges of PWB samples, overflow is
+                            // not possible.
+                            .map(|&v| f64::from(v.checked_sub(baseline).unwrap()) * gain)
+                            .collect();
+                        if !signal.is_empty() {
+                            pad_signals[pad_index.0][pad_index.1] = Some(signal);
+                        }
                     }
                 }
             }
