@@ -64,18 +64,18 @@ pub fn cluster_spacepoints(sp: Vec<SpacePoint>) -> ClusteringResult {
     track_finding::cluster_spacepoints(
         sp,
         // Maximum number of Clusters.
-        2,
+        14,
         // Minimum number of SpacePoints per Cluster.
         // We need at least 3 points to get an accurate initial guess for the
         // helix through a cluster.
         // Track fitting will panic if this is set to less than 3.
-        3,
+        15,
         // Number of bins along `rho` in Hough space.
-        200,
+        250,
         // Number of bins along `theta` in Hough space.
-        200,
+        230,
         // Maximum clustering distance in Euclidean space.
-        Length::new::<centimeter>(1.0),
+        Length::new::<centimeter>(3.0),
     )
 }
 
@@ -326,10 +326,10 @@ pub fn fit_vertices(tracks: Vec<Track>) -> VertexingResult {
         tracks,
         // Maximum distance of closest approach to the beamline to be considered
         // for primary vertex seed.
-        Length::new::<centimeter>(5.0),
+        Length::new::<centimeter>(5.5),
         // Maximum clustering distance along the beamline for primary vertex
         // cluster.
-        Length::new::<centimeter>(5.0),
+        Length::new::<centimeter>(3.5),
         // Delta from the initial guess for each initial simplex vertex.
         // I just stuck to the default value used by scipy's implementation
         // of Nelder-Mead. It has worked well.
