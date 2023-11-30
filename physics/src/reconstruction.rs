@@ -220,6 +220,14 @@ impl Helix {
 
         self.at(t)
     }
+    // Return the arc length of the helix between the two points.
+    fn arc_length(&self, t1: f64, t2: f64) -> Length {
+        let delta_t = (t2 - t1).abs();
+        let s = self.r * delta_t;
+        let delta_z = (self.at(t2).z - self.at(t1).z).abs();
+
+        s.hypot(delta_z)
+    }
 }
 
 /// Trajectory of a charged particle through the detector volume.
@@ -324,6 +332,8 @@ pub struct VertexingResult {
 pub fn fit_vertices(tracks: Vec<Track>) -> VertexingResult {
     vertex_fitting::fit_vertices(
         tracks,
+        // Minimum track length to be considered for vertexing.
+        Length::new::<centimeter>(3.5),
         // Maximum distance of closest approach to the beamline to be considered
         // for primary vertex seed.
         Length::new::<centimeter>(5.5),

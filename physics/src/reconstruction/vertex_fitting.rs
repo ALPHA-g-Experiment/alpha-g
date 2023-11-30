@@ -11,6 +11,7 @@ use uom::typenum::P2;
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fit_vertices(
     mut tracks: Vec<Track>,
+    min_track_length: Length,
     // If a track has a distance of closest approach to the beamline larger than
     // this value, remove it from the primary vertex seed.
     max_track_beamline_dca: Length,
@@ -29,6 +30,7 @@ pub(crate) fn fit_vertices(
 ) -> VertexingResult {
     let primary_tracks = tracks
         .iter()
+        .filter(|track| track.helix.arc_length(track.t_inner(), track.t_outer()) > min_track_length)
         .filter(|track| {
             (track.helix.r - track.helix.x0.hypot(track.helix.y0)).abs() < max_track_beamline_dca
         })
