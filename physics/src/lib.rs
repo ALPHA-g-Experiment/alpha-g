@@ -1,13 +1,13 @@
 use crate::calibration::pads::baseline::try_pad_baseline;
+use crate::calibration::pads::delay::try_pad_delay;
 use crate::calibration::pads::gain::try_pad_gain;
 use crate::calibration::wires::baseline::try_wire_baseline;
+use crate::calibration::wires::delay::try_wire_delay;
 use crate::calibration::wires::gain::try_wire_gain;
 use crate::deconvolution::pads::pad_deconvolution;
-use crate::deconvolution::wires::{
-    contiguous_ranges, remove_noise_after_t, wire_range_deconvolution,
-};
+use crate::deconvolution::wires::{contiguous_ranges, wire_range_deconvolution};
 use crate::drift::DRIFT_TABLES;
-use crate::matching::{match_column_inputs, pad_column_to_wires, t_min, wire_to_pad_column};
+use crate::matching::{match_column_inputs, pad_column_to_wires, wire_to_pad_column};
 use alpha_g_detector::alpha16::aw_map::{
     self, MapTpcWirePositionError, TpcWirePosition, TPC_ANODE_WIRES,
 };
@@ -28,8 +28,10 @@ use thiserror::Error;
 use uom::si::f64::*;
 
 pub use crate::calibration::pads::baseline::MapPadBaselineError;
+pub use crate::calibration::pads::delay::MapPadDelayError;
 pub use crate::calibration::pads::gain::MapPadGainError;
 pub use crate::calibration::wires::baseline::MapWireBaselineError;
+pub use crate::calibration::wires::delay::MapWireDelayError;
 pub use crate::calibration::wires::gain::MapWireGainError;
 pub use crate::drift::TryDriftLookupError;
 
@@ -189,12 +191,18 @@ pub enum TryMainEventFromDataBanksError {
     /// Wire baseline calibration failed.
     #[error("wire baseline calibration failed")]
     WireBaselineError(#[from] MapWireBaselineError),
+    /// Wire delay calibration failed.
+    #[error("wire delay calibration failed")]
+    WireDelayError(#[from] MapWireDelayError),
     /// Wire gain calibration failed.
     #[error("wire gain calibration failed")]
     WireGainError(#[from] MapWireGainError),
     /// Pad baseline calibration failed.
     #[error("pad baseline calibration failed")]
     PadBaselineError(#[from] MapPadBaselineError),
+    /// Pad delay calibration failed.
+    #[error("pad delay calibration failed")]
+    PadDelayError(#[from] MapPadDelayError),
     /// Pad gain calibration failed.
     #[error("pad gain calibration failed")]
     PadGainError(#[from] MapPadGainError),
@@ -267,13 +275,17 @@ impl MainEvent {
                     } else {
                         let baseline = try_wire_baseline(run_number, wire_position)?;
                         let gain = try_wire_gain(run_number, wire_position)?;
-                        wire_signals[wire_index] = Some(
-                            waveform
-                                .iter()
-                                // Convert to i32 to avoid overflow
-                                .map(|&v| f64::from(i32::from(v) - i32::from(baseline)) * gain)
-                                .collect(),
-                        );
+                        let delay = try_wire_delay(run_number)?;
+
+                        let signal: Vec<_> = waveform
+                            .iter()
+                            .skip(delay)
+                            // Convert to i32 to avoid overflow
+                            .map(|&v| f64::from(i32::from(v) - i32::from(baseline)) * gain)
+                            .collect();
+                        if !signal.is_empty() {
+                            wire_signals[wire_index] = Some(signal);
+                        }
                     }
                 }
                 MainEventBankName::Padwing(bank_name) => {
@@ -323,14 +335,18 @@ impl MainEvent {
                     } else {
                         let baseline = try_pad_baseline(run_number, pad_position)?;
                         let gain = try_pad_gain(run_number, pad_position)?;
-                        pad_signals[pad_index.0][pad_index.1] = Some(
-                            waveform
-                                .iter()
-                                // Given the ranges of PWB samples, overflow is
-                                // not possible.
-                                .map(|&v| f64::from(v.checked_sub(baseline).unwrap()) * gain)
-                                .collect(),
-                        );
+                        let delay = try_pad_delay(run_number)?;
+
+                        let signal: Vec<_> = waveform
+                            .iter()
+                            .skip(delay)
+                            // Given the ranges of PWB samples, overflow is
+                            // not possible.
+                            .map(|&v| f64::from(v.checked_sub(baseline).unwrap()) * gain)
+                            .collect();
+                        if !signal.is_empty() {
+                            pad_signals[pad_index.0][pad_index.1] = Some(signal);
+                        }
                     }
                 }
             }
@@ -355,14 +371,6 @@ impl MainEvent {
                 pad_columns.insert(wire_to_pad_column(i));
             }
         }
-        let t_min = t_min(&wire_inputs);
-        // Anything before `t_min` is assumed to be noise. Use that to remove
-        // the noise in the region of interest, i.e. after `t_min`.
-        // 4/5 is just an arbitrary number that leaves some wiggle room in front
-        // of `t_min` to account for some jitter in the deconvolution.
-        // The typical `tmin` is 100ish or greater. This just leaves about 20
-        // or more time bins.
-        remove_noise_after_t(&mut wire_inputs, 4 * t_min / 5);
         // We need to iterate over the pad columns in a deterministic order.
         // This is needed for complete deterministic vertex reconstruction
         // because of the `track_fitting`. Floating point arithmetic is not
@@ -388,7 +396,6 @@ impl MainEvent {
                 wire_indices.clone().collect::<Vec<_>>().try_into().unwrap(),
                 wire_inputs[wire_indices].try_into().unwrap(),
                 &pad_inputs_column,
-                t_min,
             ));
         }
 

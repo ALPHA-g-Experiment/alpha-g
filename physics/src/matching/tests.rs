@@ -37,16 +37,3 @@ fn pad_column_index_to_wire_indices() {
 
     assert_eq!(seen.len(), TPC_ANODE_WIRES);
 }
-
-#[test]
-fn wires_t_min() {
-    let mut wire_inputs = [(); TPC_ANODE_WIRES].map(|_| Vec::new());
-    wire_inputs[0] = vec![0.0, 1.0, 2.0, 3.0, 4.0];
-    assert_eq!(t_min(&wire_inputs), 4);
-
-    wire_inputs[1] = vec![1.0, 3.0, 5.0];
-    assert_eq!(t_min(&wire_inputs), 2);
-
-    wire_inputs[255] = vec![100.0, 100.0, 100.0, 100.0, 100.0, 100.0];
-    assert_eq!(t_min(&wire_inputs), 0);
-}

@@ -38,24 +38,6 @@ pub(crate) fn pad_column_to_wires(pad_column: usize) -> Range<usize> {
     first..first + WIRES_PER_COLUMN
 }
 
-// Find the t=0 given a reconstructed wire input (i.e. deconvolved signals).
-// This time corresponds to the time at which the greatest avalanche occurred.
-pub(crate) fn t_min(wire_inputs: &[Vec<f64>; TPC_ANODE_WIRES]) -> usize {
-    let mut t_min = 0;
-    let mut max_value = 0.0;
-
-    for input in wire_inputs {
-        for (i, value) in input.iter().enumerate() {
-            if *value > max_value {
-                max_value = *value;
-                t_min = i;
-            }
-        }
-    }
-
-    t_min
-}
-
 #[derive(Clone, Copy, Debug)]
 struct WireHit {
     phi: Angle,
@@ -113,17 +95,15 @@ fn pad_hits_at_t(pad_column_inputs: &[Vec<f64>; TPC_PAD_ROWS], t: usize) -> Vec<
 
 // Match the inputs from all the wires in a pad column to the input from the
 // pad column to reconstruct avalanches.
-// Ignore any input before `t_min`.
 pub(crate) fn match_column_inputs(
     wire_indices: [usize; WIRES_PER_COLUMN],
     wire_inputs: &[Vec<f64>; WIRES_PER_COLUMN],
     pad_column_inputs: &[Vec<f64>; TPC_PAD_ROWS],
-    t_min: usize,
 ) -> Vec<Avalanche> {
     let t_max = wire_inputs.iter().map(|input| input.len()).max().unwrap();
 
     let mut avalanches = Vec::new();
-    for t in t_min..t_max {
+    for t in 0..t_max {
         let mut wire_hits = wire_hits_at_t(wire_indices, wire_inputs, t);
         if wire_hits.is_empty() {
             continue;
@@ -140,7 +120,7 @@ pub(crate) fn match_column_inputs(
                 .into_iter()
                 .zip(pad_hits)
                 .map(|(wire_hit, pad_hit)| Avalanche {
-                    t: Time::new::<second>((t - t_min) as f64 / ADC32_RATE),
+                    t: Time::new::<second>(t as f64 / ADC32_RATE),
                     phi: wire_hit.phi,
                     z: pad_hit.z,
                     wire_amplitude: wire_hit.amplitude,

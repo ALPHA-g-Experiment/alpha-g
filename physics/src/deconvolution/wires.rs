@@ -133,20 +133,6 @@ pub(crate) fn wire_range_deconvolution(
     range_to_indices(range).zip(sol).collect()
 }
 
-// Given a time bin `t`, remove the noise of all channels from `t` onwards.
-// For each channel, the noise threshold is the maximum value in the range
-// [0, t).
-pub(crate) fn remove_noise_after_t(wire_inputs: &mut [Vec<f64>; TPC_ANODE_WIRES], t: usize) {
-    for input in wire_inputs {
-        let noise_threshold = input.iter().take(t).copied().fold(0.0, f64::max);
-        for value in input.iter_mut().skip(t) {
-            if *value <= noise_threshold {
-                *value = 0.0;
-            }
-        }
-    }
-}
-
 // Given a range [first, last), return an iterator over the indices.
 fn range_to_indices(range: (usize, usize)) -> Box<dyn Iterator<Item = usize>> {
     let (first, last) = range;

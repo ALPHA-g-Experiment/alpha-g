@@ -83,18 +83,3 @@ fn trivial_multiple_wires_deconvolution() {
         }
     }
 }
-
-#[test]
-fn wire_inputs_remove_noise_after_t() {
-    let mut wire_inputs = [(); TPC_ANODE_WIRES].map(|_| Vec::new());
-    wire_inputs[0] = vec![1.0, 2.0, 0.5, 1.1, 1.0, 2.5];
-
-    remove_noise_after_t(&mut wire_inputs, 0);
-    assert_eq!(wire_inputs[0], vec![1.0, 2.0, 0.5, 1.1, 1.0, 2.5]);
-
-    remove_noise_after_t(&mut wire_inputs, 1);
-    assert_eq!(wire_inputs[0], vec![1.0, 2.0, 0.0, 1.1, 0.0, 2.5]);
-
-    remove_noise_after_t(&mut wire_inputs, 2);
-    assert_eq!(wire_inputs[0], vec![1.0, 2.0, 0.0, 0.0, 0.0, 2.5]);
-}
