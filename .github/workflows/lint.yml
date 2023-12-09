@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  clippy:
+  lints:
     name: Clippy
     runs-on: ubuntu-latest
     permissions:
