@@ -1,6 +1,5 @@
 //! Statistical analysis of the anode wire signals during a noise run.
 
-use crate::statistics::{cov, is_noise, mean, std_dev};
 use alpha_g_detector::alpha16::{
     aw_map::{TpcWirePosition, TPC_ANODE_WIRES},
     {AdcPacket, ChannelId},
@@ -16,12 +15,10 @@ use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
 use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
 use serde_json::{json, Value};
+use statrs::statistics::Statistics;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::PathBuf;
-
-/// Statistics implementation.
-mod statistics;
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -218,6 +215,11 @@ fn validate_odb_settings(odb: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// Determine if the waveform is noise.
+pub(crate) fn is_noise(_waveform: &[i16]) -> bool {
+    true
+}
+
 /// Get noise samples of all anode wire channels given a collection of memory
 /// mapped MIDAS files.
 /// Count the number of non-critical errors/warnings found.
@@ -344,9 +346,12 @@ fn get_baseline_statistics(
     noise_samples
         .iter()
         .map(|(&wire, noise)| {
-            let noise: Vec<_> = noise.iter().filter_map(|sample| *sample).collect();
-            let mean = mean(&noise);
-            let std_dev = std_dev(&noise);
+            let noise: Vec<_> = noise
+                .iter()
+                .filter_map(|&sample| sample.map(f64::from))
+                .collect();
+            let mean = noise.clone().mean();
+            let std_dev = noise.clone().std_dev();
             // Estimator of the standard error of the mean.
             // https://en.wikipedia.org/wiki/Standard_error#Estimate
             let mean_error = std_dev / (noise.len() as f64).sqrt();
@@ -378,15 +383,14 @@ fn get_covariance_matrix(
             let (noise_i, noise_j): (Vec<_>, Vec<_>) = noise_i
                 .iter()
                 .zip(noise_j.iter())
-                .filter_map(|(sample_i, sample_j)| {
-                    if let (Some(sample_i), Some(sample_j)) = (sample_i, sample_j) {
-                        Some((sample_i, sample_j))
-                    } else {
-                        None
+                .filter_map(|(&sample_i, &sample_j)| {
+                    match (sample_i.map(f64::from), sample_j.map(f64::from)) {
+                        (Some(sample_i), Some(sample_j)) => Some((sample_i, sample_j)),
+                        _ => None,
                     }
                 })
                 .unzip();
-            let covariance = cov(&noise_i, &noise_j);
+            let covariance = noise_i.covariance(noise_j);
             covariance_matrix.insert((wire_i, wire_j), covariance);
         }
     }
