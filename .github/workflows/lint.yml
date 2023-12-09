@@ -11,6 +11,7 @@ env:
 
 jobs:
   clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -31,12 +32,14 @@ jobs:
         sarif_file: clippy-results.sarif
         wait-for-processing: true
   rustfmt:
+    name: rustfmt
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Run rustfmt
       run: cargo fmt --all --check
   docs:
+    name: Docs
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
