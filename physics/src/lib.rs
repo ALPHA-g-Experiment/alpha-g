@@ -35,6 +35,10 @@ pub use crate::calibration::wires::delay::MapWireDelayError;
 pub use crate::calibration::wires::gain::MapWireGainError;
 pub use crate::drift::TryDriftLookupError;
 
+fn ci_test() -> bool {
+true
+}
+
 // Calibration
 //
 // I have the strong opinion that all calibration is an implementation detail
