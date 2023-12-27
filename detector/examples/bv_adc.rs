@@ -1,11 +1,9 @@
 use alpha_g_detector::alpha16::AdcPacket;
 use alpha_g_detector::midas::{Adc16BankName, EventId};
-use midasio::read::file::FileView;
-use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let contents = std::fs::read("example.mid")?;
-    let file_view = FileView::try_from(&contents[..])?;
+    let file_view = midasio::FileView::try_from(&contents[..])?;
 
     let main_events = file_view
         .into_iter()

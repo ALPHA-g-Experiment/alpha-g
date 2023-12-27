@@ -1,12 +1,10 @@
 use alpha_g_detector::midas::{EventId, PadwingBankName};
 use alpha_g_detector::padwing::{AfterId, BoardId, Chunk, PwbPacket};
-use midasio::read::file::FileView;
 use std::collections::HashMap;
-use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let contents = std::fs::read("example.mid")?;
-    let file_view = FileView::try_from(&contents[..])?;
+    let file_view = midasio::FileView::try_from(&contents[..])?;
 
     let main_events = file_view
         .into_iter()
