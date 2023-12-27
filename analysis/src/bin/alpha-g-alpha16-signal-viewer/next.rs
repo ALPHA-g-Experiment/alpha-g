@@ -5,7 +5,6 @@ use alpha_g_detector::midas::{
 };
 use anyhow::{anyhow, Context, Result};
 use memmap2::Mmap;
-use midasio::read::file::FileView;
 use serde_json::Value;
 use std::fs::File;
 use std::path::Path;
@@ -63,7 +62,7 @@ where
                 continue;
             }
         };
-        let file_view = match FileView::try_from(&mmap[..]) {
+        let file_view = match midasio::FileView::try_from(&mmap[..]) {
             Ok(file_view) => file_view,
             Err(error) => {
                 if sender
@@ -96,7 +95,7 @@ where
             .into_iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)))
         {
-            for bank_view in event_view
+            for bank_view in (&event_view)
                 .into_iter()
                 .filter(|b| Alpha16BankName::try_from(b.name()).is_ok())
             {

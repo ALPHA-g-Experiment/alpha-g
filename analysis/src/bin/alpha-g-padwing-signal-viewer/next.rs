@@ -2,7 +2,6 @@ use alpha_g_detector::midas::{EventId, PadwingBankName, PWB_SUPPRESSION_THRESHOL
 use alpha_g_detector::padwing::{AfterId, BoardId, ChannelId, Chunk, PwbPacket};
 use anyhow::{anyhow, Context, Result};
 use memmap2::Mmap;
-use midasio::read::file::FileView;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
@@ -64,7 +63,7 @@ where
                 continue;
             }
         };
-        let file_view = match FileView::try_from(&mmap[..]) {
+        let file_view = match midasio::FileView::try_from(&mmap[..]) {
             Ok(file_view) => file_view,
             Err(error) => {
                 if sender
@@ -89,7 +88,7 @@ where
             None
         };
 
-        let main_events = file_view
+        let main_events = (&file_view)
             .into_iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)));
         for event_view in main_events {
