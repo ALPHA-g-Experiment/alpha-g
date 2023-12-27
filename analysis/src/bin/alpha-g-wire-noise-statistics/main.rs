@@ -13,7 +13,7 @@ use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
-use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
+use midasio::file::{initial_timestamp_unchecked, run_number_unchecked};
 use serde_json::{json, Value};
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, HashSet};
@@ -249,7 +249,7 @@ fn try_noise_samples(
     );
     bar.tick();
     for (path, mmap) in mmaps {
-        let file_view = FileView::try_from(&mmap[..])
+        let file_view = midasio::FileView::try_from(&mmap[..])
             .with_context(|| format!("`{}` is not a valid MIDAS file", path.display()))?;
         let run_number = file_view.run_number();
         validate_odb_settings(file_view.initial_odb())
@@ -263,7 +263,7 @@ fn try_noise_samples(
             // current event. Helps to maintain time alignment between channels.
             let mut temp = HashMap::new();
 
-            for bank_view in event_view
+            for bank_view in (&event_view)
                 .into_iter()
                 .filter(|bank| Adc32BankName::try_from(bank.name()).is_ok())
             {

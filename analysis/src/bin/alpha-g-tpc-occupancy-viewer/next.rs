@@ -3,7 +3,6 @@ use alpha_g_detector::midas::{Adc32BankName, EventId, PadwingBankName};
 use alpha_g_detector::padwing::{AfterId, BoardId, Chunk, PwbPacket};
 use anyhow::{anyhow, Context, Result};
 use memmap2::Mmap;
-use midasio::read::file::FileView;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
@@ -60,7 +59,7 @@ where
                 continue;
             }
         };
-        let file_view = match FileView::try_from(&mmap[..]) {
+        let file_view = match midasio::FileView::try_from(&mmap[..]) {
             Ok(file_view) => file_view,
             Err(error) => {
                 if sender
@@ -78,7 +77,7 @@ where
             }
         };
 
-        for event_view in file_view
+        for event_view in (&file_view)
             .into_iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)))
         {

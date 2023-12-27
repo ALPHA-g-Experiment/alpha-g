@@ -11,7 +11,7 @@ use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
-use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
+use midasio::file::{initial_timestamp_unchecked, run_number_unchecked};
 use pgfplots::{axis::*, Engine, Picture};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -246,7 +246,7 @@ fn try_amplitude_distributions(
     );
     bar.tick();
     for (path, mmap) in mmaps {
-        let file_view = FileView::try_from(&mmap[..])
+        let file_view = midasio::FileView::try_from(&mmap[..])
             .with_context(|| format!("`{}` is not a valid MIDAS file", path.display()))?;
         let run_number = file_view.run_number();
 
@@ -257,7 +257,7 @@ fn try_amplitude_distributions(
             // Need to group chunks by board and chip.
             let mut pwb_chunks_map: HashMap<_, Vec<_>> = HashMap::new();
 
-            for bank_view in event_view
+            for bank_view in (&event_view)
                 .into_iter()
                 .filter(|bank| PadwingBankName::try_from(bank.name()).is_ok())
             {

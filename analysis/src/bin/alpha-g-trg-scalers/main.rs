@@ -9,7 +9,7 @@ use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap2::Mmap;
-use midasio::read::file::{initial_timestamp_unchecked, run_number_unchecked, FileView};
+use midasio::file::{initial_timestamp_unchecked, run_number_unchecked};
 use std::fs::{copy, File};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
@@ -130,7 +130,7 @@ fn main() -> Result<()> {
     // detect time between consecutive files.
     let mut previous_file_timestamp = initial_timestamp_unchecked(&input_files[0].1).unwrap();
     'outer: for (path, mmap) in input_files {
-        let file = FileView::try_from(&mmap[..])
+        let file = midasio::FileView::try_from(&mmap[..])
             .with_context(|| format!("`{}` is not a valid MIDAS file", path.display()))?;
         // This is the time (in seconds) between 2 consecutive MIDAS files.
         // Files are already sorted by timestamp, so this is guaranteed to be
@@ -156,7 +156,7 @@ fn main() -> Result<()> {
             previous_packet = None;
         }
 
-        for event in file
+        for event in (&file)
             .into_iter()
             .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
         {
