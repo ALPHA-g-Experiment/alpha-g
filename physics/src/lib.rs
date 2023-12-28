@@ -8,6 +8,7 @@ use crate::deconvolution::pads::pad_deconvolution;
 use crate::deconvolution::wires::{contiguous_ranges, wire_range_deconvolution};
 use crate::drift::DRIFT_TABLES;
 use crate::matching::{match_column_inputs, pad_column_to_wires, wire_to_pad_column};
+use crate::reconstruction::{cluster_spacepoints, find_vertices, Coordinate};
 use alpha_g_detector::alpha16::aw_map::{
     self, MapTpcWirePositionError, TpcWirePosition, TPC_ANODE_WIRES,
 };
@@ -359,6 +360,31 @@ impl MainEvent {
                 .ok_or(TryMainEventFromDataBanksError::MissingTrgBank)?,
         })
     }
+    /// Return the reconstructed primary vertex position.
+    ///
+    /// This is a convenience method for using [`MainEvent::avalanches`],
+    /// [`cluster_spacepoints`] and [`find_vertices`] with fewer imports and
+    /// without intermediate variables.
+    pub fn vertex(&self) -> Option<Coordinate> {
+        let points = self
+            .avalanches()
+            .into_iter()
+            .filter_map(|avalanche| avalanche.try_into().ok())
+            .collect();
+        let tracks = cluster_spacepoints(points)
+            .clusters
+            .into_iter()
+            .filter_map(|cluster| cluster.try_into().ok())
+            .collect();
+        find_vertices(tracks).primary.map(|info| info.position)
+    }
+    /// Return the trigger timestamp of the event. This is a counter that
+    /// increments at a frequency of [`TRG_CLOCK_FREQ`].
+    ///
+    /// Note that this counter wraps around after a certain amount of time.
+    pub fn timestamp(&self) -> u32 {
+        self.trigger_timestamp
+    }
     /// Return all reconstructed avalanches in the event.
     pub fn avalanches(&self) -> Vec<Avalanche> {
         // Match wire and pad signals only on columns that have both.
@@ -400,13 +426,6 @@ impl MainEvent {
         }
 
         avalanches
-    }
-    /// Return the trigger timestamp of the event. This is a counter that
-    /// increments at a frequency of [`TRG_CLOCK_FREQ`].
-    ///
-    /// Note that this counter wraps around after a certain amount of time.
-    pub fn timestamp(&self) -> u32 {
-        self.trigger_timestamp
     }
 }
 
