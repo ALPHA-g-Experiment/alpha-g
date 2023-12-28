@@ -257,8 +257,8 @@ fn try_amplitude_distributions(
             // Need to group chunks by board and chip.
             let mut pwb_chunks_map: HashMap<_, Vec<_>> = HashMap::new();
 
-            for bank_view in (&event_view)
-                .into_iter()
+            for bank_view in event_view
+                .iter()
                 .filter(|bank| PadwingBankName::try_from(bank.name()).is_ok())
             {
                 let chunk = match Chunk::try_from(bank_view.data_slice()) {

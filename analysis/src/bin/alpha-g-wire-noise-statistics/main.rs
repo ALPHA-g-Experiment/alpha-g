@@ -263,8 +263,8 @@ fn try_noise_samples(
             // current event. Helps to maintain time alignment between channels.
             let mut temp = HashMap::new();
 
-            for bank_view in (&event_view)
-                .into_iter()
+            for bank_view in event_view
+                .iter()
                 .filter(|bank| Adc32BankName::try_from(bank.name()).is_ok())
             {
                 let packet = match AdcPacket::try_from(bank_view.data_slice()) {

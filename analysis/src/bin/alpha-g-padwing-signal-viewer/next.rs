@@ -88,8 +88,8 @@ where
             None
         };
 
-        let main_events = (&file_view)
-            .into_iter()
+        let main_events = file_view
+            .iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)));
         for event_view in main_events {
             let mut pwb_chunks_map: HashMap<(BoardId, AfterId), Vec<Chunk>> = HashMap::new();

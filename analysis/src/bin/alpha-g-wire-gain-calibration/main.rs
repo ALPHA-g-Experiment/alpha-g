@@ -260,8 +260,8 @@ fn try_amplitude_distributions(
             .into_iter()
             .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
         {
-            for bank_view in (&event_view)
-                .into_iter()
+            for bank_view in event_view
+                .iter()
                 .filter(|bank| Adc32BankName::try_from(bank.name()).is_ok())
             {
                 let packet = match AdcPacket::try_from(bank_view.data_slice()) {

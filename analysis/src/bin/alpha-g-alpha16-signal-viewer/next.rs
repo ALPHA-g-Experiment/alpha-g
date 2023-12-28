@@ -95,8 +95,8 @@ where
             .into_iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)))
         {
-            for bank_view in (&event_view)
-                .into_iter()
+            for bank_view in event_view
+                .iter()
                 .filter(|b| Alpha16BankName::try_from(b.name()).is_ok())
             {
                 let adc_packet = match AdcPacket::try_from(bank_view.data_slice()) {

@@ -156,8 +156,8 @@ fn main() -> Result<()> {
             previous_packet = None;
         }
 
-        for event in (&file)
-            .into_iter()
+        for event in file
+            .iter()
             .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
         {
             for bank in event
