@@ -246,8 +246,8 @@ fn try_noise_samples(
             // Need to group chunks by board and chip.
             let mut pwb_chunks_map: HashMap<_, Vec<_>> = HashMap::new();
 
-            for bank_view in (&event_view)
-                .into_iter()
+            for bank_view in event_view
+                .iter()
                 .filter(|b| PadwingBankName::try_from(b.name()).is_ok())
             {
                 let chunk = match Chunk::try_from(bank_view.data_slice()) {

@@ -77,8 +77,8 @@ where
             }
         };
 
-        for event_view in (&file_view)
-            .into_iter()
+        for event_view in file_view
+            .iter()
             .filter(|e| matches!(EventId::try_from(e.id()), Ok(EventId::Main)))
         {
             let mut adc_packets = Vec::new();
