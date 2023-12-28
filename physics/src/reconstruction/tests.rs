@@ -338,7 +338,7 @@ fn test_trivial_vertex(z: Length) {
         .into_iter()
         .map(|cluster| Track::try_from(cluster).unwrap())
         .collect();
-    let vertex = fit_vertices(tracks).primary.unwrap().position;
+    let vertex = find_vertices(tracks).primary.unwrap().position;
     let diff_x = (vertex.x - Length::new::<meter>(0.0)).abs();
     let diff_y = (vertex.y - Length::new::<meter>(0.0)).abs();
     let diff_z = (vertex.z - z).abs();
