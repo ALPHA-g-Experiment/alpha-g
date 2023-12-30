@@ -11,17 +11,19 @@ categories = ["science", "command-line-utilities"]
 
 [dependencies]
 alpha_g_detector = { version = "0.2",  path = "../detector" }
+alpha_g_physics = { path = "../physics" }
 anyhow = "1"
 argmin = { version = "0.8.1", default-features = false }
 clap = { version = "4", features = ["derive"] }
 cursive = "0.20"
 glob = "0.3"
-indicatif = "0.17"
+indicatif = { version = "0.17.7", features = ["rayon"] }
 lz4 = "1"
 memmap2 = "0.5"
-midasio = "0.5.2"
+midasio = { version = "0.5.2", features = ["rayon"] }
 opener = "0.5"
 pgfplots = "0.5"
+rayon = "1.8.0"
 ron = "0.8.0"
 serde_json = "1"
 statrs = "0.16.0"
