@@ -1,5 +1,7 @@
+use midasio::file::{initial_timestamp_unchecked, run_number_unchecked, TryFileViewFromBytesError};
 use std::ffi::{OsStr, OsString};
-use std::path::Path;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 // Known ALPHA-g file extensions.
@@ -43,6 +45,19 @@ pub enum AlphaIOError {
     /// Unknown file extension.
     #[error("unknown file extension")]
     UnknownExtension(#[from] TryExtensionFromOsStrError),
+    /// MIDAS file format error.
+    #[error("midas file format error")]
+    MidasFileFormatError(#[from] TryFileViewFromBytesError),
+    /// Bad run number.
+    #[error("bad run number in `{}` (expected `{expected}`, found `{found}`)", .path.display())]
+    BadRunNumber {
+        path: PathBuf,
+        expected: u32,
+        found: u32,
+    },
+    /// Duplicate files by their initial timestamp.
+    #[error("duplicate initial timestamp in `{}` and `{}`", .path1.display(), .path2.display())]
+    DuplicateInitialTimestamp { path1: PathBuf, path2: PathBuf },
 }
 
 /// Read the entire contents of a file (auto-detecting compression).
@@ -62,4 +77,69 @@ pub fn read<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, AlphaIOError> {
             Ok(contents)
         }
     }
+}
+
+/// Sort all the files of an individual run by their initial ODB dump timestamp.
+///
+/// Returns an error if:
+/// - Not all files correspond to the same run number.
+/// - Two files have the same initial timestamp.
+///
+/// # Panics
+///
+/// Panics if the input iterator is empty.
+pub fn sort_run_files<P: AsRef<Path>>(
+    files: impl IntoIterator<Item = P>,
+) -> Result<(u32, Vec<P>), AlphaIOError> {
+    let mut files = files
+        .into_iter()
+        .map(|path| {
+            let mut file = std::fs::File::open(&path)?;
+            // The first 12 bytes contain both the run number and the initial
+            // timestamp.
+            let mut buffer = [0; 12];
+            match Extension::try_from(path.as_ref().extension().unwrap_or_default())? {
+                Extension::Mid => {
+                    file.read_exact(&mut buffer)?;
+                }
+                Extension::Lz4 => {
+                    let mut decoder = lz4::Decoder::new(&mut file)?;
+                    decoder.read_exact(&mut buffer)?;
+                }
+            }
+
+            let run_number = run_number_unchecked(&buffer)?;
+            let initial_timestamp = initial_timestamp_unchecked(&buffer)?;
+
+            Ok((run_number, initial_timestamp, path))
+        })
+        .collect::<Result<Vec<_>, AlphaIOError>>()?;
+
+    assert!(!files.is_empty());
+    let expected_run_number = files[0].0;
+    for (run_number, _, path) in &files {
+        if *run_number != expected_run_number {
+            return Err(AlphaIOError::BadRunNumber {
+                path: path.as_ref().to_owned(),
+                expected: expected_run_number,
+                found: *run_number,
+            });
+        }
+    }
+
+    files.sort_unstable_by_key(|(_, initial_timestamp, _)| *initial_timestamp);
+    // These are sorted, so it is enough to check for consecutive duplicates.
+    for window in files.windows(2) {
+        if window[0].1 == window[1].1 {
+            return Err(AlphaIOError::DuplicateInitialTimestamp {
+                path1: window[0].2.as_ref().to_owned(),
+                path2: window[1].2.as_ref().to_owned(),
+            });
+        }
+    }
+
+    Ok((
+        expected_run_number,
+        files.into_iter().map(|(_, _, path)| path).collect(),
+    ))
 }
