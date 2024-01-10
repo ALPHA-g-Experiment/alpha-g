@@ -1,11 +1,11 @@
 [package]
 name = "alpha_g_physics"
-version = "0.1.0" # Remember to also change this in the README.md
+version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Data analysis library for the ALPHA-g experiment"
 readme = "README.md"
-repository = "https://github.com/DJDuque/alpha-g"
+repository = "https://github.com/ALPHA-g-Experiment/alpha-g"
 keywords = ["alpha", "alpha-g", "cern", "physics", "antimatter"]
 categories = ["science"]
 documentation = "https://docs.rs/alpha_g_physics"
