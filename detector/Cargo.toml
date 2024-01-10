@@ -1,6 +1,6 @@
 [package]
 name = "alpha_g_detector"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "A Rust library to handle the raw output of the ALPHA-g detectors"
