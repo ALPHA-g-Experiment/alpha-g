@@ -11,7 +11,7 @@ categories = ["science"]
 documentation = "https://docs.rs/alpha_g_detector"
 
 [dependencies]
-crc32c = "0.6"
+crc32c = "0.6.4"
 lazy_static = "1.4"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
