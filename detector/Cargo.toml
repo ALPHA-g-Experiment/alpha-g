@@ -1,20 +1,20 @@
 [package]
 name = "alpha_g_detector"
-version = "0.2.0" # Remember to also change this in the README.md
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "A Rust library to handle the raw output of the ALPHA-g detectors"
 readme = "README.md"
-repository = "https://github.com/DJDuque/alpha-g"
+repository = "https://github.com/ALPHA-g-Experiment/alpha-g"
 keywords = ["alpha", "alpha-g", "cern", "physics", "antimatter"]
 categories = ["science"]
 documentation = "https://docs.rs/alpha_g_detector"
 
 [dependencies]
-crc32c = "0.6"
-lazy_static = "1.4"
-serde = { version = "1", features = ["derive"] }
-thiserror = "1"
+crc32c = "0.6.4"
+lazy_static = "1.4.0"
+serde = { version = "1.0.195", features = ["derive"] }
+thiserror = "1.0.56"
 
 [dev-dependencies]
 midasio = "0.5.0"
