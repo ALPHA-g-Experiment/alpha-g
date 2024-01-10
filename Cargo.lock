@@ -50,7 +50,7 @@ dependencies = [
 
 [[package]]
 name = "alpha_g_detector"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "crc32c",
  "lazy_static",

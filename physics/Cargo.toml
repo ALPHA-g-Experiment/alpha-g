@@ -11,7 +11,7 @@ categories = ["science"]
 documentation = "https://docs.rs/alpha_g_physics"
 
 [dependencies]
-alpha_g_detector = { version = "0.2.0", path = "../detector" }
+alpha_g_detector = { version = "0.3.0", path = "../detector" }
 argmin = { version = "0.8.1", default-features = false }
 argmin-math = "0.3.0"
 dyn-stack = "0.9.0"
