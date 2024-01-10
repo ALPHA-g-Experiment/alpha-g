@@ -22,6 +22,8 @@ cargo install alpha-g-analysis
 
 - [`alpha-g-trg-scalers`](src/bin/alpha-g-trg-scalers/README.md):
 Visualize the rate of the TRG scalers for a single run.
+- [`alpha-g-vertices`](src/bin/alpha-g-vertices/README.md):
+Reconstruct the annihilation vertices for a single run.
 
 ### Calibration
 

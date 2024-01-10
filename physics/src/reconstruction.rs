@@ -329,8 +329,8 @@ pub struct VertexingResult {
 }
 
 /// Given a collection of [`Track`]s, reconstruct the vertices of an event.
-pub fn fit_vertices(tracks: Vec<Track>) -> VertexingResult {
-    vertex_fitting::fit_vertices(
+pub fn find_vertices(tracks: Vec<Track>) -> VertexingResult {
+    vertex_fitting::find_vertices(
         tracks,
         // Minimum track length to be considered for vertexing.
         Length::new::<centimeter>(3.5),

@@ -9,7 +9,7 @@ use uom::si::length::meter;
 use uom::typenum::P2;
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn fit_vertices(
+pub(crate) fn find_vertices(
     mut tracks: Vec<Track>,
     min_track_length: Length,
     // If a track has a distance of closest approach to the beamline larger than
