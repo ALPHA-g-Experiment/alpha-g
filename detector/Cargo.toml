@@ -14,7 +14,7 @@ documentation = "https://docs.rs/alpha_g_detector"
 crc32c = "0.6.4"
 lazy_static = "1.4.0"
 serde = { version = "1.0.195", features = ["derive"] }
-thiserror = "1"
+thiserror = "1.0.56"
 
 [dev-dependencies]
 midasio = "0.5.0"
