@@ -66,12 +66,11 @@ pub enum AlphaIOError {
 /// convenience function for using [`std::fs::read`] and handling the known
 /// compression algorithms used to store ALPHA-g data.
 pub fn read<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, AlphaIOError> {
-    let contents = std::fs::read(&path)?;
-
     match Extension::try_from(path.as_ref().extension().unwrap_or_default())? {
-        Extension::Mid => Ok(contents),
+        Extension::Mid => Ok(std::fs::read(&path)?),
         Extension::Lz4 => {
-            let mut decoder = lz4::Decoder::new(&contents[..])?;
+            let file = std::fs::File::open(&path)?;
+            let mut decoder = lz4::Decoder::new(file)?;
             let mut contents = Vec::new();
             std::io::copy(&mut decoder, &mut contents)?;
             Ok(contents)
