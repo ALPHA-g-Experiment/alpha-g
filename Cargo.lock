@@ -72,6 +72,7 @@ dependencies = [
  "faer-core",
  "itertools",
  "lazy_static",
+ "midasio",
  "num-complex",
  "ron",
  "serde",
@@ -889,9 +890,9 @@ dependencies = [
 
 [[package]]
 name = "midasio"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c12ba797ceabc57ff985d2246e66fbf028873324c153be808564777bb55e94c"
+checksum = "3251c3d3b68d326dc832d003c9c5ef6c4f48ff3a467c43b5fbdf501fe45db9fb"
 dependencies = [
  "rayon",
  "thiserror",

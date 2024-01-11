@@ -28,3 +28,4 @@ thiserror = "1.0.40"
 uom = { version = "0.35.0", features = ["use_serde"] }
 
 [dev-dependencies]
+midasio = "0.5.3"
