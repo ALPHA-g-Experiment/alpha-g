@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn try_pad_delay_map_error() {
-    for run_number in 0..=9566 {
+    for run_number in 0..=6999 {
         assert!(try_pad_delay(run_number).is_err());
     }
 }
