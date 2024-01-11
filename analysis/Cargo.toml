@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 description = "Executables that perform common post-processing/offline analysis on the data of the ALPHA-g experiment"
 readme = "README.md"
-repository = "https://github.com/DJDuque/alpha-g"
+repository = "https://github.com/ALPHA-g-Experiment/alpha-g"
 keywords = ["alpha", "alpha-g", "cern", "physics", "antimatter"]
 categories = ["science", "command-line-utilities"]
 
