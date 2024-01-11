@@ -1,6 +1,6 @@
 [package]
 name = "alpha-g-analysis"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "Executables that perform common post-processing/offline analysis on the data of the ALPHA-g experiment"
