@@ -6,8 +6,8 @@ reconstructed vertices of a run.
 The CSV data will have the following three-line header:
 
 ```
-# Version of the alpha-g-analysis package
-# CLI arguments used to run the program
+# <package_name> <package_version>
+# <cli_arguments>
 serial_number,trg_time,reconstructed_x,reconstructed_y,reconstructed_z
 ```
 

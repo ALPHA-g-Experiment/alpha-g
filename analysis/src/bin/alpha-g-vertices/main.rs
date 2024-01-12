@@ -144,7 +144,8 @@ fn main() -> Result<()> {
     eprintln!("Created `{}`", output.display());
     wtr.write_all(
         format!(
-            "# Version {}\n# {}\n",
+            "# {} {}\n# {}\n",
+            env!("CARGO_PKG_NAME"),
             env!("CARGO_PKG_VERSION"),
             std::env::args().collect::<Vec<_>>().join(" ")
         )
