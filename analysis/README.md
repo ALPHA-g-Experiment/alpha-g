@@ -79,11 +79,6 @@ statistically significant difference between them.
 Gain calibration of the anode wire signals.
 
 #### Pads
-- [`alpha-g-pad-noise-statistics`](src/bin/alpha-g-pad-noise-statistics/README.md):
-Statistical analysis of the pad signals during a noise run.
-- [`alpha-g-pad-baseline-comparison`](src/bin/alpha-g-pad-baseline-comparison/README.md):
-Compare pad baseline calibration files to determine if there is a statistically
-significant difference between them.
 - [`alpha-g-pad-gain-calibration`](src/bin/alpha-g-pad-gain-calibration/README.md):
 Gain calibration of the cathode pad signals.
 
