@@ -89,8 +89,6 @@ Gain calibration of the cathode pad signals.
 
 ### TUI Visualization
 
-- [`alpha-g-padwing-signal-viewer`](src/bin/alpha-g-padwing-signal-viewer/README.md):
-Visualize the cathode pad waveforms from the rTPC.
 - [`alpha-g-tpc-occupancy-viewer`](src/bin/alpha-g-tpc-occupancy-viewer/README.md):
 Visualize the anode wire and pad occupancy of the rTPC.
 
