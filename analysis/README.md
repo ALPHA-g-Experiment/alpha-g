@@ -66,17 +66,6 @@ Extract the TRG scalers for a single run.
 - [`alpha-g-vertices`](src/bin/alpha-g-vertices/README.md):
 Reconstruct the annihilation vertices for a single run.
 
-### Calibration
-
-#### Anode Wires
-
-- [`alpha-g-wire-gain-calibration`](src/bin/alpha-g-wire-gain-calibration/README.md):
-Gain calibration of the anode wire signals.
-
-#### Pads
-- [`alpha-g-pad-gain-calibration`](src/bin/alpha-g-pad-gain-calibration/README.md):
-Gain calibration of the cathode pad signals.
-
 ### Other
 
 - [`alpha-g-copy`](src/bin/alpha-g-copy/README.md): Make local copies of MIDAS 
