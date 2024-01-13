@@ -65,8 +65,3 @@ zathura](https://wiki.archlinux.org/title/zathura#Make_zathura_the_default_pdf_v
 Extract the TRG scalers for a single run.
 - [`alpha-g-vertices`](src/bin/alpha-g-vertices/README.md):
 Reconstruct the annihilation vertices for a single run.
-
-### Other
-
-- [`alpha-g-copy`](src/bin/alpha-g-copy/README.md): Make local copies of MIDAS 
-files from remote hosts.
