@@ -614,7 +614,7 @@ impl TryFrom<&[u8]> for TrgV3Packet {
 ///
 /// This enum can currently contain only a [`TrgV3Packet`]. See its
 /// documentation for more details.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum TrgPacket {
     /// Version 3 of a TRG packet.
     V3(TrgV3Packet),
