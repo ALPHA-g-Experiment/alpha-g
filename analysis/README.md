@@ -87,11 +87,6 @@ significant difference between them.
 - [`alpha-g-pad-gain-calibration`](src/bin/alpha-g-pad-gain-calibration/README.md):
 Gain calibration of the cathode pad signals.
 
-### TUI Visualization
-
-- [`alpha-g-tpc-occupancy-viewer`](src/bin/alpha-g-tpc-occupancy-viewer/README.md):
-Visualize the anode wire and pad occupancy of the rTPC.
-
 ### Other
 
 - [`alpha-g-copy`](src/bin/alpha-g-copy/README.md): Make local copies of MIDAS 
