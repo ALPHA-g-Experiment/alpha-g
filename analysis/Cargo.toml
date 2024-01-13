@@ -10,7 +10,7 @@ keywords = ["alpha", "alpha-g", "cern", "physics", "antimatter"]
 categories = ["science", "command-line-utilities"]
 
 [dependencies]
-alpha_g_detector = { version = "0.3.0",  path = "../detector" }
+alpha_g_detector = { version = "0.3.1",  path = "../detector" }
 alpha_g_physics = { version = "0.1.0", path = "../physics" }
 anyhow = "1.0.68"
 argmin = { version = "0.8.1", default-features = false }
