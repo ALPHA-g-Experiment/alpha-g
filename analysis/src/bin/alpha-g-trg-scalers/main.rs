@@ -1,376 +1,159 @@
-//! Visualize the rate of TRG signals for a single run.
-
-use crate::delta_packet::DeltaPacket;
-use crate::plot::{create_picture, Figure};
 use alpha_g_detector::midas::{EventId, TriggerBankName};
 use alpha_g_detector::trigger::TrgPacket;
-use alpha_g_detector::trigger::TRG_CLOCK_FREQ;
-use anyhow::{bail, ensure, Context, Result};
+use alpha_g_physics::TRG_CLOCK_FREQ;
+use anyhow::{ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
-use memmap2::Mmap;
-use midasio::file::{initial_timestamp_unchecked, run_number_unchecked};
-use std::fs::{copy, File};
-use std::hash::{Hash, Hasher};
+use std::io::Write;
 use std::path::PathBuf;
-
-/// Difference between TRG packets.
-mod delta_packet;
-
-/// Update and create plots based on TRG data packets rate.
-mod plot;
+use uom::si::time::second;
 
 #[derive(Parser)]
 #[command(author, version)]
-#[command(about = "Visualize the rate of TRG scalers for a single run", long_about = None)]
-// If you add a new argument that changes the behaviour of the final plot,
-// remember to include this in the Hash trait below.
-pub(crate) struct Args {
-    /// MIDAS files from the run you want to inspect.
+#[command(about = "Extract the TRG scalers for a single run", long_about = None)]
+struct Args {
+    /// MIDAS files from the run you want to inspect
     #[arg(required = true)]
     files: Vec<PathBuf>,
-    /// Time step (in seconds) between plotted points.
-    #[arg(short, long, default_value = "1.0", value_parser = valid_time_step)]
-    time_step: f64,
-    /// Skip packets with an `output_counter` between `[1..=SKIP]`
-    /// The first packet not skipped sets `t=0`
+    /// Write the TRG scalers to `OUTPUT.csv`
+    #[arg(short, long)]
+    output: PathBuf,
+    /// Ignore the first `SKIP` number of events
+    /// The first event not skipped sets `t=0`
     // The default here is used to skip the initial 10 synchronization software
     // triggers.
     #[arg(long, default_value = "10", verbatim_doc_comment)]
-    skip: u32,
-    /// Minimum time (in seconds)
-    /// Ignore all packets with a timestamp `t < min_time`
-    #[arg(
-        long = "min-time",
-        value_name = "MIN_TIME",
-        default_value = "0.0",
-        value_parser(valid_time_limit),
-        verbatim_doc_comment
-    )]
-    // Ask in seconds to the user, but parse as u64 in clock units to have this
-    // validation as early as possible.
-    // i.e. parse, don't validate
-    min_timestamp: u64,
-    /// Maximum time (in seconds)
-    /// Ignore all packets with a timestamp `t > max_time`
-    #[arg(
-        long = "max-time",
-        value_name = "MAX_TIME",
-        value_parser(valid_time_limit),
-        verbatim_doc_comment
-    )]
-    // Same as `min_time`. Parse, don't validate
-    max_timestamp: Option<u64>,
-    /// Include the `drift_veto_counter` in the final plot.
-    #[arg(long)]
-    include_drift_veto_counter: bool,
-    /// Include the `pulser_counter` in the final plot.
-    #[arg(long)]
-    include_pulser_counter: bool,
-    /// Include the `scaledown_counter` in the final plot.
-    #[arg(long)]
-    include_scaledown_counter: bool,
-    /// Remove the `input_counter` from the final plot.
-    #[arg(long)]
-    remove_input_counter: bool,
-    /// Remove the `output_counter` from the final plot.
-    #[arg(long)]
-    remove_output_counter: bool,
-    /// Save the PDF plot in the `output_path`. Do not open the file.
-    #[arg(long)]
-    batch_mode: bool,
-    /// Path where the output PDF file will be saved into when running in `batch_mode`.
-    #[arg(
-        short,
-        long,
-        default_value = "./",
-        value_parser(is_directory),
-        requires("batch_mode")
-    )]
-    output_path: PathBuf,
-    /// Print detailed information about errors (if any).
+    skip: usize,
+    /// Print detailed information about errors (if any)
     #[arg(short, long)]
     verbose: bool,
 }
 
-// The hash value of the arguments used to generate the final graph is used
-// to give a unique name to the output PDF. This avoids overwriting any equal
-// files generated in e.g. a bash script.
-impl Hash for Args {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.files.hash(state);
-        ((self.time_step * TRG_CLOCK_FREQ) as u128).hash(state);
-        self.skip.hash(state);
-        self.min_timestamp.hash(state);
-        self.max_timestamp.hash(state);
-        self.include_drift_veto_counter.hash(state);
-        self.include_pulser_counter.hash(state);
-        self.include_scaledown_counter.hash(state);
-        self.remove_input_counter.hash(state);
-        self.remove_output_counter.hash(state);
-    }
+#[derive(Debug, Default, serde::Serialize)]
+struct Row {
+    serial_number: u32,
+    trg_time: Option<f64>,
+    input: Option<u32>,
+    drift_veto: Option<u32>,
+    scaledown: Option<u32>,
+    pulser: Option<u32>,
+    output: Option<u32>,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let input_files = try_valid_mmaps(args.files.clone()).context("invalid input file")?;
+    let (_, files) =
+        alpha_g_analysis::sort_run_files(args.files).context("failed to sort input files")?;
 
-    let bar = ProgressBar::new(input_files.len().try_into().unwrap()).with_style(
-        ProgressStyle::with_template("  Analysing [{bar:25}] {percent}%,  ETA: {eta}")
+    let bar = ProgressBar::new(files.len().try_into().unwrap()).with_style(
+        ProgressStyle::with_template("  Processing [{bar:25}] {percent}%,  ETA: {eta}")
             .unwrap()
             .progress_chars("=> "),
     );
     bar.tick();
 
-    let mut previous_packet = None;
-    let mut cumulative_timestamp: u64 = 0;
-    let mut figures = Vec::new();
-    let mut count_errors: u32 = 0;
-    // Need to keep track of the `final_timestamp` of each file in order to
-    // detect time between consecutive files.
-    let mut previous_file_timestamp = initial_timestamp_unchecked(&input_files[0].1).unwrap();
-    'outer: for (path, mmap) in input_files {
-        let file = midasio::FileView::try_from(&mmap[..])
-            .with_context(|| format!("`{}` is not a valid MIDAS file", path.display()))?;
-        // This is the time (in seconds) between 2 consecutive MIDAS files.
-        // Files are already sorted by timestamp, so this is guaranteed to be
-        // non-negative.
-        let seconds_between_files = file.initial_timestamp() - previous_file_timestamp;
-        // If this is not `0`, it means that there is a missing file in between.
-        // Deal with this by "starting over" and making a hole between the plots.
-        if seconds_between_files != 0 {
-            count_errors += 1;
-            if args.verbose {
-                bar.println(format!(
-                    "Warning: missing file(s) between `{previous_file_timestamp}` and `{}`. Timestamp is no longer exact.",
-                    file.initial_timestamp()
-                ));
-            }
-            // The cumulative timestamp is no longer an absolute/exact time with
-            // respect to t=0. There is some small offset introduced by this
-            // "jump exact amount of seconds"
-            cumulative_timestamp += u64::from(seconds_between_files) * (TRG_CLOCK_FREQ as u64);
-            if cumulative_timestamp >= args.min_timestamp {
-                figures.push(Figure::new(cumulative_timestamp, args.time_step));
-            }
-            previous_packet = None;
+    let mut rows = Vec::new();
+    let mut previous_final_timestamp = None;
+    for file in files {
+        let contents = alpha_g_analysis::read(&file)?;
+        let file_view = midasio::FileView::try_from(&contents[..])?;
+        if let Some(previous_final_timestamp) = previous_final_timestamp {
+            ensure!(
+                file_view.initial_timestamp() - previous_final_timestamp <= 1,
+                "missing file before `{}`",
+                file.display()
+            );
         }
+        previous_final_timestamp = Some(file_view.final_timestamp());
 
-        for event in file
-            .iter()
-            .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
-        {
-            for bank in event
+        rows.extend(
+            file_view
                 .into_iter()
-                .filter(|bank| TriggerBankName::try_from(bank.name()).is_ok())
-            {
-                let packet = match TrgPacket::try_from(bank.data_slice()) {
-                    Ok(packet) => packet,
-                    Err(error) => {
-                        count_errors += 1;
+                .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Main)))
+                .map(|event| {
+                    let serial_number = event.serial_number();
+
+                    let [trg_bank] = event
+                        .into_iter()
+                        .filter(|bank| TriggerBankName::try_from(bank.name()).is_ok())
+                        .collect::<Vec<_>>()[..]
+                    else {
                         if args.verbose {
                             bar.println(format!(
-                                "Error: event `{}`; {error}",
-                                event.serial_number()
+                                "Error in event `{serial_number}`: bad number of trg data banks"
                             ));
                         }
-                        continue;
-                    }
-                };
-                if packet.output_counter() <= args.skip {
-                    continue;
-                }
-                if figures.is_empty() && cumulative_timestamp >= args.min_timestamp {
-                    figures.push(Figure::new(cumulative_timestamp, args.time_step));
-                }
-                if let Some(previous) = &previous_packet {
-                    match DeltaPacket::try_from(&packet, previous) {
-                        Ok(delta) => {
-                            cumulative_timestamp += u64::from(delta.timestamp);
-                            if let Some(max_timestamp) = args.max_timestamp {
-                                if cumulative_timestamp > max_timestamp {
-                                    break 'outer;
-                                }
-                            }
-                            if !figures.is_empty() {
-                                figures.last_mut().unwrap().update(&delta);
-                            }
-                        }
+                        return (serial_number, None);
+                    };
+
+                    match TrgPacket::try_from(trg_bank.data_slice()) {
+                        Ok(trg_packet) => (serial_number, Some(trg_packet)),
                         Err(error) => {
-                            count_errors += 1;
                             if args.verbose {
-                                bar.println(format!(
-                                    "Error: event `{}`; {error}",
-                                    event.serial_number()
-                                ));
+                                bar.println(format!("Error in event `{serial_number}`: {error}"));
                             }
-                            continue;
+                            (serial_number, None)
                         }
                     }
-                }
-                previous_packet = Some(packet);
-            }
-        }
-        previous_file_timestamp = file.final_timestamp();
+                }),
+        );
         bar.inc(1);
     }
     bar.finish_and_clear();
 
-    let spinner = ProgressBar::new_spinner()
-        .with_message("Compiling PDF...")
-        .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
-    spinner.enable_steady_tick(std::time::Duration::from_millis(100));
-    // The final name of the plot should be a unique name based on the input
-    // arguments given to the CLI. This prevents overwriting different plots.
-    let output_name = format!("trg_scalers_{}", {
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        args.hash(&mut hasher);
-        hasher.finish()
-    });
-    let tmp_pdf = create_picture(figures, &args)
-        .to_pdf(
-            std::env::temp_dir(),
-            &output_name,
-            pgfplots::Engine::PdfLatex,
+    let rows = rows.into_iter().skip(args.skip).scan(
+        (None, 0),
+        |(previous, cumulative), (serial_number, trg_packet)| {
+            let timestamp = trg_packet.map(|p| p.timestamp());
+            // If we can't get a timestamp, it is OK to use the previous one
+            // because this counter overflows every 70ish seconds.
+            // This will only be problematic if we go a full 70 seconds
+            // without an event, which is already impossible because DAQ has
+            // a 10 seconds timeout before stopping the run.
+            let current = timestamp.unwrap_or(previous.unwrap_or(0));
+            let delta = current.wrapping_sub(previous.unwrap_or(current));
+            *previous = Some(current);
+            *cumulative += u64::from(delta);
+
+            if let Some(trg_packet) = trg_packet {
+                Some(Row {
+                    serial_number,
+                    trg_time: Some((*cumulative as f64 / TRG_CLOCK_FREQ).get::<second>()),
+                    input: Some(trg_packet.input_counter()),
+                    drift_veto: trg_packet.drift_veto_counter(),
+                    scaledown: trg_packet.scaledown_counter(),
+                    pulser: Some(trg_packet.pulser_counter()),
+                    output: Some(trg_packet.output_counter()),
+                })
+            } else {
+                Some(Row {
+                    serial_number,
+                    ..Default::default()
+                })
+            }
+        },
+    );
+
+    let output = args.output.with_extension("csv");
+    let mut wtr = std::fs::File::create(&output)
+        .with_context(|| format!("failed to create `{}`", output.display()))?;
+    eprintln!("Created `{}`", output.display());
+    wtr.write_all(
+        format!(
+            "# {} {}\n# {}\n",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            std::env::args().collect::<Vec<_>>().join(" ")
         )
-        .context("failed to compile PDF")?;
-
-    if args.batch_mode {
-        // Leave the `.aux` and `.log` files in the temporary directory.
-        let output_path = args.output_path.join(output_name + ".pdf");
-        copy(&tmp_pdf, &output_path).with_context(|| {
-            format!(
-                "failed to copy the contents from `{}` to `{}`",
-                tmp_pdf.display(),
-                output_path.display()
-            )
-        })?;
-    } else {
-        opener::open(&tmp_pdf)
-            .with_context(|| format!("failed to open `{}`", tmp_pdf.display()))?;
+        .as_bytes(),
+    )
+    .context("failed to write csv header")?;
+    let mut wtr = csv::Writer::from_writer(wtr);
+    for row in rows {
+        wtr.serialize(row)
+            .context("failed to write row to csv data")?;
     }
-
-    if count_errors != 0 {
-        spinner.println(format!(
-            "Warning: found `{count_errors}` error(s)/warning(s)"
-        ));
-    }
-
-    spinner.finish_and_clear();
+    wtr.flush().context("failed to flush csv data")?;
 
     Ok(())
-}
-
-/// Validate `time_step` argument.
-// It has to be a positive float.
-// Cannot be NaN, inf, nor 0.0.
-fn valid_time_step(s: &str) -> Result<f64> {
-    let time_step: f64 = s
-        .parse()
-        .with_context(|| format!("failed to parse `{s}` as a time_step"))?;
-    // Also ignore subnormal numbers because they would make the computer run
-    // out of RAM anyways.
-    if time_step.is_normal() && time_step.is_sign_positive() {
-        Ok(time_step)
-    } else {
-        bail!("`{time_step}` isn't a valid time_step")
-    }
-}
-
-/// Validate `max_time` and `min_time` arguments.
-// It has to be a positive float.
-// Cannot be NaN, or inf.
-// Has to fit into u64 (max cumulative timestamp).
-fn valid_time_limit(s: &str) -> Result<u64> {
-    let time_limit: f64 = s
-        .parse()
-        .with_context(|| format!("failed to parse `{s}` as a time_limit"))?;
-    if time_limit.is_finite() && time_limit.is_sign_positive() {
-        let clock_limit = (time_limit * TRG_CLOCK_FREQ) as u64;
-        // Casting saturates to the maximum value of the integer type
-        if clock_limit != u64::MAX {
-            Ok(clock_limit)
-        } else {
-            bail!("`{time_limit}` is larger than the maximum possible time limit")
-        }
-    } else {
-        bail!("`{time_limit}` isn't a valid time_limit")
-    }
-}
-
-/// Parse `--output-path` flag as valid directory
-fn is_directory(s: &str) -> Result<PathBuf> {
-    let path: PathBuf = s.into();
-    if path.is_dir() {
-        Ok(path)
-    } else {
-        bail!(
-            "`{}` is not pointing to a directory on disk",
-            path.display()
-        )
-    }
-}
-
-/// Try to get a vector of memory maps from a collection of paths. Ensure that
-/// all the memory maps are valid and sort them.
-// Check that all files satisfy the conditions required to produce a correct
-// result.
-// 1. All files belong to the same run number.
-// 2. There are no duplicate files (by timestamp).
-// 3. All files are sorted by timestamp.
-fn try_valid_mmaps(file_names: impl IntoIterator<Item = PathBuf>) -> Result<Vec<(PathBuf, Mmap)>> {
-    // Tuple the PathBuf with the Mmap to keep some context about the mmap.
-    // This is used to print the file name in case of an error.
-    let mut mmaps = file_names
-        .into_iter()
-        .map(|path| {
-            let file = File::open(&path)
-                .with_context(|| format!("failed to open `{}`", path.display()))?;
-            let mmap = unsafe { Mmap::map(&file) }
-                .with_context(|| format!("failed to memory map `{}`", path.display()))?;
-            // Decorate-sort-undecorate pattern.
-            // Cannot bail in the sort closure, so bail here.
-            let initial_timestamp = initial_timestamp_unchecked(&mmap).with_context(|| {
-                format!("failed to read initial timestamp from `{}`", path.display())
-            })?;
-            Ok((path, initial_timestamp, mmap))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    mmaps.sort_unstable_by_key(|(_, timestamp, _)| *timestamp);
-    // They are sorted, so it is enough to check consecutive elements to have a
-    // different timestamp.
-    for window in mmaps.windows(2) {
-        let [(path_0, time_0, _), (path_1, time_1, _)] = window else {
-            unreachable!()
-        };
-        ensure!(
-            time_0 != time_1,
-            "duplicate files `{}` and `{}` with the same initial timestamp",
-            path_0.display(),
-            path_1.display()
-        )
-    }
-    // Undecorate.
-    let mmaps: Vec<_> = mmaps
-        .into_iter()
-        .map(|(path, _, mmap)| (path, mmap))
-        .collect();
-    if mmaps.len() > 1 {
-        let expected_run_number = run_number_unchecked(&mmaps[0].1).with_context(|| {
-            format!("failed to read run number from `{}`", mmaps[0].0.display())
-        })?;
-        for (path, mmap) in mmaps.iter() {
-            let run_number = run_number_unchecked(mmap)
-                .with_context(|| format!("failed to read run number from `{}`", path.display()))?;
-            ensure!(
-                run_number == expected_run_number,
-                "incompatible run number in `{}` (expected `{}`, found `{}`)",
-                path.display(),
-                expected_run_number,
-                run_number
-            )
-        }
-    }
-
-    Ok(mmaps)
 }
