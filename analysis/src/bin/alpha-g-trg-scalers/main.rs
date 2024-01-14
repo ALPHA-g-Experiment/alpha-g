@@ -55,8 +55,10 @@ fn main() -> Result<()> {
     let mut rows = Vec::new();
     let mut previous_final_timestamp = None;
     for file in files {
-        let contents = alpha_g_analysis::read(&file)?;
-        let file_view = midasio::FileView::try_from(&contents[..])?;
+        let contents = alpha_g_analysis::read(&file)
+            .with_context(|| format!("failed to read `{}`", file.display()))?;
+        let file_view = midasio::FileView::try_from(&contents[..])
+            .with_context(|| format!("failed to parse `{}`", file.display()))?;
         if let Some(previous_final_timestamp) = previous_final_timestamp {
             ensure!(
                 file_view.initial_timestamp() - previous_final_timestamp <= 1,
