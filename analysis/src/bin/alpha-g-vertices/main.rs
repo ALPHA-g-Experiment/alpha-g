@@ -42,6 +42,12 @@ struct Row {
 }
 
 fn main() -> Result<()> {
+    // The default 2 MiB stack size for threads is not enough.
+    rayon::ThreadPoolBuilder::new()
+        .stack_size(4 * 1024 * 1024)
+        .build_global()
+        .context("failed to initialize global thread pool")?;
+
     let args = Args::parse();
     let (run_number, files) =
         alpha_g_analysis::sort_run_files(args.files).context("failed to sort input files")?;
