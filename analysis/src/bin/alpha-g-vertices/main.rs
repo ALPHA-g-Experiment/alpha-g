@@ -32,7 +32,7 @@ struct Args {
     verbose: bool,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize)]
 struct Row {
     serial_number: u32,
     trg_time: Option<f64>,
@@ -42,6 +42,12 @@ struct Row {
 }
 
 fn main() -> Result<()> {
+    // The default 2 MiB stack size for threads is not enough.
+    rayon::ThreadPoolBuilder::new()
+        .stack_size(4 * 1024 * 1024)
+        .build_global()
+        .context("failed to initialize global thread pool")?;
+
     let args = Args::parse();
     let (run_number, files) =
         alpha_g_analysis::sort_run_files(args.files).context("failed to sort input files")?;
@@ -58,8 +64,10 @@ fn main() -> Result<()> {
     let mut rows = Vec::new();
     let mut previous_final_timestamp = None;
     for file in files {
-        let contents = alpha_g_analysis::read(&file)?;
-        let file_view = midasio::FileView::try_from(&contents[..])?;
+        let contents = alpha_g_analysis::read(&file)
+            .with_context(|| format!("failed to read `{}`", file.display()))?;
+        let file_view = midasio::FileView::try_from(&contents[..])
+            .with_context(|| format!("failed to parse `{}`", file.display()))?;
         if let Some(previous_final_timestamp) = previous_final_timestamp {
             ensure!(
                 file_view.initial_timestamp() - previous_final_timestamp <= 1,
@@ -94,8 +102,10 @@ fn main() -> Result<()> {
                         Err(error) => {
                             if args.verbose {
                                 // Use `pb` rather than `tp_bar`. Otherwise the
-                                // ETA gets all messed up because of their
-                                // current implementation.
+                                // observable ETA in `tp_bar` gets all messed up
+                                // because this causes a `tick` and the current
+                                // ETA implementation increases exponentially
+                                // for slow-updating progress bars.
                                 pb.println(format!("Error in event `{serial_number}`: {error}"));
                             }
                             (serial_number, None, None)
@@ -103,7 +113,7 @@ fn main() -> Result<()> {
                     }
                 }),
         );
-        // I set the style here rather than right after the first tick because a
+        // Set the style here rather than right after the first tick because a
         // println above would make this new style appear before this point.
         tp_bar.set_style(
             ProgressStyle::with_template("[{pos}/{len}] Processing, ETA: {eta}").unwrap(),
@@ -112,31 +122,35 @@ fn main() -> Result<()> {
     }
     tp_bar.finish_and_clear();
 
-    let rows = rows
-        .into_iter()
-        .skip(args.skip)
-        .scan(
-            (None, 0),
-            |(previous, cumulative), (serial_number, timestamp, vertex)| {
-                let current = timestamp.unwrap_or(previous.unwrap_or(0));
-                let delta = current.wrapping_sub(previous.unwrap_or(current));
-                *previous = Some(current);
-                *cumulative += u64::from(delta);
+    let rows = rows.into_iter().skip(args.skip).scan(
+        (None, 0),
+        |(previous, cumulative), (serial_number, timestamp, vertex)| {
+            // If we don't have a timestamp, it is OK to use the previous one
+            // because this counter overflows every 68 seconds.
+            // This will only be problematic if we go over a full minute
+            // without an event, which is already impossible because DAQ has
+            // a 10 seconds timeout before stopping the run.
+            let current = timestamp.unwrap_or(previous.unwrap_or(0));
+            let delta = current.wrapping_sub(previous.unwrap_or(current));
+            *previous = Some(current);
+            *cumulative += u64::from(delta);
 
-                if timestamp.is_none() {
-                    Some((serial_number, None, None))
-                } else {
-                    Some((serial_number, Some(*cumulative), vertex))
-                }
-            },
-        )
-        .map(|(serial_number, cumulative, vertex)| Row {
-            serial_number,
-            trg_time: cumulative.map(|t| (t as f64 / TRG_CLOCK_FREQ).get::<second>()),
-            reconstructed_x: vertex.map(|v| v.x.get::<meter>()),
-            reconstructed_y: vertex.map(|v| v.y.get::<meter>()),
-            reconstructed_z: vertex.map(|v| v.z.get::<meter>()),
-        });
+            if timestamp.is_some() {
+                Some(Row {
+                    serial_number,
+                    trg_time: Some((*cumulative as f64 / TRG_CLOCK_FREQ).get::<second>()),
+                    reconstructed_x: vertex.map(|v| v.x.get::<meter>()),
+                    reconstructed_y: vertex.map(|v| v.y.get::<meter>()),
+                    reconstructed_z: vertex.map(|v| v.z.get::<meter>()),
+                })
+            } else {
+                Some(Row {
+                    serial_number,
+                    ..Default::default()
+                })
+            }
+        },
+    );
 
     let output = args.output.with_extension("csv");
     let mut wtr = std::fs::File::create(&output)
@@ -151,12 +165,12 @@ fn main() -> Result<()> {
         )
         .as_bytes(),
     )
-    .context("failed to write comment to csv")?;
+    .context("failed to write csv header")?;
     let mut wtr = csv::Writer::from_writer(wtr);
     for row in rows {
-        wtr.serialize(row).context("failed to write row to csv")?;
+        wtr.serialize(row).context("failed to write csv row")?;
     }
-    wtr.flush().context("failed to flush csv")?;
+    wtr.flush().context("failed to flush csv data")?;
 
     Ok(())
 }
