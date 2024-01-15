@@ -1,6 +1,6 @@
 # ALPHA-g
 
-[![Test Status](https://github.com/DJDuque/alpha-g/actions/workflows/rust.yml/badge.svg)](https://github.com/DJDuque/alpha-g/actions/workflows/rust.yml)
+[![Test Status](https://github.com/ALPHA-g-Experiment/alpha-g/actions/workflows/rust.yml/badge.svg)](https://github.com/ALPHA-g-Experiment/alpha-g/actions/workflows/rust.yml)
 
 This is a [Cargo
 Workspace](https://doc.rust-lang.org/cargo/reference/workspaces.html) with
