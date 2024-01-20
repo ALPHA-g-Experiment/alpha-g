@@ -22,7 +22,6 @@ use uom::typenum::P2;
 // origin) by finding straight lines in the u-v plane.
 pub(crate) fn cluster_spacepoints(
     mut sp: Vec<SpacePoint>,
-    max_num_clusters: usize,
     min_num_points_per_cluster: usize,
     rho_bins: u32,
     theta_bins: u32,
@@ -83,7 +82,7 @@ pub(crate) fn cluster_spacepoints(
     }
 
     let mut clusters = Vec::new();
-    while clusters.len() < max_num_clusters {
+    loop {
         let cluster = best_cluster(&mut accumulator, max_distance);
         if cluster.len() < min_num_points_per_cluster {
             break;

@@ -63,8 +63,6 @@ pub struct ClusteringResult {
 pub fn cluster_spacepoints(sp: Vec<SpacePoint>) -> ClusteringResult {
     track_finding::cluster_spacepoints(
         sp,
-        // Maximum number of Clusters.
-        11,
         // Minimum number of SpacePoints per Cluster.
         // We need at least 3 points to get an accurate initial guess for the
         // helix through a cluster.
