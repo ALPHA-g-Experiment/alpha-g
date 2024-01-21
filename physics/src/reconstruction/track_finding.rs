@@ -1,5 +1,6 @@
 use crate::reconstruction::{Cluster, ClusteringResult};
 use crate::SpacePoint;
+use alpha_g_detector::alpha16::aw_map::INNER_CATHODE_RADIUS;
 use itertools::Itertools;
 use statrs::statistics::Statistics;
 use std::cmp::Ordering;
@@ -27,23 +28,7 @@ pub(crate) fn cluster_spacepoints(
     theta_bins: u32,
     max_distance: Length,
 ) -> ClusteringResult {
-    let Some(rho_max) = sp
-        .iter()
-        .map(|&point| {
-            let (u, v) = u_v(point);
-
-            (u.powi(P2::new()) + v.powi(P2::new())).sqrt()
-        })
-        .reduce(ReciprocalLength::max)
-    else {
-        return ClusteringResult {
-            clusters: Vec::new(),
-            remainder: sp,
-        };
-    };
-
     let mut accumulator = HoughSpaceAccumulator {
-        rho_max,
         rho_bins,
         theta_bins,
         accumulator: HashMap::new(),
@@ -104,11 +89,16 @@ pub(crate) fn cluster_spacepoints(
     }
 }
 
+// The maximum possible `rho` in Hough space is the maximum distance from the
+// origin to any point in the u-v plane.
+const RHO_MAX: ReciprocalLength = ReciprocalLength {
+    dimension: uom::lib::marker::PhantomData,
+    units: uom::lib::marker::PhantomData,
+    value: 1.0 / INNER_CATHODE_RADIUS,
+};
+
 struct HoughSpaceAccumulator {
-    // The units in u-v space are lenght^{-1}. Just let uom handle units for us.
-    rho_max: ReciprocalLength,
     rho_bins: u32,
-    // theta_max is always 2 * pi
     theta_bins: u32,
     // Simply counting the number of votes for each bin is not enough for our
     // purposes. Keep track explicitly of which SpacePoints have gone through
@@ -134,7 +124,7 @@ impl HoughSpaceAccumulator {
         let (u, v) = u_v(point);
 
         let delta_theta = Angle::FULL_TURN / f64::from(self.theta_bins);
-        let delta_rho = self.rho_max / f64::from(self.rho_bins);
+        let delta_rho = RHO_MAX / f64::from(self.rho_bins);
 
         let mut bins = HashSet::new();
         // Hough space is parametrized as:
