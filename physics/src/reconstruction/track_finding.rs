@@ -4,7 +4,7 @@ use alpha_g_detector::alpha16::aw_map::INNER_CATHODE_RADIUS;
 use itertools::Itertools;
 use statrs::statistics::Statistics;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use uom::si::f64::{Angle, Length, ReciprocalLength};
 use uom::si::length::meter;
 use uom::si::ratio::ratio;
@@ -119,42 +119,34 @@ fn u_v(point: SpacePoint) -> (ReciprocalLength, ReciprocalLength) {
 
 impl HoughSpaceAccumulator {
     // Given a SpacePoint, return all the bins in Hough space that it votes for.
-    fn get_bins(&self, point: SpacePoint) -> HashSet<(u32, u32)> {
+    fn get_bins(&self, point: SpacePoint) -> Vec<(u32, u32)> {
         // Conformal mapping coordinates
         let (u, v) = u_v(point);
 
         let delta_theta = Angle::FULL_TURN / f64::from(self.theta_bins);
         let delta_rho = RHO_MAX / f64::from(self.rho_bins);
 
-        let mut bins = HashSet::new();
+        let mut bins = Vec::new();
         // Hough space is parametrized as:
         // rho = u * cos(theta) + v * sin(theta)
         // The first bin has theta = 0
-        let mut prev_rho = u;
-        let mut prev_rho_bin = (prev_rho / delta_rho).get::<ratio>().floor() as u32;
+        let mut prev_rho_bin = (u / delta_rho).get::<ratio>().floor() as i32;
         for theta_bin in 1..=self.theta_bins {
             let theta = f64::from(theta_bin) * delta_theta;
             let (sin, cos) = theta.sin_cos();
             let rho = u * cos + v * sin;
-            // Casting with `as` saturates negative values of rho to 0. This is
-            // what we want because if rho goes e.g. from positive to negative,
-            // we want to vote for all bins up until (and including) the 0th bin.
-            let rho_bin = (rho / delta_rho).get::<ratio>().floor() as u32;
+            let rho_bin = (rho / delta_rho).get::<ratio>().floor() as i32;
             // If rho has only been negative between this and the previous
             // iteration, we don't want to vote for any bins.
             // Those bins are just duplicates of other bins with positive values
             // of rho and different theta.
-            if rho.is_sign_positive() || prev_rho.is_sign_positive() {
-                let rho_min = prev_rho_bin.min(rho_bin);
-                let rho_max = prev_rho_bin.max(rho_bin);
-                for bin in rho_min..=rho_max {
-                    bins.insert((theta_bin - 1, bin));
+            if !rho_bin.is_negative() || !prev_rho_bin.is_negative() {
+                let min_bin = prev_rho_bin.min(rho_bin);
+                let max_bin = prev_rho_bin.max(rho_bin);
+                for bin in min_bin.max(0)..=max_bin {
+                    bins.push((theta_bin - 1, bin.try_into().unwrap()));
                 }
             }
-            // We need to keep track of both `rho` and `rho_bin` because
-            // negative values of `rho` are mapped to 0, hence the `rho_bin`
-            // alone is not enough to know that the previous value was negative.
-            prev_rho = rho;
             prev_rho_bin = rho_bin;
         }
 
