@@ -54,7 +54,7 @@ pub(crate) fn cluster_spacepoints(
             }
 
             for &point in best.iter() {
-                accumulator.remove(point);
+                accumulator.remove_unchecked(point);
             }
             for &point in prev_best.iter() {
                 accumulator.add(point);
@@ -159,10 +159,9 @@ impl HoughSpaceAccumulator {
         }
     }
     // Remove a SpacePoint from the accumulator.
-    fn remove(&mut self, point: SpacePoint) {
+    // Panic if the SpacePoint is not in the accumulator.
+    fn remove_unchecked(&mut self, point: SpacePoint) {
         for bin in self.get_bins(point) {
-            // We know that the point is in the accumulator, so it is safe to
-            // unwrap.
             let vec = self.accumulator.get_mut(&bin).unwrap();
             let pos = vec.iter().position(|p| *p == point).unwrap();
             vec.swap_remove(pos);
