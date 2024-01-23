@@ -209,14 +209,6 @@ fn cluster_tie_breaker(c1: &[SpacePoint], c2: &[SpacePoint]) -> Ordering {
     }
 }
 
-// Calculate the Euclidean distance between two SpacePoints
-fn distance(a: SpacePoint, b: SpacePoint) -> Length {
-    ((a.x() - b.x()).powi(P2::new())
-        + (a.y() - b.y()).powi(P2::new())
-        + (a.z - b.z).powi(P2::new()))
-    .sqrt()
-}
-
 // Given a collection of SpacePoints, find the largest subset of SpacePoints
 // such that they all can be reached from each other by a path of SpacePoints
 // that are within a certain distance.
@@ -238,7 +230,7 @@ fn largest_cluster(mut points: Vec<SpacePoint>, max_distance: Length) -> Vec<Spa
         while i < cluster.len() {
             let mut j = 0;
             while j < points.len() {
-                if distance(cluster[i], points[j]) <= max_distance {
+                if cluster[i].distance(points[j]) <= max_distance {
                     cluster.push(points.swap_remove(j));
                 } else {
                     j += 1;

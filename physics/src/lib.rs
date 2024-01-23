@@ -27,6 +27,7 @@ use alpha_g_detector::trigger::{self, TrgPacket};
 use std::collections::{BTreeSet, HashMap};
 use thiserror::Error;
 use uom::si::f64::*;
+use uom::typenum::P2;
 
 pub use crate::calibration::pads::baseline::MapPadBaselineError;
 pub use crate::calibration::pads::delay::MapPadDelayError;
@@ -132,6 +133,13 @@ impl SpacePoint {
     /// Return the `y` coordinate of the ionization position.
     pub fn y(self) -> Length {
         self.r * self.phi.sin()
+    }
+    /// Calculate the distance between two points.
+    pub fn distance(self, other: Self) -> Length {
+        ((self.x() - other.x()).powi(P2::new())
+            + (self.y() - other.y()).powi(P2::new())
+            + (self.z - other.z).powi(P2::new()))
+        .sqrt()
     }
 }
 
