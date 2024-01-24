@@ -7,6 +7,8 @@ use thiserror::Error;
 
 /// Radius (in meters) of the position of the anode wires.
 pub const ANODE_WIRES_RADIUS: f64 = 0.182;
+/// Radius (in meters) of the inner cathode.
+pub const INNER_CATHODE_RADIUS: f64 = 0.1092;
 /// Number of anode wires in the rTPC.
 pub const TPC_ANODE_WIRES: usize = 256;
 /// Angle (in radians) between two adjacent anode wires in the azimuthal

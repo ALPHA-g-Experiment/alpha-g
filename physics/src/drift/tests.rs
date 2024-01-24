@@ -1,5 +1,7 @@
 use super::*;
+use alpha_g_detector::alpha16::aw_map::{ANODE_WIRES_RADIUS, INNER_CATHODE_RADIUS};
 use alpha_g_detector::padwing::map::DETECTOR_LENGTH;
+use uom::si::angle::radian;
 use uom::si::length::meter;
 use uom::si::time::microsecond;
 
@@ -16,6 +18,45 @@ fn ascending_time_drift_tables() {
                 previous_time = Some(time);
             }
         }
+    }
+}
+
+#[test]
+fn ascending_lorentz_angle_drift_tables() {
+    for (table, _) in DRIFT_TABLES.0.iter() {
+        let mut previous_angle = None;
+        for (_, _, angle) in table.0.iter() {
+            if let Some(prev_angle) = previous_angle {
+                assert!(angle >= prev_angle);
+                previous_angle = Some(angle);
+            } else {
+                assert_eq!(angle, &Angle::new::<radian>(0.0));
+                previous_angle = Some(angle);
+            }
+        }
+    }
+}
+
+#[test]
+fn descending_radius_drift_tables() {
+    for (table, _) in DRIFT_TABLES.0.iter() {
+        let mut previous_radius = None;
+        for (_, radius, _) in table.0.iter() {
+            if let Some(prev_radius) = previous_radius {
+                assert!(radius < prev_radius);
+                previous_radius = Some(radius);
+            } else {
+                let wire_radius = Length::new::<meter>(ANODE_WIRES_RADIUS);
+                let diff = (wire_radius - *radius).abs();
+                assert!(diff < Length::new::<meter>(5e-4));
+                previous_radius = Some(radius);
+            }
+        }
+
+        let inner_cathode_radius = Length::new::<meter>(INNER_CATHODE_RADIUS);
+        let smallest_radius = previous_radius.unwrap();
+        let diff = (inner_cathode_radius - *smallest_radius).abs();
+        assert!(diff < Length::new::<meter>(5e-4));
     }
 }
 

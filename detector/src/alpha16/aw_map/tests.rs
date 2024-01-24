@@ -10,6 +10,12 @@ fn anode_wires_radius() {
 }
 
 #[test]
+fn inner_cathode_radius() {
+    let inner_cathode_radius = 0.1092;
+    assert_eq!(inner_cathode_radius, INNER_CATHODE_RADIUS);
+}
+
+#[test]
 fn tpc_anode_wires() {
     let tpc_anode_wires = 256;
     assert_eq!(tpc_anode_wires, TPC_ANODE_WIRES);

@@ -24,9 +24,10 @@ use alpha_g_detector::padwing::{
 };
 use alpha_g_detector::trigger::TryTrgPacketFromSliceError;
 use alpha_g_detector::trigger::{self, TrgPacket};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use thiserror::Error;
 use uom::si::f64::*;
+use uom::typenum::P2;
 
 pub use crate::calibration::pads::baseline::MapPadBaselineError;
 pub use crate::calibration::pads::delay::MapPadDelayError;
@@ -132,6 +133,13 @@ impl SpacePoint {
     /// Return the `y` coordinate of the ionization position.
     pub fn y(self) -> Length {
         self.r * self.phi.sin()
+    }
+    /// Calculate the distance between two points.
+    pub fn distance(self, other: Self) -> Length {
+        ((self.x() - other.x()).powi(P2::new())
+            + (self.y() - other.y()).powi(P2::new())
+            + (self.z - other.z).powi(P2::new()))
+        .sqrt()
     }
 }
 
@@ -387,8 +395,10 @@ impl MainEvent {
     }
     /// Return all reconstructed avalanches in the event.
     pub fn avalanches(&self) -> Vec<Avalanche> {
-        // Match wire and pad signals only on columns that have both.
-        let mut pad_columns = HashSet::new();
+        // We would only want to deconvolve pad columns that have wire signals.
+        // Furthermore, to make the output deterministic, we need to iterate
+        // over the pad columns in a deterministic order.
+        let mut pad_columns = BTreeSet::new();
         // Deconvolution of wires needs to be done in chunks of contiguous wires.
         let mut wire_inputs = [(); TPC_ANODE_WIRES].map(|_| Vec::new());
         for range in contiguous_ranges(&self.wire_signals) {
@@ -397,16 +407,6 @@ impl MainEvent {
                 pad_columns.insert(wire_to_pad_column(i));
             }
         }
-        // We need to iterate over the pad columns in a deterministic order.
-        // This is needed for complete deterministic vertex reconstruction
-        // because of the `track_fitting`. Floating point arithmetic is not
-        // associative, hence having SpacePoints in different orders will lead
-        // to some very small differences in the final vertices.
-        let pad_columns = {
-            let mut temp = pad_columns.into_iter().collect::<Vec<_>>();
-            temp.sort_unstable();
-            temp
-        };
 
         let mut avalanches = Vec::new();
         for column in pad_columns {

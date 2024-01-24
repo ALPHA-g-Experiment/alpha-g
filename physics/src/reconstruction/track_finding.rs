@@ -1,11 +1,8 @@
 use crate::reconstruction::{Cluster, ClusteringResult};
 use crate::SpacePoint;
-use itertools::Itertools;
-use statrs::statistics::Statistics;
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use alpha_g_detector::alpha16::aw_map::INNER_CATHODE_RADIUS;
+use indexmap::IndexMap;
 use uom::si::f64::{Angle, Length, ReciprocalLength};
-use uom::si::length::meter;
 use uom::si::ratio::ratio;
 use uom::typenum::P2;
 
@@ -22,32 +19,15 @@ use uom::typenum::P2;
 // origin) by finding straight lines in the u-v plane.
 pub(crate) fn cluster_spacepoints(
     mut sp: Vec<SpacePoint>,
-    max_num_clusters: usize,
     min_num_points_per_cluster: usize,
     rho_bins: u32,
     theta_bins: u32,
     max_distance: Length,
 ) -> ClusteringResult {
-    let Some(rho_max) = sp
-        .iter()
-        .map(|&point| {
-            let (u, v) = u_v(point);
-
-            (u.powi(P2::new()) + v.powi(P2::new())).sqrt()
-        })
-        .reduce(ReciprocalLength::max)
-    else {
-        return ClusteringResult {
-            clusters: Vec::new(),
-            remainder: sp,
-        };
-    };
-
     let mut accumulator = HoughSpaceAccumulator {
-        rho_max,
         rho_bins,
         theta_bins,
-        accumulator: HashMap::new(),
+        accumulator: IndexMap::new(),
     };
     for &point in sp.iter() {
         accumulator.add(point);
@@ -70,7 +50,7 @@ pub(crate) fn cluster_spacepoints(
             }
 
             for &point in best.iter() {
-                accumulator.remove(point);
+                accumulator.remove_unchecked(point);
             }
             for &point in prev_best.iter() {
                 accumulator.add(point);
@@ -83,7 +63,7 @@ pub(crate) fn cluster_spacepoints(
     }
 
     let mut clusters = Vec::new();
-    while clusters.len() < max_num_clusters {
+    loop {
         let cluster = best_cluster(&mut accumulator, max_distance);
         if cluster.len() < min_num_points_per_cluster {
             break;
@@ -105,11 +85,16 @@ pub(crate) fn cluster_spacepoints(
     }
 }
 
+// The maximum possible `rho` in Hough space is the maximum distance from the
+// origin to any point in the u-v plane.
+const RHO_MAX: ReciprocalLength = ReciprocalLength {
+    dimension: uom::lib::marker::PhantomData,
+    units: uom::lib::marker::PhantomData,
+    value: 1.0 / INNER_CATHODE_RADIUS,
+};
+
 struct HoughSpaceAccumulator {
-    // The units in u-v space are lenght^{-1}. Just let uom handle units for us.
-    rho_max: ReciprocalLength,
     rho_bins: u32,
-    // theta_max is always 2 * pi
     theta_bins: u32,
     // Simply counting the number of votes for each bin is not enough for our
     // purposes. Keep track explicitly of which SpacePoints have gone through
@@ -117,7 +102,8 @@ struct HoughSpaceAccumulator {
     // This makes it easier to remove all SpacePoints that contributed to e.g.
     // the most popular bin.
     // First index is theta, second index is rho.
-    accumulator: HashMap<(u32, u32), Vec<SpacePoint>>,
+    // Using IndexMap instead of HashMap to make the algorithm deterministic.
+    accumulator: IndexMap<(u32, u32), Vec<SpacePoint>>,
 }
 
 // Conformal transformation from x-y plane to u-v plane.
@@ -130,42 +116,34 @@ fn u_v(point: SpacePoint) -> (ReciprocalLength, ReciprocalLength) {
 
 impl HoughSpaceAccumulator {
     // Given a SpacePoint, return all the bins in Hough space that it votes for.
-    fn get_bins(&self, point: SpacePoint) -> HashSet<(u32, u32)> {
+    fn get_bins(&self, point: SpacePoint) -> Vec<(u32, u32)> {
         // Conformal mapping coordinates
         let (u, v) = u_v(point);
 
         let delta_theta = Angle::FULL_TURN / f64::from(self.theta_bins);
-        let delta_rho = self.rho_max / f64::from(self.rho_bins);
+        let delta_rho = RHO_MAX / f64::from(self.rho_bins);
 
-        let mut bins = HashSet::new();
+        let mut bins = Vec::new();
         // Hough space is parametrized as:
         // rho = u * cos(theta) + v * sin(theta)
         // The first bin has theta = 0
-        let mut prev_rho = u;
-        let mut prev_rho_bin = (prev_rho / delta_rho).get::<ratio>().floor() as u32;
+        let mut prev_rho_bin = (u / delta_rho).get::<ratio>().floor() as i32;
         for theta_bin in 1..=self.theta_bins {
             let theta = f64::from(theta_bin) * delta_theta;
             let (sin, cos) = theta.sin_cos();
             let rho = u * cos + v * sin;
-            // Casting with `as` saturates negative values of rho to 0. This is
-            // what we want because if rho goes e.g. from positive to negative,
-            // we want to vote for all bins up until (and including) the 0th bin.
-            let rho_bin = (rho / delta_rho).get::<ratio>().floor() as u32;
+            let rho_bin = (rho / delta_rho).get::<ratio>().floor() as i32;
             // If rho has only been negative between this and the previous
             // iteration, we don't want to vote for any bins.
             // Those bins are just duplicates of other bins with positive values
             // of rho and different theta.
-            if rho.is_sign_positive() || prev_rho.is_sign_positive() {
-                let rho_min = prev_rho_bin.min(rho_bin);
-                let rho_max = prev_rho_bin.max(rho_bin);
-                for bin in rho_min..=rho_max {
-                    bins.insert((theta_bin - 1, bin));
+            if !rho_bin.is_negative() || !prev_rho_bin.is_negative() {
+                let min_bin = prev_rho_bin.min(rho_bin);
+                let max_bin = prev_rho_bin.max(rho_bin);
+                for bin in min_bin.max(0)..=max_bin {
+                    bins.push((theta_bin - 1, bin.try_into().unwrap()));
                 }
             }
-            // We need to keep track of both `rho` and `rho_bin` because
-            // negative values of `rho` are mapped to 0, hence the `rho_bin`
-            // alone is not enough to know that the previous value was negative.
-            prev_rho = rho;
             prev_rho_bin = rho_bin;
         }
 
@@ -178,10 +156,9 @@ impl HoughSpaceAccumulator {
         }
     }
     // Remove a SpacePoint from the accumulator.
-    fn remove(&mut self, point: SpacePoint) {
+    // Panic if the SpacePoint is not in the accumulator.
+    fn remove_unchecked(&mut self, point: SpacePoint) {
         for bin in self.get_bins(point) {
-            // We know that the point is in the accumulator, so it is safe to
-            // unwrap.
             let vec = self.accumulator.get_mut(&bin).unwrap();
             let pos = vec.iter().position(|p| *p == point).unwrap();
             vec.swap_remove(pos);
@@ -190,51 +167,12 @@ impl HoughSpaceAccumulator {
     // Return the SpacePoints that voted for the most popular bin. Return an
     // empty vector if the accumulator is empty.
     fn most_popular(&self) -> Vec<SpacePoint> {
-        // The order in which values of a HashMap are iterated over is random.
-        // We need this function to be deterministic, hence we need some tie
-        // breaking for the case where multiple bins have the same maximum
-        // number of votes.
         self.accumulator
             .values()
-            .max_set_by_key(|v| v.len())
-            .into_iter()
-            .max_by(|c1, c2| cluster_tie_breaker(c1, c2))
+            .max_by_key(|v| v.len())
             .cloned()
             .unwrap_or_default()
     }
-}
-
-// Assign a deterministic ordering/priority of two clusters when they have
-// the same number of points.
-// The better cluster is `Ordering::Greater`.
-fn cluster_tie_breaker(c1: &[SpacePoint], c2: &[SpacePoint]) -> Ordering {
-    let v1 = c1.iter().map(|p| p.r.get::<meter>()).variance();
-    let v2 = c2.iter().map(|p| p.r.get::<meter>()).variance();
-
-    match v1.partial_cmp(&v2) {
-        Some(Ordering::Less) => Ordering::Less,
-        Some(Ordering::Greater) => Ordering::Greater,
-        Some(Ordering::Equal) => {
-            let v1 = c1.iter().map(|p| p.z.get::<meter>()).variance();
-            let v2 = c2.iter().map(|p| p.z.get::<meter>()).variance();
-            // Can't be NaN since they didn't have NaN variance in r.
-            // Therefore, we can unwrap.
-            v2.partial_cmp(&v1).unwrap()
-        }
-        // If the clusters are empty (or are a single point), then we don't
-        // really care about the ordering. It can be random because these points
-        // will never make it pass the `min_num_points_per_cluster` filter (we
-        // need at least 3 for track fitting, etc).
-        None => Ordering::Equal,
-    }
-}
-
-// Calculate the Euclidean distance between two SpacePoints
-fn distance(a: SpacePoint, b: SpacePoint) -> Length {
-    ((a.x() - b.x()).powi(P2::new())
-        + (a.y() - b.y()).powi(P2::new())
-        + (a.z - b.z).powi(P2::new()))
-    .sqrt()
 }
 
 // Given a collection of SpacePoints, find the largest subset of SpacePoints
@@ -258,7 +196,7 @@ fn largest_cluster(mut points: Vec<SpacePoint>, max_distance: Length) -> Vec<Spa
         while i < cluster.len() {
             let mut j = 0;
             while j < points.len() {
-                if distance(cluster[i], points[j]) <= max_distance {
+                if cluster[i].distance(points[j]) <= max_distance {
                     cluster.push(points.swap_remove(j));
                 } else {
                     j += 1;
@@ -271,8 +209,6 @@ fn largest_cluster(mut points: Vec<SpacePoint>, max_distance: Length) -> Vec<Spa
 
     clusters
         .into_iter()
-        .max_set_by_key(|c| c.len())
-        .into_iter()
-        .max_by(|c1, c2| cluster_tie_breaker(c1, c2))
+        .max_by_key(|c| c.len())
         .unwrap_or_default()
 }
