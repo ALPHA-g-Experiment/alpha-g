@@ -18,12 +18,6 @@ struct Args {
     /// Write the TRG scalers to `OUTPUT.csv`
     #[arg(short, long)]
     output: PathBuf,
-    /// Ignore the first `SKIP` number of events
-    /// The first event not skipped sets `t=0`
-    // The default here is used to skip the initial 10 synchronization software
-    // triggers.
-    #[arg(long, default_value = "10", verbatim_doc_comment)]
-    skip: usize,
     /// Print detailed information about errors (if any)
     #[arg(short, long)]
     verbose: bool,
@@ -103,7 +97,7 @@ fn main() -> Result<()> {
     }
     bar.finish_and_clear();
 
-    let rows = rows.into_iter().skip(args.skip).scan(
+    let rows = rows.into_iter().scan(
         (None, 0),
         |(previous, cumulative), (serial_number, trg_packet)| {
             let timestamp = trg_packet.map(|p| p.timestamp());
