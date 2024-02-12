@@ -16,7 +16,7 @@ The easiest way to get access to all `alpha-g-analysis` binaries is with
 Once `cargo` is installed, run the following command:
 
 ```bash
-cargo install alpha-g-analysis
+cargo install --locked alpha-g-analysis
 ```
 
 Finally, to check that the installation was successful, run:
