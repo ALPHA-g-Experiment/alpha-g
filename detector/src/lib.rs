@@ -26,5 +26,11 @@ pub mod midas;
 /// disk.
 pub mod trigger;
 
+/// Chronobox.
+///
+/// There are multiple Chronoboxes, each with 60 channels (including internal
+/// and external clocks).
+pub mod chronobox;
+
 #[cfg(test)]
 mod tests;
