@@ -28,8 +28,8 @@ pub mod trigger;
 
 /// Chronobox.
 ///
-/// There are multiple Chronoboxes, each with 60 channels (including internal
-/// and external clocks).
+/// There are multiple Chronoboxes, each with 59 input channels plus a system
+/// clock channel.
 pub mod chronobox;
 
 #[cfg(test)]

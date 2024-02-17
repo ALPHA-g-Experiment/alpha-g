@@ -8,16 +8,17 @@ pub struct TryChannelIdFromUnsignedError {
     input: u8,
 }
 
+const MAX_INPUT_CHANNEL: u8 = 58;
 /// Input channel in a ChronoBox.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChannelId(u8);
 impl TryFrom<u8> for ChannelId {
     type Error = TryChannelIdFromUnsignedError;
 
-    /// There are 60 valid channel IDs. Perform the conversion from an integer
-    /// in range `0..=59`.
+    /// There are 59 valid input channel IDs. Perform the conversion from an
+    /// integer in range `0..=58`.
     fn try_from(num: u8) -> Result<Self, Self::Error> {
-        if num > 59 {
+        if num > MAX_INPUT_CHANNEL {
             Err(TryChannelIdFromUnsignedError { input: num })
         } else {
             Ok(ChannelId(num))
