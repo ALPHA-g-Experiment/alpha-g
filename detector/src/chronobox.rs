@@ -8,7 +8,7 @@ pub struct TryChannelIdFromUnsignedError {
     input: u8,
 }
 
-const MAX_INPUT_CHANNEL: u8 = 58;
+const NUM_INPUT_CHANNELS: usize = 59;
 /// Input channel in a ChronoBox.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChannelId(u8);
@@ -18,10 +18,10 @@ impl TryFrom<u8> for ChannelId {
     /// There are 59 valid input channel IDs. Perform the conversion from an
     /// integer in range `0..=58`.
     fn try_from(num: u8) -> Result<Self, Self::Error> {
-        if num > MAX_INPUT_CHANNEL {
-            Err(TryChannelIdFromUnsignedError { input: num })
-        } else {
+        if num < u8::try_from(NUM_INPUT_CHANNELS).unwrap() {
             Ok(ChannelId(num))
+        } else {
+            Err(TryChannelIdFromUnsignedError { input: num })
         }
     }
 }
@@ -82,6 +82,29 @@ impl WrapAroundMarker {
 pub enum FifoEntry {
     TimestampCounter(TimestampCounter),
     WrapAroundMarker(WrapAroundMarker),
+}
+
+/// Frequency (Hertz) of the system clock.
+pub const SYS_CLOCK_FREQ: f64 = 100e6;
+
+/// Chronobox data packet.
+///
+/// A [`ChronoPacket`] represents the data collected from a single Chronobox.
+#[derive(Clone, Debug)]
+pub struct ChronoPacket {
+    pub fifo: Vec<FifoEntry>,
+    scalers: [u32; NUM_INPUT_CHANNELS],
+    /// System clock counter which increments at a frequency of
+    /// [`SYS_CLOCK_FREQ`].
+    pub sys_clock: u32,
+}
+
+impl ChronoPacket {
+    /// Returns the latched scaler at [`ChronoPacket::sys_clock`] for the given
+    /// channel.
+    pub fn scaler(&self, channel: ChannelId) -> u32 {
+        self.scalers[usize::from(channel.0)]
+    }
 }
 
 #[cfg(test)]
