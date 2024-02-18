@@ -36,6 +36,7 @@ dependencies = [
  "ron",
  "serde",
  "thiserror",
+ "winnow 0.6.1",
 ]
 
 [[package]]
@@ -723,7 +724,7 @@ checksum = "3251c3d3b68d326dc832d003c9c5ef6c4f48ff3a467c43b5fbdf501fe45db9fb"
 dependencies = [
  "rayon",
  "thiserror",
- "winnow",
+ "winnow 0.5.30",
 ]
 
 [[package]]
@@ -1197,6 +1198,15 @@ name = "winnow"
 version = "0.5.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b5c3db89721d50d0e2a673f5043fc4722f76dcc352d7b1ab8b8288bed4ed2c5"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "winnow"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d90f4e0f530c4c69f62b80d839e9ef3855edc9cba471a160c4d692deed62b401"
 dependencies = [
  "memchr",
 ]
