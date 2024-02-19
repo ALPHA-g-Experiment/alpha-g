@@ -1,5 +1,5 @@
 use thiserror::Error;
-use winnow::binary::{le_u32, length_repeat};
+use winnow::binary::{le_u24, le_u32, length_repeat, u8};
 use winnow::combinator::{alt, empty, repeat_till, seq};
 use winnow::error::{ContextError, StrContext};
 use winnow::{PResult, Parser};
@@ -48,21 +48,17 @@ pub struct TimestampCounter {
 }
 
 fn timestamp_counter(input: &mut &[u8]) -> PResult<TimestampCounter> {
-    let (channel, timestamp, edge) = le_u32
-        .context(StrContext::Label("timestamp counter word"))
-        .verify(|&word| word & 0x80000000 != 0)
-        .context(StrContext::Label("top bit"))
-        .try_map(|word| {
-            let channel = ChannelId::try_from((word >> 24) as u8 & 0x7F)?;
-            let timestamp = word & 0x00FFFFFE;
-            let edge = if word & 1 == 1 {
-                EdgeType::Trailing
-            } else {
-                EdgeType::Leading
-            };
+    let ts = le_u24.parse_next(input)?;
+    let timestamp = ts & 0x00FFFFFE;
+    let edge = if ts & 1 == 1 {
+        EdgeType::Trailing
+    } else {
+        EdgeType::Leading
+    };
 
-            Ok::<(_, _, _), TryChannelIdFromUnsignedError>((channel, timestamp, edge))
-        })
+    let channel = u8
+        .verify(|&n| n & 0x80 == 0x80)
+        .try_map(|n| ChannelId::try_from(n & 0x7F))
         .parse_next(input)?;
 
     Ok(TimestampCounter {
