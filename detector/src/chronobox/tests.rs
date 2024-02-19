@@ -14,16 +14,18 @@ fn try_chronobox_channel_id() {
 fn chronopacket_scaler() {
     let packet = ChronoPacket {
         fifo: Vec::new(),
-        scalers: (0..u32::try_from(NUM_INPUT_CHANNELS).unwrap())
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap(),
-        sys_clock: 0,
+        scalers: Some(
+            (0..u32::try_from(NUM_INPUT_CHANNELS).unwrap())
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        ),
+        sys_clock: Some(0),
     };
 
     for num in 0..=58 {
         let channel_id = ChannelId::try_from(num).unwrap();
-        assert_eq!(packet.scaler(channel_id), u32::from(num));
+        assert_eq!(packet.scaler(channel_id), Some(u32::from(num)));
     }
 }
 
@@ -81,9 +83,9 @@ fn chronopacket_unknown_word() {
 }
 
 #[test]
-fn chronopacket_missing_scalers() {
+fn chronopacket_good_empty() {
     let bytes = Vec::new();
-    assert!(ChronoPacket::try_from(&bytes[..]).is_err());
+    assert!(ChronoPacket::try_from(&bytes[..]).is_ok());
 }
 
 #[test]
@@ -122,8 +124,8 @@ fn chronopacket_good_single_timestamp_counter() {
     assert_eq!(tsc.channel, ChannelId::try_from(11).unwrap());
     assert_eq!(tsc.timestamp(), 0);
     assert!(matches!(tsc.edge, EdgeType::Leading));
-    assert_eq!(scalers, [0; 59]);
-    assert_eq!(sys_clock, 0);
+    assert_eq!(scalers, Some([0; 59]));
+    assert_eq!(sys_clock, Some(0));
 }
 
 #[test]
@@ -148,8 +150,8 @@ fn chronopacket_good_single_wrap_around_marker() {
     };
     assert!(wam.timestamp_top_bit);
     assert_eq!(wam.wrap_around_counter(), 0);
-    assert_eq!(scalers, [0xFFFFFFFF; 59]);
-    assert_eq!(sys_clock, 0xFFFFFFFF);
+    assert_eq!(scalers, Some([0xFFFFFFFF; 59]));
+    assert_eq!(sys_clock, Some(0xFFFFFFFF));
 }
 
 #[test]
@@ -162,8 +164,8 @@ fn chronopacket_good_only_scalers() {
         sys_clock,
     } = packet;
     assert!(fifo.is_empty());
-    assert_eq!(scalers, [0xFFFFFFFF; 59]);
-    assert_eq!(sys_clock, 0xFFFFFFFF);
+    assert_eq!(scalers, Some([0xFFFFFFFF; 59]));
+    assert_eq!(sys_clock, Some(0xFFFFFFFF));
 }
 
 #[test]
@@ -191,6 +193,97 @@ fn chronopacket_good_full_packet() {
         sys_clock,
     } = packet;
     assert_eq!(fifo.len(), (59 * 2 + 1) * 10);
-    assert_eq!(scalers, [0x01010101; 59]);
-    assert_eq!(sys_clock, 0x01010101);
+    assert_eq!(scalers, Some([0x01010101; 59]));
+    assert_eq!(sys_clock, Some(0x01010101));
+}
+
+#[test]
+fn chronopacket_good_only_timestamp_counters() {
+    let mut bytes = Vec::new();
+    for i in 0..10 {
+        for channel in 0..=58 {
+            let tsc_le = timestamp_counter(channel, i, false);
+            bytes.extend_from_slice(&tsc_le.to_le_bytes()[..]);
+
+            let tsc_te = timestamp_counter(channel, i + 1, true);
+            bytes.extend_from_slice(&tsc_te.to_le_bytes()[..]);
+        }
+    }
+
+    let packet = ChronoPacket::try_from(&bytes[..]).unwrap();
+    let ChronoPacket {
+        fifo,
+        scalers,
+        sys_clock,
+    } = packet;
+    assert_eq!(fifo.len(), 59 * 2 * 10);
+    assert!(scalers.is_none());
+    assert!(sys_clock.is_none());
+}
+
+#[test]
+fn chronopacket_good_only_wrap_around_markers() {
+    let mut bytes = Vec::new();
+    for i in 0..10 {
+        let wam = wrap_around_marker(i % 2 == 0, i);
+        bytes.extend_from_slice(&wam.to_le_bytes()[..]);
+    }
+
+    let packet = ChronoPacket::try_from(&bytes[..]).unwrap();
+    let ChronoPacket {
+        fifo,
+        scalers,
+        sys_clock,
+    } = packet;
+    assert_eq!(fifo.len(), 10);
+    assert!(scalers.is_none());
+    assert!(sys_clock.is_none());
+}
+
+#[test]
+fn chronopacket_good_missing_scalers() {
+    let mut bytes = Vec::new();
+    for i in 0..10 {
+        for channel in 0..=58 {
+            let tsc_le = timestamp_counter(channel, i, false);
+            bytes.extend_from_slice(&tsc_le.to_le_bytes()[..]);
+
+            let tsc_te = timestamp_counter(channel, i + 1, true);
+            bytes.extend_from_slice(&tsc_te.to_le_bytes()[..]);
+        }
+
+        let wam = wrap_around_marker(i % 2 == 0, i);
+        bytes.extend_from_slice(&wam.to_le_bytes()[..]);
+    }
+
+    let packet = ChronoPacket::try_from(&bytes[..]).unwrap();
+    let ChronoPacket {
+        fifo,
+        scalers,
+        sys_clock,
+    } = packet;
+    assert_eq!(fifo.len(), (59 * 2 + 1) * 10);
+    assert!(scalers.is_none());
+    assert!(sys_clock.is_none());
+}
+
+#[test]
+fn chronopacket_fifo_after_scalers() {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&SCALERS_HEADER.to_le_bytes()[..]);
+    bytes.extend_from_slice(&[0x01; 60 * 4]);
+    for i in 0..10 {
+        for channel in 0..=58 {
+            let tsc_le = timestamp_counter(channel, i, false);
+            bytes.extend_from_slice(&tsc_le.to_le_bytes()[..]);
+
+            let tsc_te = timestamp_counter(channel, i + 1, true);
+            bytes.extend_from_slice(&tsc_te.to_le_bytes()[..]);
+        }
+
+        let wam = wrap_around_marker(i % 2 == 0, i);
+        bytes.extend_from_slice(&wam.to_le_bytes()[..]);
+    }
+
+    assert!(ChronoPacket::try_from(&bytes[..]).is_err());
 }

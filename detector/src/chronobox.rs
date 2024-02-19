@@ -1,7 +1,7 @@
 use thiserror::Error;
 use winnow::binary::{le_u24, le_u32, length_repeat, u8};
-use winnow::combinator::{alt, empty, repeat_till, seq};
-use winnow::error::{ContextError, StrContext};
+use winnow::combinator::{alt, dispatch, empty, preceded, repeat, seq};
+use winnow::error::ContextError;
 use winnow::{PResult, Parser};
 
 /// The error type returned when conversion from unsigned integer to
@@ -48,24 +48,16 @@ pub struct TimestampCounter {
 }
 
 fn timestamp_counter(input: &mut &[u8]) -> PResult<TimestampCounter> {
-    let ts = le_u24.parse_next(input)?;
-    let timestamp = ts & 0x00FFFFFE;
-    let edge = if ts & 1 == 1 {
-        EdgeType::Trailing
-    } else {
-        EdgeType::Leading
-    };
+    let temp = le_u24.parse_next(input)?;
 
-    let channel = u8
-        .verify(|&n| n & 0x80 == 0x80)
-        .try_map(|n| ChannelId::try_from(n & 0x7F))
-        .parse_next(input)?;
-
-    Ok(TimestampCounter {
-        channel,
-        timestamp,
-        edge,
-    })
+    seq! {TimestampCounter{
+        timestamp: empty.value(temp & 0x00FFFFFE),
+        edge: empty.value(if temp & 1 == 1 {EdgeType::Trailing} else {EdgeType::Leading}),
+        channel: u8
+            .verify(|&n| n & 0x80 == 0x80)
+            .try_map(|n| ChannelId::try_from(n & 0x7F))
+    }}
+    .parse_next(input)
 }
 
 impl TimestampCounter {
@@ -91,22 +83,14 @@ pub struct WrapAroundMarker {
 }
 
 fn wrap_around_marker(input: &mut &[u8]) -> PResult<WrapAroundMarker> {
-    let (timestamp_top_bit, counter) = le_u32
-        .context(StrContext::Label("wrap around counter word"))
-        .verify(|&word| word & 0xFF000000 == 0xFF000000)
-        .context(StrContext::Label("top 8 bits"))
-        .map(|word| {
-            let timestamp_top_bit = word & 0x00800000 != 0;
-            let counter = word & 0x007FFFFF;
+    let temp = le_u24.parse_next(input)?;
 
-            (timestamp_top_bit, counter)
-        })
-        .parse_next(input)?;
-
-    Ok(WrapAroundMarker {
-        timestamp_top_bit,
-        counter,
-    })
+    seq! {WrapAroundMarker{
+        timestamp_top_bit: empty.value(temp & 0x00800000 == 0x00800000),
+        counter: empty.value(temp & 0x007FFFFF),
+        _: 0xFF,
+    }}
+    .parse_next(input)
 }
 
 impl WrapAroundMarker {
@@ -164,21 +148,33 @@ pub const SYS_CLOCK_FREQ: f64 = 100e6;
 #[derive(Clone, Debug)]
 pub struct ChronoPacket {
     pub fifo: Vec<FifoEntry>,
-    scalers: [u32; NUM_INPUT_CHANNELS],
-    /// System clock counter which increments at a frequency of
-    /// [`SYS_CLOCK_FREQ`].
-    pub sys_clock: u32,
+    // These are private to guarantee that they are both present or both absent.
+    scalers: Option<[u32; NUM_INPUT_CHANNELS]>,
+    sys_clock: Option<u32>,
 }
 
 fn chrono_packet(input: &mut &[u8]) -> PResult<ChronoPacket> {
     seq! {ChronoPacket{
-        fifo: repeat_till(0.., alt((
-            timestamp_counter.map(FifoEntry::TimestampCounter),
-            wrap_around_marker.map(FifoEntry::WrapAroundMarker)
-        )), b"\x3C\x00\x00\xFE").map(|(fifo, _)| fifo),
-        scalers: length_repeat(empty.value(NUM_INPUT_CHANNELS), le_u32)
-            .map(|v: Vec<_>| v.try_into().unwrap()),
-        sys_clock: le_u32,
+        fifo: repeat(
+            0..,
+            alt((
+                timestamp_counter.map(FifoEntry::TimestampCounter),
+                wrap_around_marker.map(FifoEntry::WrapAroundMarker),
+            )),
+        ),
+        scalers: alt((
+            preceded(
+                b"\x3C\x00\x00\xFE",
+                length_repeat(empty.value(NUM_INPUT_CHANNELS), le_u32)
+                    .map(|scalers: Vec<_>| scalers.try_into().unwrap()),
+            )
+            .map(Some),
+            empty.value(None),
+        )),
+        sys_clock: dispatch! {empty.value(scalers);
+            Some(_) => le_u32.map(Some),
+            None => empty.value(None),
+        },
     }}
     .parse_next(input)
 }
@@ -199,8 +195,14 @@ impl TryFrom<&[u8]> for ChronoPacket {
 impl ChronoPacket {
     /// Returns the latched scaler at [`ChronoPacket::sys_clock`] for the given
     /// channel.
-    pub fn scaler(&self, channel: ChannelId) -> u32 {
-        self.scalers[usize::from(channel.0)]
+    pub fn scaler(&self, channel: ChannelId) -> Option<u32> {
+        self.scalers.map(|scalers| scalers[usize::from(channel.0)])
+    }
+    /// Returns the system clock value at the time the scalers were latched.
+    /// This counter increments at a frequency of [`SYS_CLOCK_FREQ`]. A [`Some`]
+    /// value guarantees that all scalers are also [`Some`].
+    pub fn sys_clock(&self) -> Option<u32> {
+        self.sys_clock
     }
 }
 
