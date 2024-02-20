@@ -287,3 +287,14 @@ fn chronopacket_fifo_after_scalers() {
 
     assert!(ChronoPacket::try_from(&bytes[..]).is_err());
 }
+
+#[test]
+fn chronobox_board_id() {
+    for name in ["01", "02", "03", "04"] {
+        let board_id = BoardId::try_from(name).unwrap();
+        assert_eq!(board_id.name(), name);
+    }
+
+    assert!(BoardId::try_from("00").is_err());
+    assert!(BoardId::try_from("05").is_err());
+}

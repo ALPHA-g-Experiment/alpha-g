@@ -206,5 +206,51 @@ impl ChronoPacket {
     }
 }
 
+// Known Chronobox names.
+const CHRONOBOXES: [&str; 4] = ["01", "02", "03", "04"];
+
+/// The error type returned when parsing a [`BoardId`] from a string fails.
+#[derive(Debug, Error)]
+#[error("unknown parsing from board name `{input}` to BoardId")]
+pub struct ParseBoardIdError {
+    input: String,
+}
+
+/// Identity of a physical Chronobox.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BoardId(&'static str);
+
+impl TryFrom<&str> for BoardId {
+    type Error = ParseBoardIdError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        match CHRONOBOXES.iter().find(|&&n| n == name) {
+            Some(&n) => Ok(BoardId(n)),
+            None => Err(ParseBoardIdError {
+                input: name.to_string(),
+            }),
+        }
+    }
+}
+
+impl BoardId {
+    /// Returns the name of a physical Chronobox. This is a human readable
+    /// name used to identify the board.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use alpha_g_detector::chronobox::BoardId;
+    ///
+    /// let board_id = BoardId::try_from("01")?;
+    /// assert_eq!(board_id.name(), "01");
+    /// # Ok(())
+    /// # }
+    pub fn name(&self) -> &str {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod tests;
