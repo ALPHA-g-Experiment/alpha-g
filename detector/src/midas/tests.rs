@@ -765,3 +765,37 @@ fn main_event_bank_name_valid() {
         MainEventBankName::McVertex(_)
     ));
 }
+
+#[test]
+fn chronobox_bank_name_valid() {
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF1").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("01").unwrap()
+        }
+    );
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF2").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("02").unwrap()
+        }
+    );
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF3").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("03").unwrap()
+        }
+    );
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF4").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("04").unwrap()
+        }
+    );
+}
+
+#[test]
+fn chronobox_bank_name_invalid() {
+    assert!(ChronoboxBankName::try_from("CBF0").is_err());
+    assert!(ChronoboxBankName::try_from("CBF5").is_err());
+}

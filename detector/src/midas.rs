@@ -488,5 +488,43 @@ impl TryFrom<&str> for MainEventBankName {
     }
 }
 
+/// The error type returned when parsing a Chronobox bank name fails.
+#[derive(Error, Debug)]
+pub enum ParseChronoboxBankNameError {
+    /// Input string pattern doesn't match the expected Chronobox bank name
+    /// pattern.
+    #[error("input string `{input}` doesn't match ChronoboxBankName pattern")]
+    PatternMismatch { input: String },
+}
+
+/// Name of a MIDAS bank with data from a Chronobox board.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChronoboxBankName {
+    pub board_id: crate::chronobox::BoardId,
+}
+impl TryFrom<&str> for ChronoboxBankName {
+    type Error = ParseChronoboxBankNameError;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        match name {
+            "CBF1" => Ok(Self {
+                board_id: crate::chronobox::BoardId::try_from("01").unwrap(),
+            }),
+            "CBF2" => Ok(Self {
+                board_id: crate::chronobox::BoardId::try_from("02").unwrap(),
+            }),
+            "CBF3" => Ok(Self {
+                board_id: crate::chronobox::BoardId::try_from("03").unwrap(),
+            }),
+            "CBF4" => Ok(Self {
+                board_id: crate::chronobox::BoardId::try_from("04").unwrap(),
+            }),
+            _ => Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            }),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;
