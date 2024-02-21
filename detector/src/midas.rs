@@ -45,6 +45,8 @@ pub enum EventId {
     /// Main ALPHA-g event. These events include data from the rTPC and BV
     /// detectors.
     Main,
+    /// These events include chronobox data.
+    Chronobox,
 }
 
 impl TryFrom<u16> for EventId {
@@ -53,6 +55,7 @@ impl TryFrom<u16> for EventId {
     fn try_from(num: u16) -> Result<Self, Self::Error> {
         match num {
             1 => Ok(EventId::Main),
+            4 => Ok(EventId::Chronobox),
             _ => Err(TryEventIdFromUnsignedError { input: num }),
         }
     }
