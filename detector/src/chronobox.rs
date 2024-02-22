@@ -1,7 +1,7 @@
 use thiserror::Error;
-use winnow::binary::{le_u24, le_u32, length_repeat, u8};
-use winnow::combinator::{alt, dispatch, empty, preceded, repeat, seq};
-use winnow::error::ContextError;
+use winnow::binary::{le_u24, le_u32, u8};
+use winnow::combinator::{alt, empty, repeat, separated_foldl1, seq};
+use winnow::token::take;
 use winnow::{PResult, Parser};
 
 /// The error type returned when conversion from unsigned integer to
@@ -112,98 +112,53 @@ pub enum FifoEntry {
     WrapAroundMarker(WrapAroundMarker),
 }
 
-/// The error type returned when conversion from
-/// [`&[u8]`](https://doc.rust-lang.org/std/primitive.slice.html) to
-/// [`ChronoPacket`] fails.
-#[derive(Debug)]
-pub struct TryChronoPacketFromBytesError {
-    offset: usize,
-    inner: ContextError,
-}
-
-impl std::fmt::Display for TryChronoPacketFromBytesError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "parsing stopped at byte offset `{}`", self.offset)?;
-        if self.inner.context().next().is_some() {
-            write!(f, " ({})", self.inner)?;
-        }
-        Ok(())
-    }
-}
-
-impl std::error::Error for TryChronoPacketFromBytesError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.inner
-            .cause()
-            .map(|v| v as &(dyn std::error::Error + 'static))
-    }
-}
-
-/// Frequency (Hertz) of the system clock.
-pub const SYS_CLOCK_FREQ: f64 = 100e6;
-
-/// Chronobox data packet.
-///
-/// A [`ChronoPacket`] represents the data collected from a single Chronobox.
-#[derive(Clone, Debug)]
-pub struct ChronoPacket {
-    pub fifo: Vec<FifoEntry>,
-    // These are private to guarantee that they are both present or both absent.
-    scalers: Option<[u32; NUM_INPUT_CHANNELS]>,
-    sys_clock: Option<u32>,
-}
-
-fn chrono_packet(input: &mut &[u8]) -> PResult<ChronoPacket> {
-    seq! {ChronoPacket{
-        fifo: repeat(
-            0..,
-            alt((
-                timestamp_counter.map(FifoEntry::TimestampCounter),
-                wrap_around_marker.map(FifoEntry::WrapAroundMarker),
-            )),
-        ),
-        scalers: alt((
-            preceded(
-                b"\x3C\x00\x00\xFE",
-                length_repeat(empty.value(NUM_INPUT_CHANNELS), le_u32)
-                    .map(|scalers: Vec<_>| scalers.try_into().unwrap()),
-            )
-            .map(Some),
-            empty.value(None),
-        )),
-        sys_clock: dispatch! {empty.value(scalers);
-            Some(_) => le_u32.map(Some),
-            None => empty.value(None),
-        },
-    }}
+fn fifo_entry(input: &mut &[u8]) -> PResult<FifoEntry> {
+    alt((
+        timestamp_counter.map(FifoEntry::TimestampCounter),
+        wrap_around_marker.map(FifoEntry::WrapAroundMarker),
+    ))
     .parse_next(input)
 }
 
-impl TryFrom<&[u8]> for ChronoPacket {
-    type Error = TryChronoPacketFromBytesError;
-
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        chrono_packet
-            .parse(bytes)
-            .map_err(|e| TryChronoPacketFromBytesError {
-                offset: e.offset(),
-                inner: e.into_inner(),
-            })
-    }
+fn scalers_block(input: &mut &[u8]) -> PResult<()> {
+    (
+        b"\x3C\x00\x00\xFE",
+        take(NUM_INPUT_CHANNELS * std::mem::size_of::<u32>()),
+        le_u32,
+    )
+        .void()
+        .parse_next(input)
 }
 
-impl ChronoPacket {
-    /// Returns the latched scaler at [`ChronoPacket::sys_clock`] for the given
-    /// channel.
-    pub fn scaler(&self, channel: ChannelId) -> Option<u32> {
-        self.scalers.map(|scalers| scalers[usize::from(channel.0)])
-    }
-    /// Returns the system clock value at the time the scalers were latched.
-    /// This counter increments at a frequency of [`SYS_CLOCK_FREQ`]. A [`Some`]
-    /// value guarantees that all scalers are also [`Some`].
-    pub fn sys_clock(&self) -> Option<u32> {
-        self.sys_clock
-    }
+// The chronobox data banks are arbitrary sub-slices of a complete/correct
+// data stream. This means that parsing correctly may need information from
+// previous data banks (e.g. a scaler block may be split between two banks).
+// Then, instead of having a "Packet" structure (like all other data banks),
+// we have a partial parser that stops when it needs more data (so that the user
+// can append it and resume parsing).
+/// Parse Chronobox FIFO data from a slice of bytes (skipping scalers blocks).
+///
+/// The input slice is advanced up until no more FIFO entries can be parsed.
+/// Note that the slice may stop before consuming all the data. This could mean
+/// that:
+/// - More data is required (e.g. the input slice stops in the middle of a
+///  scalers block). In this case, the user should append more data and resume
+///  parsing.
+/// - The data is not correctly formatted. Even after appending more data, the
+/// input slice is still stuck.
+pub fn chronobox_fifo(input: &mut &[u8]) -> Vec<FifoEntry> {
+    separated_foldl1(
+        repeat(0.., fifo_entry),
+        scalers_block,
+        |mut l: Vec<_>, _, mut r| {
+            l.append(&mut r);
+            l
+        },
+    )
+    .parse_next(input)
+    // It is OK to unwrap because this parser always succeeds. Worst case it
+    // returns an empty vector, which is a valid result.
+    .unwrap()
 }
 
 // Known Chronobox names.
