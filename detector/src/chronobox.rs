@@ -175,7 +175,7 @@ pub struct ParseBoardIdError {
 }
 
 /// Identity of a physical Chronobox.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BoardId(&'static str);
 
 impl TryFrom<&str> for BoardId {
