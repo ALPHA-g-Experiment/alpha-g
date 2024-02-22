@@ -1,6 +1,11 @@
 use super::*;
 
 #[test]
+fn timestamp_clock_frequency() {
+    assert_eq!(TIMESTAMP_CLOCK_FREQ, 10000000.0);
+}
+
+#[test]
 fn try_chronobox_channel_id() {
     for num in 0..=58 {
         assert_eq!(ChannelId(num), ChannelId::try_from(num).unwrap());

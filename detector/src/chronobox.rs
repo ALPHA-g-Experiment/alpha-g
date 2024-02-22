@@ -37,6 +37,9 @@ pub enum EdgeType {
     Trailing,
 }
 
+/// Frequency (Hertz) of the timestamp clock.
+pub const TIMESTAMP_CLOCK_FREQ: f64 = 10e6;
+
 /// Timestamp counter.
 #[derive(Clone, Copy, Debug)]
 pub struct TimestampCounter {
