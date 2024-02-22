@@ -82,6 +82,11 @@ fn event_id_try_from_u16() {
     for num in 0..=u16::MAX {
         if num == 1 {
             assert!(matches!(EventId::try_from(num).unwrap(), EventId::Main));
+        } else if num == 4 {
+            assert!(matches!(
+                EventId::try_from(num).unwrap(),
+                EventId::Chronobox
+            ));
         } else {
             assert!(EventId::try_from(num).is_err());
         }
@@ -764,4 +769,38 @@ fn main_event_bank_name_valid() {
         MainEventBankName::try_from("MCVX").unwrap(),
         MainEventBankName::McVertex(_)
     ));
+}
+
+#[test]
+fn chronobox_bank_name_valid() {
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF1").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("01").unwrap()
+        }
+    );
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF2").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("02").unwrap()
+        }
+    );
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF3").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("03").unwrap()
+        }
+    );
+    assert_eq!(
+        ChronoboxBankName::try_from("CBF4").unwrap(),
+        ChronoboxBankName {
+            board_id: crate::chronobox::BoardId::try_from("04").unwrap()
+        }
+    );
+}
+
+#[test]
+fn chronobox_bank_name_invalid() {
+    assert!(ChronoboxBankName::try_from("CBF0").is_err());
+    assert!(ChronoboxBankName::try_from("CBF5").is_err());
 }
