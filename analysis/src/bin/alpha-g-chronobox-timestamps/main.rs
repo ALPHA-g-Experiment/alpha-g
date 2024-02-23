@@ -1,6 +1,9 @@
+use alpha_g_detector::chronobox::chronobox_fifo;
+use alpha_g_detector::midas::{ChronoboxBankName, EventId};
 use anyhow::{ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -30,6 +33,7 @@ fn main() -> Result<()> {
     );
     bar.tick();
 
+    let mut cb_buffers: HashMap<_, Vec<_>> = HashMap::new();
     let mut previous_final_timestamp = None;
     for file in files {
         let contents = alpha_g_analysis::read(&file)
@@ -45,8 +49,38 @@ fn main() -> Result<()> {
         }
         previous_final_timestamp = Some(file_view.final_timestamp());
 
+        for event_view in file_view
+            .into_iter()
+            .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Chronobox)))
+        {
+            for bank_view in event_view {
+                let Ok(ChronoboxBankName { board_id: cb_board }) =
+                    ChronoboxBankName::try_from(bank_view.name())
+                else {
+                    continue;
+                };
+                let data = bank_view.data_slice();
+
+                cb_buffers
+                    .entry(cb_board)
+                    .or_default()
+                    .extend(data.iter().copied());
+            }
+        }
         bar.inc(1);
     }
     bar.finish_and_clear();
+
+    for (cb_board, buffer) in cb_buffers {
+        let mut input = &buffer[..];
+        let fifo = chronobox_fifo(&mut input);
+        println!(
+            "Board: {}, Fifo length: {}. Remaining: {}",
+            cb_board.name(),
+            fifo.len(),
+            input.len()
+        );
+    }
+
     Ok(())
 }
