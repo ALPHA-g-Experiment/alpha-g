@@ -3,7 +3,8 @@ use alpha_g_detector::midas::{ChronoboxBankName, EventId};
 use anyhow::{ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -33,7 +34,7 @@ fn main() -> Result<()> {
     );
     bar.tick();
 
-    let mut cb_buffers: HashMap<_, Vec<_>> = HashMap::new();
+    let mut cb_buffers: BTreeMap<_, Vec<_>> = BTreeMap::new();
     let mut previous_final_timestamp = None;
     for file in files {
         let contents = alpha_g_analysis::read(&file)
@@ -54,33 +55,46 @@ fn main() -> Result<()> {
             .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Chronobox)))
         {
             for bank_view in event_view {
-                let Ok(ChronoboxBankName { board_id: cb_board }) =
-                    ChronoboxBankName::try_from(bank_view.name())
-                else {
+                let Ok(name) = ChronoboxBankName::try_from(bank_view.name()) else {
                     continue;
                 };
                 let data = bank_view.data_slice();
 
                 cb_buffers
-                    .entry(cb_board)
+                    .entry(name.board_id.name().to_string())
                     .or_default()
-                    .extend(data.iter().copied());
+                    .extend(data.iter());
             }
         }
         bar.inc(1);
     }
     bar.finish_and_clear();
 
-    for (cb_board, buffer) in cb_buffers {
-        let mut input = &buffer[..];
-        let fifo = chronobox_fifo(&mut input);
-        println!(
-            "Board: {}, Fifo length: {}. Remaining: {}",
-            cb_board.name(),
-            fifo.len(),
-            input.len()
-        );
-    }
+    let cb_fifos = cb_buffers
+        .into_iter()
+        .map(|(name, buffer)| {
+            let mut input = &buffer[..];
+            let fifo = chronobox_fifo(&mut input);
+            ensure!(input.is_empty(), "bad FIFO data for chronobox `{name}`");
+            Ok((name, fifo))
+        })
+        .collect::<Result<BTreeMap<_, _>>>()
+        .context("failed to parse FIFO data")?;
+
+    let output = args.output.with_extension("csv");
+    let mut wtr = std::fs::File::create(&output)
+        .with_context(|| format!("failed to create `{}`", output.display()))?;
+    eprintln!("Created `{}`", output.display());
+    wtr.write_all(
+        format!(
+            "# {} {}\n# {}\n",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            std::env::args().collect::<Vec<_>>().join(" ")
+        )
+        .as_bytes(),
+    )
+    .context("failed to write csv header")?;
 
     Ok(())
 }
