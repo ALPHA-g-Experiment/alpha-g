@@ -44,6 +44,8 @@ pub enum EdgeType {
     Trailing,
 }
 
+/// The size of the timestamp counter in bits.
+pub const TIMESTAMP_BITS: u32 = 24;
 /// Frequency (Hertz) of the timestamp clock.
 pub const TIMESTAMP_CLOCK_FREQ: f64 = 10e6;
 
@@ -71,8 +73,8 @@ fn timestamp_counter(input: &mut &[u8]) -> PResult<TimestampCounter> {
 }
 
 impl TimestampCounter {
-    /// Returns the timestamp value. This counter is 24 bits wide, hence the
-    /// most significant 8 bits are always zero.
+    /// Returns the timestamp value. This counter is [`TIMESTAMP_BITS`] bits
+    /// wide, hence the remaining most significant bits are always zero.
     pub fn timestamp(&self) -> u32 {
         self.timestamp
     }
