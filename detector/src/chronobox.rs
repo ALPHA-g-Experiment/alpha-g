@@ -29,6 +29,13 @@ impl TryFrom<u8> for ChannelId {
         }
     }
 }
+impl From<ChannelId> for u8 {
+    /// Convert to the `u: u8` such that
+    /// `ChannelId::try_from(u).unwrap() == self`.
+    fn from(channel: ChannelId) -> Self {
+        channel.0
+    }
+}
 
 /// The [`EdgeType`] represents the leading or trailing edge of an input signal.
 #[derive(Clone, Copy, Debug)]

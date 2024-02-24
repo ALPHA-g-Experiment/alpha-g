@@ -15,6 +15,14 @@ fn try_chronobox_channel_id() {
     }
 }
 
+#[test]
+fn from_channel_id_u8() {
+    for i in 0..=58 {
+        let channel = ChannelId::try_from(i).unwrap();
+        assert_eq!(u8::from(channel), i);
+    }
+}
+
 fn timestamp_counter(channel: u8, timestamp: u32, edge: bool) -> u32 {
     0x80000000 | (u32::from(channel) << 24) | (timestamp & 0x00FFFFFE) | u32::from(edge)
 }
