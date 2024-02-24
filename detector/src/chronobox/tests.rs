@@ -1,6 +1,11 @@
 use super::*;
 
 #[test]
+fn timestamp_bits() {
+    assert_eq!(TIMESTAMP_BITS, 24);
+}
+
+#[test]
 fn timestamp_clock_frequency() {
     assert_eq!(TIMESTAMP_CLOCK_FREQ, 10000000.0);
 }
