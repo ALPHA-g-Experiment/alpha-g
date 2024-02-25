@@ -1,11 +1,16 @@
-use alpha_g_detector::chronobox::chronobox_fifo;
+use alpha_g_detector::chronobox::{
+    chronobox_fifo, EdgeType, FifoEntry, TimestampCounter, WrapAroundMarker, TIMESTAMP_BITS,
+};
 use alpha_g_detector::midas::{ChronoboxBankName, EventId};
+use alpha_g_physics::chronobox::TIMESTAMP_CLOCK_FREQ;
 use anyhow::{ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
+use uom::si::f64::Time;
+use uom::si::time::second;
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -20,6 +25,44 @@ struct Args {
     /// Print detailed information about errors (if any)
     #[arg(short, long)]
     verbose: bool,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+struct Row {
+    board: String,
+    channel: u8,
+    leading_edge: bool,
+    chronobox_time: Option<f64>,
+}
+
+fn chronobox_time(
+    tsc: TimestampCounter,
+    previous_marker: Option<WrapAroundMarker>,
+    next_marker: Option<WrapAroundMarker>,
+) -> Option<Time> {
+    if let (Some(previous), Some(next)) = (previous_marker, next_marker) {
+        if (previous.wrap_around_counter() + 1 == next.wrap_around_counter())
+            && (previous.timestamp_top_bit != next.timestamp_top_bit)
+        {
+            // The epoch counter increments twice per wrap-around (because of
+            // half markers). Furthermore, the counter 0 corresponds to the
+            // first half wrap-around marker.
+            let epoch_counter = (previous.wrap_around_counter() + 1) / 2;
+            let timestamp_counter = tsc.timestamp();
+            let top_bit = (timestamp_counter >> (TIMESTAMP_BITS - 1)) == 1;
+            if top_bit != previous.timestamp_top_bit {
+                let time = u64::from(timestamp_counter)
+                    + u64::from(epoch_counter) * (1u64 << TIMESTAMP_BITS);
+                Some(time as f64 / TIMESTAMP_CLOCK_FREQ)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 fn main() -> Result<()> {
@@ -61,7 +104,7 @@ fn main() -> Result<()> {
                 let data = bank_view.data_slice();
 
                 cb_buffers
-                    .entry(name.board_id.name().to_string())
+                    .entry(format!("cb{}", name.board_id.name()))
                     .or_default()
                     .extend(data.iter());
             }
@@ -74,8 +117,30 @@ fn main() -> Result<()> {
         .into_iter()
         .map(|(name, buffer)| {
             let mut input = &buffer[..];
-            let fifo = chronobox_fifo(&mut input);
+            let mut fifo = chronobox_fifo(&mut input);
             ensure!(input.is_empty(), "bad FIFO data for chronobox `{name}`");
+            // Replicate `alphasoft`'s behavior and ignore anything until the
+            // 0th marker counter.
+            let epoch_0_index = fifo
+                .iter()
+                .position(|entry| match entry {
+                    FifoEntry::WrapAroundMarker(marker) => marker.wrap_around_counter() == 0,
+                    _ => false,
+                })
+                .context("missing epoch 0 marker in chronobox `{name}`")?;
+            let fifo = fifo.split_off(epoch_0_index);
+            // This is important, otherwise the `epoch_counter` in
+            // `chronobox_time` will be wrong every other marker.
+            ensure!(
+                {
+                    let FifoEntry::WrapAroundMarker(marker) = fifo[0] else {
+                        unreachable!();
+                    };
+                    !marker.timestamp_top_bit
+                },
+                "bad first marker in chronobox `{name}`"
+            );
+
             Ok((name, fifo))
         })
         .collect::<Result<BTreeMap<_, _>>>()
@@ -95,6 +160,37 @@ fn main() -> Result<()> {
         .as_bytes(),
     )
     .context("failed to write csv header")?;
+
+    let mut wtr = csv::Writer::from_writer(wtr);
+    for (name, fifo) in cb_fifos {
+        let mut previous_marker: Option<WrapAroundMarker> = None;
+        for chunk in fifo.split_inclusive(|n| matches!(n, FifoEntry::WrapAroundMarker(_))) {
+            let (next_marker, timestamps) = match chunk.split_last() {
+                Some((&FifoEntry::WrapAroundMarker(marker), timestamps)) => {
+                    (Some(marker), timestamps)
+                }
+                Some((_, timestamps)) => (None, timestamps),
+                _ => unreachable!(),
+            };
+            for &tsc in timestamps {
+                let FifoEntry::TimestampCounter(tsc) = tsc else {
+                    unreachable!();
+                };
+                let row = Row {
+                    board: name.clone(),
+                    channel: u8::from(tsc.channel),
+                    leading_edge: matches!(tsc.edge, EdgeType::Leading),
+                    chronobox_time: chronobox_time(tsc, previous_marker, next_marker)
+                        .map(|t| t.get::<second>()),
+                };
+
+                wtr.serialize(row)
+                    .context("failed to write row to csv data")?;
+            }
+            previous_marker = next_marker;
+        }
+    }
+    wtr.flush().context("failed to flush csv data")?;
 
     Ok(())
 }
