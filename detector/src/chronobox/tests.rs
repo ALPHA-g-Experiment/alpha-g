@@ -349,11 +349,12 @@ fn fifo_only_scalers_blocks() {
 
 #[test]
 fn chronobox_board_id() {
-    for name in ["01", "02", "03", "04"] {
+    for name in ["cb01", "cb02", "cb03", "cb04"] {
         let board_id = BoardId::try_from(name).unwrap();
         assert_eq!(board_id.name(), name);
     }
 
-    assert!(BoardId::try_from("00").is_err());
-    assert!(BoardId::try_from("05").is_err());
+    assert!(BoardId::try_from("cb00").is_err());
+    assert!(BoardId::try_from("cbtrg").is_err());
+    assert!(BoardId::try_from("cb05").is_err());
 }

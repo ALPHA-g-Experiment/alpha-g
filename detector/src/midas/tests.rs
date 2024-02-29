@@ -776,31 +776,32 @@ fn chronobox_bank_name_valid() {
     assert_eq!(
         ChronoboxBankName::try_from("CBF1").unwrap(),
         ChronoboxBankName {
-            board_id: crate::chronobox::BoardId::try_from("01").unwrap()
+            board_id: crate::chronobox::BoardId::try_from("cb01").unwrap()
         }
     );
     assert_eq!(
         ChronoboxBankName::try_from("CBF2").unwrap(),
         ChronoboxBankName {
-            board_id: crate::chronobox::BoardId::try_from("02").unwrap()
+            board_id: crate::chronobox::BoardId::try_from("cb02").unwrap()
         }
     );
     assert_eq!(
         ChronoboxBankName::try_from("CBF3").unwrap(),
         ChronoboxBankName {
-            board_id: crate::chronobox::BoardId::try_from("03").unwrap()
+            board_id: crate::chronobox::BoardId::try_from("cb03").unwrap()
         }
     );
     assert_eq!(
         ChronoboxBankName::try_from("CBF4").unwrap(),
         ChronoboxBankName {
-            board_id: crate::chronobox::BoardId::try_from("04").unwrap()
+            board_id: crate::chronobox::BoardId::try_from("cb04").unwrap()
         }
     );
 }
 
 #[test]
 fn chronobox_bank_name_invalid() {
+    assert!(ChronoboxBankName::try_from("CBFT").is_err());
     assert!(ChronoboxBankName::try_from("CBF0").is_err());
     assert!(ChronoboxBankName::try_from("CBF5").is_err());
 }
