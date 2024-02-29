@@ -1,3 +1,6 @@
+// READ CAREFULLY ALL THE COMMENTS.
+// If this program reports an error, the solution is most likely to analyze the
+// Chronobox data manually instead of patching this program.
 use alpha_g_detector::chronobox::{
     chronobox_fifo, EdgeType, FifoEntry, TimestampCounter, WrapAroundMarker, TIMESTAMP_BITS,
 };
@@ -22,9 +25,6 @@ struct Args {
     /// Write the Chronobox timestamps to `OUTPUT.csv`
     #[arg(short, long)]
     output: PathBuf,
-    /// Print detailed information about errors (if any)
-    #[arg(short, long)]
-    verbose: bool,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -55,12 +55,19 @@ fn chronobox_time(
                     + u64::from(epoch_counter) * (1u64 << TIMESTAMP_BITS);
                 Some(time as f64 / TIMESTAMP_CLOCK_FREQ)
             } else {
+                // In theory, this case can be handled by knowing an appropriate
+                // threshold for how close a timestamp can be to a marker to
+                // arrive the FIFO in the wrong order.
                 None
             }
         } else {
             None
         }
     } else {
+        // If the timestamp is not "sandwiched" between two markers, it is best
+        // to not assume what the missing marker is. This can naturally happen
+        // with the last batch of timestamps, but these are most likely not
+        // needed anyway.
         None
     }
 }
@@ -112,7 +119,12 @@ fn main() -> Result<()> {
         bar.inc(1);
     }
     bar.finish_and_clear();
-
+    // The Chronobox data is probably the most "complicated" to deal with given
+    // that it is designed to be unpacked with a state machine across events.
+    // If anything isn't 100% as expected, it is better to fail completely
+    // and analyze the data manually. There is no guaranteed way to recover with
+    // complete certainty (it is not correct to e.g. skip until the next marker;
+    // we could mistakenly find a word in the middle of a scalers block, etc.).
     let cb_fifos = cb_buffers
         .into_iter()
         .map(|(name, buffer)| {
