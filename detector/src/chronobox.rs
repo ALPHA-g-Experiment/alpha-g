@@ -174,7 +174,7 @@ pub fn chronobox_fifo(input: &mut &[u8]) -> Vec<FifoEntry> {
 }
 
 // Known Chronobox names.
-const CHRONOBOXES: [&str; 4] = ["01", "02", "03", "04"];
+const CHRONOBOX_NAMES: [&str; 4] = ["cb01", "cb02", "cb03", "cb04"];
 
 /// The error type returned when parsing a [`BoardId`] from a string fails.
 #[derive(Debug, Error)]
@@ -191,7 +191,7 @@ impl TryFrom<&str> for BoardId {
     type Error = ParseBoardIdError;
 
     fn try_from(name: &str) -> Result<Self, Self::Error> {
-        match CHRONOBOXES.iter().find(|&&n| n == name) {
+        match CHRONOBOX_NAMES.iter().find(|&&n| n == name) {
             Some(&n) => Ok(BoardId(n)),
             None => Err(ParseBoardIdError {
                 input: name.to_string(),
@@ -210,8 +210,8 @@ impl BoardId {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use alpha_g_detector::chronobox::BoardId;
     ///
-    /// let board_id = BoardId::try_from("01")?;
-    /// assert_eq!(board_id.name(), "01");
+    /// let board_id = BoardId::try_from("cb01")?;
+    /// assert_eq!(board_id.name(), "cb01");
     /// # Ok(())
     /// # }
     pub fn name(&self) -> &str {
