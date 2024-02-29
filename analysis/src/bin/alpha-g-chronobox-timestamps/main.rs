@@ -104,7 +104,7 @@ fn main() -> Result<()> {
                 let data = bank_view.data_slice();
 
                 cb_buffers
-                    .entry(format!("cb{}", name.board_id.name()))
+                    .entry(name.board_id.name().to_string())
                     .or_default()
                     .extend(data.iter());
             }
