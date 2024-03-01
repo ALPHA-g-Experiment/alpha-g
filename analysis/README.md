@@ -27,6 +27,8 @@ alpha-g-vertices --version
 
 ## Binaries
 
+- [`alpha-g-chronobox-timestamps`](src/bin/alpha-g-chronobox-timestamps/README.md):
+Extract the Chronobox timestamps for a single run.
 - [`alpha-g-trg-scalers`](src/bin/alpha-g-trg-scalers/README.md):
 Extract the TRG scalers for a single run.
 - [`alpha-g-vertices`](src/bin/alpha-g-vertices/README.md):
