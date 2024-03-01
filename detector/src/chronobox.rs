@@ -29,6 +29,13 @@ impl TryFrom<u8> for ChannelId {
         }
     }
 }
+impl From<ChannelId> for u8 {
+    /// Convert to the `u: u8` such that
+    /// `ChannelId::try_from(u).unwrap() == self`.
+    fn from(channel: ChannelId) -> Self {
+        channel.0
+    }
+}
 
 /// The [`EdgeType`] represents the leading or trailing edge of an input signal.
 #[derive(Clone, Copy, Debug)]
@@ -37,6 +44,8 @@ pub enum EdgeType {
     Trailing,
 }
 
+/// The size of the timestamp counter in bits.
+pub const TIMESTAMP_BITS: u32 = 24;
 /// Frequency (Hertz) of the timestamp clock.
 pub const TIMESTAMP_CLOCK_FREQ: f64 = 10e6;
 
@@ -64,8 +73,8 @@ fn timestamp_counter(input: &mut &[u8]) -> PResult<TimestampCounter> {
 }
 
 impl TimestampCounter {
-    /// Returns the timestamp value. This counter is 24 bits wide, hence the
-    /// most significant 8 bits are always zero.
+    /// Returns the timestamp value. This counter is [`TIMESTAMP_BITS`] bits
+    /// wide, hence the remaining most significant bits are always zero.
     pub fn timestamp(&self) -> u32 {
         self.timestamp
     }
@@ -165,7 +174,7 @@ pub fn chronobox_fifo(input: &mut &[u8]) -> Vec<FifoEntry> {
 }
 
 // Known Chronobox names.
-const CHRONOBOXES: [&str; 4] = ["01", "02", "03", "04"];
+const CHRONOBOX_NAMES: [&str; 4] = ["cb01", "cb02", "cb03", "cb04"];
 
 /// The error type returned when parsing a [`BoardId`] from a string fails.
 #[derive(Debug, Error)]
@@ -182,7 +191,7 @@ impl TryFrom<&str> for BoardId {
     type Error = ParseBoardIdError;
 
     fn try_from(name: &str) -> Result<Self, Self::Error> {
-        match CHRONOBOXES.iter().find(|&&n| n == name) {
+        match CHRONOBOX_NAMES.iter().find(|&&n| n == name) {
             Some(&n) => Ok(BoardId(n)),
             None => Err(ParseBoardIdError {
                 input: name.to_string(),
@@ -201,8 +210,8 @@ impl BoardId {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use alpha_g_detector::chronobox::BoardId;
     ///
-    /// let board_id = BoardId::try_from("01")?;
-    /// assert_eq!(board_id.name(), "01");
+    /// let board_id = BoardId::try_from("cb01")?;
+    /// assert_eq!(board_id.name(), "cb01");
     /// # Ok(())
     /// # }
     pub fn name(&self) -> &str {

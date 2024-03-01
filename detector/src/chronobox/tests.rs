@@ -1,6 +1,11 @@
 use super::*;
 
 #[test]
+fn timestamp_bits() {
+    assert_eq!(TIMESTAMP_BITS, 24);
+}
+
+#[test]
 fn timestamp_clock_frequency() {
     assert_eq!(TIMESTAMP_CLOCK_FREQ, 10000000.0);
 }
@@ -12,6 +17,14 @@ fn try_chronobox_channel_id() {
     }
     for num in 59..=255 {
         assert!(ChannelId::try_from(num).is_err());
+    }
+}
+
+#[test]
+fn from_channel_id_u8() {
+    for i in 0..=58 {
+        let channel = ChannelId::try_from(i).unwrap();
+        assert_eq!(u8::from(channel), i);
     }
 }
 
@@ -336,11 +349,12 @@ fn fifo_only_scalers_blocks() {
 
 #[test]
 fn chronobox_board_id() {
-    for name in ["01", "02", "03", "04"] {
+    for name in ["cb01", "cb02", "cb03", "cb04"] {
         let board_id = BoardId::try_from(name).unwrap();
         assert_eq!(board_id.name(), name);
     }
 
-    assert!(BoardId::try_from("00").is_err());
-    assert!(BoardId::try_from("05").is_err());
+    assert!(BoardId::try_from("cb00").is_err());
+    assert!(BoardId::try_from("cbtrg").is_err());
+    assert!(BoardId::try_from("cb05").is_err());
 }
