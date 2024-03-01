@@ -56,6 +56,8 @@ mod drift;
 // signals.
 mod deconvolution;
 // Match wire and pad signals to obtain Avalanches.
+/// Chronobox.
+pub mod chronobox;
 mod matching;
 /// Vertex reconstruction.
 pub mod reconstruction;
