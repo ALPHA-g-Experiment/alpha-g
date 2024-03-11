@@ -87,6 +87,11 @@ fn event_id_try_from_u16() {
                 EventId::try_from(num).unwrap(),
                 EventId::Chronobox
             ));
+        } else if num == 8 {
+            assert!(matches!(
+                EventId::try_from(num).unwrap(),
+                EventId::Sequencer2
+            ));
         } else {
             assert!(EventId::try_from(num).is_err());
         }
@@ -725,6 +730,17 @@ fn trb3_bank_name_valid() {
 fn mc_vertex_bank_name_pattern_mismatch() {
     assert!(McVertexBankName::try_from("mcvx").is_err());
     assert!(McVertexBankName::try_from("Mcvx").is_err());
+}
+
+#[test]
+fn seq2_bank_name_valid() {
+    assert!(Seq2BankName::try_from("SEQ2").is_ok());
+}
+
+#[test]
+fn seq2_bank_name_pattern_mismatch() {
+    assert!(Seq2BankName::try_from("seq2").is_err());
+    assert!(Seq2BankName::try_from("Seq2").is_err());
 }
 
 #[test]

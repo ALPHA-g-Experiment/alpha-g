@@ -47,6 +47,8 @@ pub enum EventId {
     Main,
     /// These events include chronobox data.
     Chronobox,
+    /// These events include sequencer data.
+    Sequencer2,
 }
 
 impl TryFrom<u16> for EventId {
@@ -56,6 +58,7 @@ impl TryFrom<u16> for EventId {
         match num {
             1 => Ok(EventId::Main),
             4 => Ok(EventId::Chronobox),
+            8 => Ok(EventId::Sequencer2),
             _ => Err(TryEventIdFromUnsignedError { input: num }),
         }
     }
@@ -404,6 +407,30 @@ impl TryFrom<&str> for Trb3BankName {
             });
         }
         Ok(Trb3BankName)
+    }
+}
+
+/// The error type returned when parsing a Sequencer2 bank name fails.
+#[derive(Error, Debug)]
+pub enum ParseSeq2BankNameError {
+    /// Input string pattern doesn't match the expected Sequencer2 bank name
+    /// pattern.
+    #[error("input string `{input}` doesn't match Seq2BankName pattern")]
+    PatternMismatch { input: String },
+}
+
+/// Name of a MIDAS bank with data from the sequencer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Seq2BankName;
+impl TryFrom<&str> for Seq2BankName {
+    type Error = ParseSeq2BankNameError;
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if name != "SEQ2" {
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
+        }
+        Ok(Seq2BankName)
     }
 }
 
