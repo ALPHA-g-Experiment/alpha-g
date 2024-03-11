@@ -1,4 +1,5 @@
-use anyhow::{ensure, Context, Result};
+use alpha_g_detector::midas::{EventId, Seq2BankName};
+use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ struct Args {
 
 #[derive(Debug, Default, serde::Serialize)]
 struct Row {
+    serial_number: u32,
     midas_timestamp: u32,
     header: String,
     xml: String,
@@ -34,6 +36,7 @@ fn main() -> Result<()> {
     );
     bar.tick();
 
+    let mut rows = Vec::new();
     let mut previous_final_timestamp = None;
     for file in files {
         let contents = alpha_g_analysis::read(&file)
@@ -49,6 +52,34 @@ fn main() -> Result<()> {
         }
         previous_final_timestamp = Some(file_view.final_timestamp());
 
+        for event in file_view
+            .into_iter()
+            .filter(|event| matches!(EventId::try_from(event.id()), Ok(EventId::Sequencer2)))
+        {
+            let serial_number = event.serial_number();
+            let midas_timestamp = event.timestamp();
+
+            let [seq_bank] = event.into_iter().collect::<Vec<_>>()[..] else {
+                bail!("unexpected number of sequencer data banks");
+            };
+            ensure!(
+                Seq2BankName::try_from(seq_bank.name()).is_ok(),
+                "unexpected sequencer bank name"
+            );
+
+            let data = std::str::from_utf8(seq_bank.data_slice())
+                .context("failed to parse data as UTF-8")?;
+            let index = data.find('<').context("failed to find XML start tag")?;
+            let (header, xml) = data.split_at(index);
+
+            let row = Row {
+                serial_number,
+                midas_timestamp,
+                header: header.to_string(),
+                xml: xml.to_string(),
+            };
+            rows.push(row);
+        }
         bar.inc(1);
     }
     bar.finish_and_clear();
