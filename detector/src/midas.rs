@@ -410,6 +410,30 @@ impl TryFrom<&str> for Trb3BankName {
     }
 }
 
+/// The error type returned when parsing a Sequencer2 bank name fails.
+#[derive(Error, Debug)]
+pub enum ParseSeq2BankNameError {
+    /// Input string pattern doesn't match the expected Sequencer2 bank name
+    /// pattern.
+    #[error("input string `{input}` doesn't match Seq2BankName pattern")]
+    PatternMismatch { input: String },
+}
+
+/// Name of a MIDAS bank with data from the sequencer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Seq2BankName;
+impl TryFrom<&str> for Seq2BankName {
+    type Error = ParseSeq2BankNameError;
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        if name != "SEQ2" {
+            return Err(Self::Error::PatternMismatch {
+                input: name.to_string(),
+            });
+        }
+        Ok(Seq2BankName)
+    }
+}
+
 /// The error type returned when parsing a Monte Carlo vertex bank name fails.
 #[derive(Error, Debug)]
 pub enum ParseMcVertexBankNameError {

@@ -733,6 +733,17 @@ fn mc_vertex_bank_name_pattern_mismatch() {
 }
 
 #[test]
+fn seq2_bank_name_valid() {
+    assert!(Seq2BankName::try_from("SEQ2").is_ok());
+}
+
+#[test]
+fn seq2_bank_name_pattern_mismatch() {
+    assert!(Seq2BankName::try_from("seq2").is_err());
+    assert!(Seq2BankName::try_from("Seq2").is_err());
+}
+
+#[test]
 fn mc_vertex_bank_name_valid() {
     assert!(McVertexBankName::try_from("MCVX").is_ok());
 }
