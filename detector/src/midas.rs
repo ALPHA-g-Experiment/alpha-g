@@ -47,6 +47,8 @@ pub enum EventId {
     Main,
     /// These events include chronobox data.
     Chronobox,
+    /// These events include sequencer data.
+    Sequencer2,
 }
 
 impl TryFrom<u16> for EventId {
@@ -56,6 +58,7 @@ impl TryFrom<u16> for EventId {
         match num {
             1 => Ok(EventId::Main),
             4 => Ok(EventId::Chronobox),
+            8 => Ok(EventId::Sequencer2),
             _ => Err(TryEventIdFromUnsignedError { input: num }),
         }
     }

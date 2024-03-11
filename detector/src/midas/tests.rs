@@ -87,6 +87,11 @@ fn event_id_try_from_u16() {
                 EventId::try_from(num).unwrap(),
                 EventId::Chronobox
             ));
+        } else if num == 8 {
+            assert!(matches!(
+                EventId::try_from(num).unwrap(),
+                EventId::Sequencer2
+            ));
         } else {
             assert!(EventId::try_from(num).is_err());
         }
