@@ -68,15 +68,20 @@ fn main() -> Result<()> {
                 "unexpected sequencer bank name"
             );
 
-            let data = std::str::from_utf8(seq_bank.data_slice())
-                .context("failed to parse data as UTF-8")?;
+            let data = std::str::from_utf8(
+                seq_bank
+                    .data_slice()
+                    .strip_suffix(b"\x00")
+                    .context("failed to remove trailing 0 from sequencer data")?,
+            )
+            .context("failed to parse data as UTF-8")?;
             let index = data.find('<').context("failed to find XML start tag")?;
             let (header, xml) = data.split_at(index);
 
             let row = Row {
                 serial_number,
                 midas_timestamp,
-                header: header.to_string(),
+                header: header.trim_end().to_string(),
                 xml: xml.to_string(),
             };
             rows.push(row);
