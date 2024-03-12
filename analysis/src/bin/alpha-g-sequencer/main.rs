@@ -2,6 +2,7 @@ use alpha_g_detector::midas::{EventId, Seq2BankName};
 use anyhow::{bail, ensure, Context, Result};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -83,6 +84,27 @@ fn main() -> Result<()> {
         bar.inc(1);
     }
     bar.finish_and_clear();
+
+    let output = args.output.with_extension("csv");
+    let mut wtr = std::fs::File::create(&output)
+        .with_context(|| format!("failed to create `{}`", output.display()))?;
+    eprintln!("Created `{}`", output.display());
+    wtr.write_all(
+        format!(
+            "# {} {}\n# {}\n",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            std::env::args().collect::<Vec<_>>().join(" ")
+        )
+        .as_bytes(),
+    )
+    .context("failed to write csv header")?;
+    let mut wtr = csv::Writer::from_writer(wtr);
+    for row in rows {
+        wtr.serialize(row)
+            .context("failed to write row to csv data")?;
+    }
+    wtr.flush().context("failed to flush csv data")?;
 
     Ok(())
 }
