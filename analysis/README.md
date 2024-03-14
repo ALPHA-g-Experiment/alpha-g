@@ -29,6 +29,8 @@ alpha-g-vertices --version
 
 - [`alpha-g-chronobox-timestamps`](src/bin/alpha-g-chronobox-timestamps/README.md):
 Extract the Chronobox timestamps for a single run.
+- [`alpha-g-odb`](src/bin/alpha-g-odb/README.md):
+Get an ODB dump from a MIDAS file.
 - [`alpha-g-sequencer`](src/bin/alpha-g-sequencer/README.md):
 Extract the sequencer data for a single run.
 - [`alpha-g-trg-scalers`](src/bin/alpha-g-trg-scalers/README.md):
