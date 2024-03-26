@@ -16,15 +16,16 @@ use uom::si::f64::Time;
 use uom::si::time::second;
 
 #[derive(Parser)]
-#[command(author, version)]
-#[command(about = "Extract the Chronobox timestamps for a single run", long_about = None)]
+#[command(version)]
+/// Extract the Chronobox timestamps for a single run
 struct Args {
     /// MIDAS files from the run you want to inspect
     #[arg(required = true)]
     files: Vec<PathBuf>,
-    /// Write the Chronobox timestamps to `OUTPUT.csv`
+    /// Write the output to `OUTPUT.csv` [default:
+    /// `R<run_number>_chronobox_timestamps.csv`]
     #[arg(short, long)]
-    output: PathBuf,
+    output: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -74,7 +75,7 @@ fn chronobox_time(
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let (_, files) =
+    let (run_number, files) =
         alpha_g_analysis::sort_run_files(args.files).context("failed to sort input files")?;
 
     let bar = ProgressBar::new(files.len().try_into().unwrap()).with_style(
@@ -158,7 +159,10 @@ fn main() -> Result<()> {
         .collect::<Result<BTreeMap<_, _>>>()
         .context("failed to parse FIFO data")?;
 
-    let output = args.output.with_extension("csv");
+    let output = args
+        .output
+        .unwrap_or_else(|| PathBuf::from(format!("R{run_number}_chronobox_timestamps")))
+        .with_extension("csv");
     let mut wtr = std::fs::File::create(&output)
         .with_context(|| format!("failed to create `{}`", output.display()))?;
     eprintln!("Created `{}`", output.display());
