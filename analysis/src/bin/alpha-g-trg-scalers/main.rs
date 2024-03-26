@@ -9,15 +9,16 @@ use std::path::PathBuf;
 use uom::si::time::second;
 
 #[derive(Parser)]
-#[command(author, version)]
-#[command(about = "Extract the TRG scalers for a single run", long_about = None)]
+#[command(version)]
+/// Extract the TRG scalers for a single run
 struct Args {
     /// MIDAS files from the run you want to inspect
     #[arg(required = true)]
     files: Vec<PathBuf>,
-    /// Write the TRG scalers to `OUTPUT.csv`
+    /// Write the output to `OUTPUT.csv` [default:
+    /// `R<run_number>_trg_scalers.csv`]
     #[arg(short, long)]
-    output: PathBuf,
+    output: Option<PathBuf>,
     /// Print detailed information about errors (if any)
     #[arg(short, long)]
     verbose: bool,
@@ -36,7 +37,7 @@ struct Row {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let (_, files) =
+    let (run_number, files) =
         alpha_g_analysis::sort_run_files(args.files).context("failed to sort input files")?;
 
     let bar = ProgressBar::new(files.len().try_into().unwrap()).with_style(
@@ -130,7 +131,10 @@ fn main() -> Result<()> {
         },
     );
 
-    let output = args.output.with_extension("csv");
+    let output = args
+        .output
+        .unwrap_or_else(|| PathBuf::from(format!("R{run_number}_trg_scalers")))
+        .with_extension("csv");
     let mut wtr = std::fs::File::create(&output)
         .with_context(|| format!("failed to create `{}`", output.display()))?;
     eprintln!("Created `{}`", output.display());
