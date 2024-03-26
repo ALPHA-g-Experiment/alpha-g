@@ -3,14 +3,15 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(author, version)]
-#[command(about = "Get an ODB dump from a MIDAS file")]
+#[command(version)]
+/// Get an ODB dump from a MIDAS file
 struct Args {
     /// Path to the MIDAS file to parse
     file: PathBuf,
-    /// Write the ODB dump to `OUTPUT.json`
+    /// Write the output to `OUTPUT.json` [default:
+    /// `R<run_number>_<initial|final>_odb.json`]
     #[arg(short, long)]
-    output: PathBuf,
+    output: Option<PathBuf>,
     /// Get the final ODB dump instead of the initial (default) one
     #[arg(long)]
     r#final: bool,
@@ -30,7 +31,14 @@ fn main() -> Result<()> {
     };
     let odb = std::str::from_utf8(odb).context("failed to parse ODB as UTF-8")?;
 
-    let output = args.output.with_extension("json");
+    let output = args
+        .output
+        .unwrap_or_else(|| {
+            let run_number = file_view.run_number();
+            let suffix = if args.r#final { "final" } else { "initial" };
+            PathBuf::from(format!("R{run_number}_{suffix}_odb"))
+        })
+        .with_extension("json");
     std::fs::write(
         &output,
         format!(

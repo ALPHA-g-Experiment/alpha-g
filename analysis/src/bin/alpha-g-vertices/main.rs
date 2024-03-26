@@ -12,15 +12,15 @@ use uom::si::length::meter;
 use uom::si::time::second;
 
 #[derive(Parser)]
-#[command(author, version)]
-#[command(about = "Reconstruct the annihilation vertices for a single run", long_about = None)]
+#[command(version)]
+/// Reconstruct the annihilation vertices for a single run
 struct Args {
     /// MIDAS files from the run you want to reconstruct
     #[arg(required = true)]
     files: Vec<PathBuf>,
-    /// Write the reconstructed vertices to `OUTPUT.csv`
+    /// Write the output to `OUTPUT.csv` [default: `R<run_number>_vertices.csv`]
     #[arg(short, long)]
-    output: PathBuf,
+    output: Option<PathBuf>,
     /// Print detailed information about errors (if any)
     #[arg(short, long)]
     verbose: bool,
@@ -146,7 +146,10 @@ fn main() -> Result<()> {
         },
     );
 
-    let output = args.output.with_extension("csv");
+    let output = args
+        .output
+        .unwrap_or_else(|| PathBuf::from(format!("R{run_number}_vertices")))
+        .with_extension("csv");
     let mut wtr = std::fs::File::create(&output)
         .with_context(|| format!("failed to create `{}`", output.display()))?;
     eprintln!("Created `{}`", output.display());
