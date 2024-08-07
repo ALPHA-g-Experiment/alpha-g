@@ -8,5 +8,8 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+Nothing changed for this release. It is just made to test the new release
+workflow.
+
 <!-- next-url -->
 [Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v0.5.4...HEAD
