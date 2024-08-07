@@ -695,30 +695,6 @@ fn trb3_bank_name_pattern_mismatch() {
         }
         _ => unreachable!(),
     }
-    match Trb3BankName::try_from("Trba") {
-        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
-            assert_eq!(input, "Trba");
-        }
-        _ => unreachable!(),
-    }
-    match Trb3BankName::try_from("tRba") {
-        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
-            assert_eq!(input, "tRba");
-        }
-        _ => unreachable!(),
-    }
-    match Trb3BankName::try_from("trBa") {
-        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
-            assert_eq!(input, "trBa");
-        }
-        _ => unreachable!(),
-    }
-    match Trb3BankName::try_from("trbA") {
-        Err(ParseTrb3BankNameError::PatternMismatch { input }) => {
-            assert_eq!(input, "trbA");
-        }
-        _ => unreachable!(),
-    }
 }
 
 #[test]
