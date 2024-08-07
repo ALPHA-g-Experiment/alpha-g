@@ -112,7 +112,7 @@ fn try_pad_baseline_correctness_sim() {
 
 #[test]
 #[should_panic]
-fn safe_guard_try_pad_basline() {
+fn safe_guard_try_pad_baseline() {
     let column = TpcPadColumn::try_from(0).unwrap();
     let row = TpcPadRow::try_from(0).unwrap();
     let pad_position = TpcPadPosition { row, column };
