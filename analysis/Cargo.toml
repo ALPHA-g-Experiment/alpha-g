@@ -22,3 +22,12 @@ rayon = "1.8.0"
 serde = { version = "1.0.193", features = ["derive"] }
 thiserror = "1.0.53"
 uom = "0.35.0"
+
+[package.metadata.release]
+pre-release-replacements = [
+  {file="CHANGELOG.md", search="Unreleased", replace="{{version}}"},
+  {file="CHANGELOG.md", search="\\.\\.\\.HEAD", replace="...alpha-g-analysis-v{{version}}", exactly=1},
+  {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}"},
+  {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n\n## [Unreleased] - ReleaseDate", exactly=1},
+  {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v{{version}}...HEAD", exactly=1},
+]
