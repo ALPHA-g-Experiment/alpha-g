@@ -50,3 +50,9 @@ jobs:
         fetch-depth: 0
     - name: Lint commits
       uses: crate-ci/committed@master
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Spell check
+      uses: crate-ci/typos@master
