@@ -47,3 +47,11 @@ cargo release publish --execute --package $PACKAGE
 cargo release tag --execute --package $PACKAGE
 cargo release push --execute --package $PACKAGE
 ```
+
+After following these steps, please go to the GitHub releases page and:
+1. Manually remove the auto-generated releases for `alpha-g-detector` and
+  `alpha-g-physics` (they break the README's automatic linking to the latest
+  `alpha-g-analysis` release, see
+  [this issue](https://github.com/axodotdev/cargo-dist/issues/1287)).
+2. Manually rename the `alpha-g-analysis` release to match the tag name
+  (see [this issue](https://github.com/axodotdev/cargo-dist/issues/1286)).

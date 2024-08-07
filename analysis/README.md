@@ -11,18 +11,30 @@ The core analysis programs should work out of the box on any platform. If you
 are still having trouble getting a program to run after following the
 instructions below, please open an issue.
 
-The easiest way to get access to all `alpha-g-analysis` binaries is with
-[`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html).
-Once `cargo` is installed, run the following command:
+To facilitate installation, we provide pre-built binaries for some platforms.
+For example, to get the latest version of the `alpha-g-analysis` package on
+`lxplus`, run:
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ALPHA-g-Experiment/alpha-g/releases/latest/download/alpha-g-analysis-installer.sh | sh
+```
+
+For instructions on installing from different platforms and/or specific
+versions of the package, see
+[our releases page](https://github.com/ALPHA-g-Experiment/alpha-g/releases).
+
+Alternatively, you can build from source (requires
+[`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html)):
 
 ```bash
 cargo install --locked alpha-g-analysis
 ```
 
-Finally, to check that the installation was successful, run:
+After installation, you can verify it by running:
 
 ```bash
 alpha-g-vertices --version
+alpha-g-vertices --help
 ```
 
 ## Binaries
