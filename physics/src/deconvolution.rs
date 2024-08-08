@@ -81,7 +81,7 @@ fn ls_deconvolution<I>(signal: &[f64], response: &[f64], offsets: I, look_aheads
 where
     I: Iterator<Item = usize> + Clone,
 {
-    let mut best_residual = std::f64::INFINITY;
+    let mut best_residual = f64::INFINITY;
     let mut best_input = Vec::new();
 
     for offset in offsets {
