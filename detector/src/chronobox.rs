@@ -154,10 +154,10 @@ fn scalers_block(input: &mut &[u8]) -> PResult<()> {
 /// Note that the slice may stop before consuming all the data. This could mean
 /// that:
 /// - More data is required (e.g. the input slice stops in the middle of a
-///  scalers block). In this case, the user should append more data and resume
-///  parsing.
+///   scalers block). In this case, the user should append more data and resume
+///   parsing.
 /// - The data is not correctly formatted. Even after appending more data, the
-/// input slice is still stuck.
+///   input slice is still stuck.
 pub fn chronobox_fifo(input: &mut &[u8]) -> Vec<FifoEntry> {
     separated_foldl1(
         repeat(0.., fifo_entry),
