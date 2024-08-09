@@ -10,7 +10,7 @@ checksum = "4aa90d7ce82d4be67b64039a3d588d38dbcc6736577de4a847025ce5b0c468d1"
 
 [[package]]
 name = "alpha-g-analysis"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "alpha_g_detector",
  "alpha_g_physics",
