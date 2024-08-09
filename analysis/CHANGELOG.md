@@ -8,6 +8,11 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Installing pre-built binaries when the glibc version is too old (e.g.
+  `alpha03`) is now possible using musl.
+
 ## [0.5.5] - 2024-08-07
 
 Nothing changed for this release. It is just made to test the new release
