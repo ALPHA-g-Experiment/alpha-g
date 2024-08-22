@@ -27,8 +27,10 @@ changes will be documented in this file.
 
 ### Fixed
 
-- Fixed panic in AWB mapping for new runs by removing "safeguards".
-- Fixed panic in PWB mapping for new runs by removing "safeguards".
+- Removed panic in AWB and PWB mappings. These were caused by some "safeguards"
+  meant to prevent going for a long time without checking that the mappings were
+  still valid/up-to-date. In practice, these caused more harm than good, so they
+  are now removed.
 
 <!-- next-url -->
 [Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_detector-v0.5.0...HEAD
