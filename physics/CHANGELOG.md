@@ -8,6 +8,8 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.3] - 2024-08-22
+
 ### Fixed
 
 - Remove panics due to baseline, gain, and delay calibration for both wires and
@@ -19,4 +21,5 @@ changes will be documented in this file.
   for details.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.2...HEAD
+[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.3...HEAD
+[0.1.3]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.2...alpha_g_physics-v0.1.3
