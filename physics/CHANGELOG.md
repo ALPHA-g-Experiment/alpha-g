@@ -10,12 +10,13 @@ changes will be documented in this file.
 
 ### Fixed
 
-- Fixed panic in wire baseline calibration for new runs by removing "safeguards".
-- Fixed panic in wire gain calibration for new runs by removing "safeguards".
-- Fixed panic in wire delay calibration for new runs by removing "safeguards".
-- Fixed panic in pad baseline calibration for new runs by removing "safeguards".
-- Fixed panic in pad gain calibration for new runs by removing "safeguards".
-- Fixed panic in pad delay calibration for new runs by removing "safeguards".
+- Remove panics due to baseline, gain, and delay calibration for both wires and
+  pads. These panics were caused by "safeguards" meant to prevent running for a
+  long time without calibrating the detector. In reality, these caused more harm
+  than good, so they were removed.
+- Bump `alpha_g_detector` to v0.5.1, see 
+  [its changelog](https://github.com/ALPHA-g-Experiment/alpha-g/blob/main/detector/CHANGELOG.md#051---2024-08-22)
+  for details.
 
 <!-- next-url -->
 [Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.2...HEAD
