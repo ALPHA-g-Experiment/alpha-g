@@ -8,5 +8,9 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Fixed panic in AWB mapping for new runs by removing "safeguards".
+
 <!-- next-url -->
 [Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_detector-v0.5.0...HEAD
