@@ -143,6 +143,7 @@ fn all_different_str(map: [[&str; 8]; 8]) -> bool {
 #[test]
 fn all_different_str_in_padwing_boards_maps() {
     assert!(all_different_str(PADWING_BOARDS_4418));
+    assert!(all_different_str(PADWING_BOARDS_10418));
 }
 
 fn all_valid_str(map: [[&str; 8]; 8]) -> bool {
@@ -159,6 +160,7 @@ fn all_valid_str(map: [[&str; 8]; 8]) -> bool {
 #[test]
 fn all_valid_str_in_padwing_boards_maps() {
     assert!(all_valid_str(PADWING_BOARDS_4418));
+    assert!(all_valid_str(PADWING_BOARDS_10418));
 }
 
 // First index is column, second index is row.
@@ -200,16 +202,6 @@ fn tpc_pwb_position_sim_correctness() {
 }
 
 #[test]
-#[should_panic]
-fn tpc_pwb_position_changed_map_safeguard() {
-    for (name, _, _) in PADWING_BOARDS {
-        let board_id = BoardId::try_from(name).unwrap();
-
-        let _ = TpcPwbPosition::try_new(u32::MAX - 1, board_id);
-    }
-}
-
-#[test]
 fn inverse_map_tpc_pwb_position_4418() {
     for run_number in 4418..=10000 {
         for (i, row) in REGRESSION_GATE_KEEPER_4418.iter().enumerate() {
@@ -226,6 +218,46 @@ fn inverse_map_tpc_pwb_position_4418() {
             }
         }
     }
+}
+
+#[test]
+fn inverse_map_tpc_pwb_position_10418() {
+    let mut count = 0;
+    // new_board -> (column, row)
+    let mut swapped = HashMap::new();
+    swapped.insert("90", (2, 0));
+    swapped.insert("85", (2, 3));
+    swapped.insert("89", (4, 0));
+    swapped.insert("87", (4, 3));
+    swapped.insert("84", (4, 6));
+    swapped.insert("91", (4, 7));
+    swapped.insert("81", (5, 7));
+    swapped.insert("44", (6, 2));
+
+    for (name, _, _) in PADWING_BOARDS {
+        println!("{name}");
+        if let Some((col, row)) = swapped.get(name) {
+            let position = TpcPwbPosition {
+                column: TpcPwbColumn(*col),
+                row: TpcPwbRow(*row),
+            };
+            assert_eq!(
+                TpcPwbPosition::try_new(10418, BoardId::try_from(name).unwrap()).unwrap(),
+                position
+            );
+            count += 1;
+        } else if let Ok(position) =
+            TpcPwbPosition::try_new(10418, BoardId::try_from(name).unwrap())
+        {
+            assert_eq!(
+                position,
+                TpcPwbPosition::try_new(4418, BoardId::try_from(name).unwrap()).unwrap()
+            );
+            count += 1;
+        }
+    }
+
+    assert_eq!(count, 64);
 }
 
 #[test]

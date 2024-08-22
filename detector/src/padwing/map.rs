@@ -70,7 +70,7 @@ impl TryFrom<usize> for TpcPwbRow {
     }
 }
 
-// Map of all PWB boards as installed on the rTPC in run number 4418 (included).
+// Map of all PWB boards as installed on the rTPC in run number X (included).
 // First index is column, second index is row.
 // The value is the board name.
 //
@@ -89,6 +89,17 @@ const PADWING_BOARDS_4418: [[&str; TPC_PWB_ROWS]; TPC_PWB_COLUMNS] = [
     ["44", "49", "07", "78", "03", "04", "45", "15"],
     ["52", "53", "54", "55", "56", "57", "58", "05"],
     ["60", "00", "06", "63", "64", "65", "66", "67"],
+    ["68", "69", "70", "71", "72", "73", "74", "75"],
+];
+
+const PADWING_BOARDS_10418: [[&str; TPC_PWB_ROWS]; TPC_PWB_COLUMNS] = [
+    ["12", "13", "14", "02", "11", "17", "18", "19"],
+    ["20", "21", "22", "23", "24", "25", "26", "27"],
+    ["90", "29", "08", "85", "10", "33", "34", "35"],
+    ["36", "37", "01", "39", "76", "41", "42", "40"],
+    ["89", "49", "07", "87", "03", "04", "84", "91"],
+    ["52", "53", "54", "55", "56", "57", "58", "81"],
+    ["60", "00", "44", "63", "64", "65", "66", "67"],
     ["68", "69", "70", "71", "72", "73", "74", "75"],
 ];
 
@@ -115,6 +126,8 @@ lazy_static! {
     // Whenever a new map is added, just add it to this list.
     static ref INV_PADWING_BOARDS_4418: HashMap<BoardId, TpcPwbPosition> =
         inverse_pwb_map(PADWING_BOARDS_4418);
+    static ref INV_PADWING_BOARDS_10418: HashMap<BoardId, TpcPwbPosition> =
+        inverse_pwb_map(PADWING_BOARDS_10418);
 }
 
 /// The error type returned when mapping a [`BoardId`] to a [`TpcPwbPosition`]
@@ -174,11 +187,9 @@ impl TpcPwbPosition {
         let position_map = match run_number {
             // u32::MAX corresponds to a simulation run. The simulation mapping
             // was done to match the mapping of run number 5000.
-            u32::MAX => &INV_PADWING_BOARDS_4418,
-            // Safe guard in case I die and nobody notices they have been using
-            // the wrong map for a long time.
-            10418.. => panic!("bump by another 2000 runs if the mapping has not changed"),
-            4418.. => &INV_PADWING_BOARDS_4418,
+            u32::MAX => &*INV_PADWING_BOARDS_4418,
+            10418.. => &*INV_PADWING_BOARDS_10418,
+            4418.. => &*INV_PADWING_BOARDS_4418,
             _ => return Err(MapTpcPwbPositionError::MissingMap { run_number }),
         };
 

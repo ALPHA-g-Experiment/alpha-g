@@ -8,9 +8,27 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+- Updated PWB mapping to include boards swapped from run 10418 onwards:
+
+    | Column | Row | Old board | New board |
+    |:-:|:-:|:-:|:-:|
+    |2|0|pwb46|pwb90|
+    |2|3|pwb77|pwb85|
+    |4|0|pwb44|pwb89|
+    |4|3|pwb78|pwb87|
+    |4|6|pwb45|pwb84|
+    |4|7|pwb15|pwb91|
+    |5|7|pwb05|pwb81|
+    |6|2|pwb06|pwb44|
+
+
+
 ### Fixed
 
 - Fixed panic in AWB mapping for new runs by removing "safeguards".
+- Fixed panic in PWB mapping for new runs by removing "safeguards".
 
 <!-- next-url -->
 [Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_detector-v0.5.0...HEAD
