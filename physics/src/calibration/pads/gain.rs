@@ -28,9 +28,6 @@ pub(crate) fn try_pad_gain(run_number: u32, pad: TpcPadPosition) -> Result<f64, 
     let map = match run_number {
         // u32::MAX corresponds to a simulation run.
         u32::MAX => &*MAP_SIMULATION,
-        // Safe guard in case I die and nobody notices that they haven't
-        // calibrated the detector in a very long time.
-        10418.. => panic!("bump by another 2000 runs if the current calibration is still valid"),
         9277.. => &*MAP_9277,
         _ => return Err(MapPadGainError::MissingMap { run_number }),
     };

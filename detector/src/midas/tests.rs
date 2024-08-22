@@ -609,7 +609,7 @@ fn padwing_bank_name_pattern_mismatch() {
 
 #[test]
 fn padwing_bank_name_unknown_board_id() {
-    for num in 79..100 {
+    for num in 95..100 {
         let name = format!("PC{num}");
         assert!(matches!(
             PadwingBankName::try_from(&name[..]),

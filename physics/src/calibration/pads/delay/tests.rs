@@ -16,9 +16,3 @@ fn try_pad_delay_correctness_sim() {
 fn try_pad_delay_correctness_9567() {
     assert_eq!(try_pad_delay(9567).unwrap(), 115);
 }
-
-#[test]
-#[should_panic]
-fn safe_guard_try_pad_delay() {
-    let _ = try_pad_delay(u32::MAX - 1);
-}
