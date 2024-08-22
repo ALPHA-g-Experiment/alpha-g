@@ -8,6 +8,8 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+## [0.5.1] - 2024-08-22
+
 ### Added
 
 - Updated PWB mapping to include boards swapped from run 10418 onwards:
@@ -33,4 +35,5 @@ changes will be documented in this file.
   are now removed.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_detector-v0.5.0...HEAD
+[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_detector-v0.5.1...HEAD
+[0.5.1]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_detector-v0.5.0...alpha_g_detector-v0.5.1
