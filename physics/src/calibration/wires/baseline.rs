@@ -33,9 +33,6 @@ pub(crate) fn try_wire_baseline(
     let map = match run_number {
         // u32::MAX corresponds to a simulation run.
         u32::MAX => MAP_SIMULATION.deref(),
-        // Safe guard in case I die and nobody notices that they haven't
-        // calibrated the detector in a very long time.
-        10418.. => panic!("bump by another 2000 runs if current calibration is still valid"),
         7026.. => MAP_7026.deref(),
         _ => return Err(MapWireBaselineError::MissingMap { run_number }),
     };

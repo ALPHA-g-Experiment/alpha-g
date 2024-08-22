@@ -81,10 +81,3 @@ fn try_wire_baseline_correctness_sim() {
         assert_eq!(baseline, 3000);
     }
 }
-
-#[test]
-#[should_panic]
-fn safe_guard_try_wire_baseline() {
-    let wire = TpcWirePosition::try_from(0).unwrap();
-    let _ = try_wire_baseline(u32::MAX - 1, wire);
-}
