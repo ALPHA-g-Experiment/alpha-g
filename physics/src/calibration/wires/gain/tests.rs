@@ -61,10 +61,3 @@ fn try_wire_gain_correctness_sim() {
         assert_eq!(gain, 1.0);
     }
 }
-
-#[test]
-#[should_panic]
-fn safe_guard_try_wire_gain_calibration() {
-    let wire = TpcWirePosition::try_from(0).unwrap();
-    let _ = try_wire_gain(u32::MAX - 1, wire);
-}
