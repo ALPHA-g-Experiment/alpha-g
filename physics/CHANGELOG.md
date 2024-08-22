@@ -14,6 +14,7 @@ changes will be documented in this file.
 - Fixed panic in wire gain calibration for new runs by removing "safeguards".
 - Fixed panic in wire delay calibration for new runs by removing "safeguards".
 - Fixed panic in pad baseline calibration for new runs by removing "safeguards".
+- Fixed panic in pad gain calibration for new runs by removing "safeguards".
 
 <!-- next-url -->
 [Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.2...HEAD
