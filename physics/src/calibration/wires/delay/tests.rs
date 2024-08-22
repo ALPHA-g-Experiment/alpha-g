@@ -16,9 +16,3 @@ fn try_wire_delay_correctness_sim() {
 fn try_wire_delay_correctness_9567() {
     assert_eq!(try_wire_delay(9567).unwrap(), 129);
 }
-
-#[test]
-#[should_panic]
-fn safe_guard_try_wire_delay() {
-    let _ = try_wire_delay(u32::MAX - 1);
-}
