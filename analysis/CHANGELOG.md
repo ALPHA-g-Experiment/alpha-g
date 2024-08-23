@@ -8,6 +8,16 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Bump `alpha_g_detector` to version `0.5.1`, see
+  [its changelog](https://github.com/ALPHA-g-Experiment/alpha-g/blob/main/detector/CHANGELOG.md#051---2024-08-22)
+  for more details. This fixes a panic caused by missing AWB and PWB maps.
+- Bump `alpha_g_physics` to version `0.1.3`, see
+  [its changelog](https://github.com/ALPHA-g-Experiment/alpha-g/blob/main/physics/CHANGELOG.md#013---2024-08-22)
+  for more details. This fixes a panic caused by missing wire and pad
+  calibration files.
+
 ## [0.5.6] - 2024-08-09
 
 ### Fixed
