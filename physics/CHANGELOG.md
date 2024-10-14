@@ -8,6 +8,17 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- New pad and wire calibration from run 11084. Some PWBs were replaced since
+  run 10418, but the detector was only turned on and taking data again since
+  run 11084 this year.
+
+  Pad baseline calibration was done using run 11192. Both pad and wire gain
+  calibration were done using run 11186 (wire data suppression at 6000 instead
+  of the nominal 1500 to remove some noise). Wire baseline was tested with run
+  11185, but no significant changes were observed to grant a new calibration.
+
 ## [0.1.3] - 2024-08-22
 
 ### Fixed

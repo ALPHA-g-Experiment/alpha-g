@@ -9,6 +9,7 @@ includes! {
     // Add new files to the list below to include them.
     BYTES_SIMULATION = "simulation_complete.json",
     BYTES_9277 = "9277_complete.json",
+    BYTES_11186 = "11186_complete.json",
 }
 
 lazy_static! {
@@ -19,6 +20,7 @@ lazy_static! {
     // complete_from_bytes(BYTES_NUMBER)
     static ref MAP_SIMULATION: HashMap<TpcWirePosition, f64> = complete_from_bytes(BYTES_SIMULATION);
     static ref MAP_9277: HashMap<TpcWirePosition, f64> = complete_from_bytes(BYTES_9277);
+    static ref MAP_11186: HashMap<TpcWirePosition, f64> = complete_from_bytes(BYTES_11186);
 }
 /// Try to get the gain for a given wire. Return an error if there is no map
 /// available for the given run number or if there is no gain for a given
@@ -31,6 +33,9 @@ pub(crate) fn try_wire_gain(
     let map = match run_number {
         // u32::MAX corresponds to a simulation run.
         u32::MAX => &*MAP_SIMULATION,
+        // This calibration was done at 11186. But the detector was in this
+        // condition since 11084 when it was turned on.
+        11084.. => &*MAP_11186,
         9277.. => &*MAP_9277,
         _ => return Err(MapWireGainError::MissingMap { run_number }),
     };

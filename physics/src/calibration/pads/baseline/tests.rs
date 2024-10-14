@@ -25,6 +25,7 @@ fn all_within_limits(run_number: u32) -> bool {
 #[test]
 fn all_within_limits_in_baseline_map() {
     assert!(all_within_limits(9277));
+    assert!(all_within_limits(11084));
     assert!(all_within_limits(u32::MAX));
 }
 
@@ -93,6 +94,21 @@ fn try_pad_baseline_correctness_9277() {
         )
         .unwrap(),
         1714
+    );
+}
+
+#[test]
+fn try_pad_baseline_correctness_11084() {
+    assert_eq!(
+        try_pad_baseline(
+            11084,
+            TpcPadPosition {
+                row: TpcPadRow::try_from(0).unwrap(),
+                column: TpcPadColumn::try_from(0).unwrap(),
+            }
+        )
+        .unwrap(),
+        1679
     );
 }
 
