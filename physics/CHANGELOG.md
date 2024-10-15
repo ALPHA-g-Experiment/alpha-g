@@ -19,6 +19,16 @@ changes will be documented in this file.
   of the nominal 1500 to remove some noise). Wire baseline was tested with run
   11185, but no significant changes were observed to grant a new calibration.
 
+- Fix helix pitch initial guess for very large radii. The initial guess for the
+  helix pitch is done based on the `z` difference between the first and last
+  points of a track (and the angle from the helix center to these points). When
+  the radius was very large (points almost collinear), the angle ended up being
+  0.0 (floating point precision), which made the `h` estimate infinite.
+
+  In this case, the initial guess for the pitch is now set to 0 (i.e. a
+  horizontal track), and hopefully the minimizer will find the correct pitch.
+  If it doesn't, then the track will just fail to fit.
+
 ## [0.1.3] - 2024-08-22
 
 ### Fixed
