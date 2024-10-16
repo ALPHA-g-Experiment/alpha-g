@@ -8,6 +8,8 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.4] - 2024-10-16
+
 ### Fixed
 
 - New pad and wire calibration from run 11084. Some PWBs were replaced since
@@ -42,5 +44,6 @@ changes will be documented in this file.
   for details.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.3...HEAD
+[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.4...HEAD
+[0.1.4]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.3...alpha_g_physics-v0.1.4
 [0.1.3]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha_g_physics-v0.1.2...alpha_g_physics-v0.1.3
