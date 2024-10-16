@@ -8,6 +8,8 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+## [0.5.8] - 2024-10-16
+
 ### Fixed
 
 - Bump `alpha_g_physics` to version `0.1.4`, see
@@ -39,7 +41,8 @@ Nothing changed for this release. It is just made to test the new release
 workflow.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v0.5.7...HEAD
+[Unreleased]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v0.5.8...HEAD
+[0.5.8]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v0.5.7...alpha-g-analysis-v0.5.8
 [0.5.7]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v0.5.6...alpha-g-analysis-v0.5.7
 [0.5.6]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v0.5.5...alpha-g-analysis-v0.5.6
 [0.5.5]: https://github.com/ALPHA-g-Experiment/alpha-g/compare/alpha-g-analysis-v0.5.4...alpha-g-analysis-v0.5.5
