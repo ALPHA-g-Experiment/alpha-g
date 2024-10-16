@@ -70,6 +70,21 @@ fn try_pad_gain_correctness_9277() {
 }
 
 #[test]
+fn try_pad_gain_correctness_11084() {
+    assert_eq!(
+        try_pad_gain(
+            11084,
+            TpcPadPosition {
+                column: TpcPadColumn::try_from(2).unwrap(),
+                row: TpcPadRow::try_from(30).unwrap(),
+            }
+        )
+        .unwrap(),
+        1.1143226227837602
+    );
+}
+
+#[test]
 fn try_pad_gain_correctness_sim() {
     for column in 0..TPC_PAD_COLUMNS {
         let column = TpcPadColumn::try_from(column).unwrap();

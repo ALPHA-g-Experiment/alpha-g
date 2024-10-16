@@ -54,6 +54,14 @@ fn try_wire_gain_correctness_9277() {
 }
 
 #[test]
+fn try_wire_gain_correctness_11084() {
+    assert_eq!(
+        try_wire_gain(11084, TpcWirePosition::try_from(224).unwrap()).unwrap(),
+        1.0729483132909592
+    );
+}
+
+#[test]
 fn try_wire_gain_correctness_sim() {
     for i in 0..TPC_ANODE_WIRES {
         let wire = TpcWirePosition::try_from(i).unwrap();

@@ -9,6 +9,7 @@ includes! {
     // Add new files to the list below.
     BYTES_SIMULATION = "simulation_complete.ron",
     BYTES_9277 = "9277_complete_handwritten_cherry_picked_see_commit.ron",
+    BYTES_11192 = "11192_complete.ron",
 }
 
 lazy_static! {
@@ -21,6 +22,7 @@ lazy_static! {
     // update_previous_from_bytes(&PREVIOUS_HASHMAP, BYTES_NUMBER)
     static ref MAP_SIMULATION: HashMap<TpcPadPosition, i16> = complete_from_bytes(BYTES_SIMULATION);
     static ref MAP_9277: HashMap<TpcPadPosition, i16> = complete_from_bytes(BYTES_9277);
+    static ref MAP_11192: HashMap<TpcPadPosition, i16> = complete_from_bytes(BYTES_11192);
 }
 
 /// Try to get the baseline for a given pad. Return an error if there is no map
@@ -34,6 +36,9 @@ pub(crate) fn try_pad_baseline(
     let map = match run_number {
         // u32::MAX corresponds to a simulation run.
         u32::MAX => &*MAP_SIMULATION,
+        // The calibration was done on run 11192. But the detector was in this
+        // configuration since it was turned on in run 11084.
+        11084.. => &*MAP_11192,
         9277.. => &*MAP_9277,
         _ => return Err(MapPadBaselineError::MissingMap { run_number }),
     };

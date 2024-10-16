@@ -59,7 +59,16 @@ pub(crate) fn fit_cluster_to_helix(
     // to have a good starting point).
     // Check this thoroughly if you change any of the code for the initial
     // guess.
-    let h = 2.0 * PI * (first.z - last.z) / theta;
+    let h = if theta.get::<radian>() == 0.0 {
+        // If the points are almost collinear, then the circle through them has
+        // a huge radius, and then theta ends up being 0.
+        // In this case, we can't calculate h, but instead of throwing an error,
+        // just start with a horizontal track, en maybe the minimizer will
+        // figure it out.
+        Length::new::<meter>(0.0)
+    } else {
+        2.0 * PI * (first.z - last.z) / theta
+    };
     // Argmin needs the same type for all parameters. Work with f64; there is no
     // risk of messing up the units inside the minimizer.
     // BUT it has to be in `METER` and `RADIAN` because that is what the
