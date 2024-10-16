@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "alpha_g_physics"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "alpha_g_detector",
  "argmin",
