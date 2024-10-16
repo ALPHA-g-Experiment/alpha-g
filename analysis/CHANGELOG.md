@@ -8,6 +8,12 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Bump `alpha_g_physics` to version `0.1.4`, see
+  [its changelog](https://github.com/ALPHA-g-Experiment/alpha-g/blob/main/physics/CHANGELOG.md#014---2024-10-16)
+  for more details. This updates the wire and pad calibration for 2024 data.
+
 ## [0.5.7] - 2024-08-23
 
 ### Fixed
