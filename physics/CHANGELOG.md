@@ -8,6 +8,12 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Ignore bad Alpha16 data banks. There is a relatively common issue with wire
+  data banks (elog:Detectors/5574). Instead of completely discarding the event,
+  just ignore these banks. This increase the number of reconstructed events.
+
 ## [0.1.5] - 2024-10-27
 
 ### Fixed
