@@ -257,7 +257,12 @@ impl MainEvent {
         for (bank_name, data_slice) in banks {
             match MainEventBankName::try_from(bank_name)? {
                 MainEventBankName::Alpha16(Alpha16BankName::A32(bank_name)) => {
-                    let packet = AdcPacket::try_from(data_slice)?;
+                    // There is a relatively common issue with some wire data
+                    // banks see (elog:Detectors/5574). Hence don't throw away
+                    // the entire event, just ignore this bank.
+                    let Ok(packet) = AdcPacket::try_from(data_slice) else {
+                        continue;
+                    };
                     let waveform = packet.waveform();
                     if waveform.is_empty() {
                         continue;
