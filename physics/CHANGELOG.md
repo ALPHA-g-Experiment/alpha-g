@@ -16,7 +16,7 @@ changes will be documented in this file.
 
 ## [0.1.5] - 2024-10-27
 
-### Fixed
+### Calibration
 
 - New wire gain calibration from run 11356. A single wire (111) was dead during
   the previous calibration, so it had to be redone once the wire signal was
@@ -25,7 +25,7 @@ changes will be documented in this file.
 
 ## [0.1.4] - 2024-10-16
 
-### Fixed
+### Calibration
 
 - New pad and wire calibration from run 11084. Some PWBs were replaced since
   run 10418, but the detector was only turned on and taking data again since
@@ -35,6 +35,8 @@ changes will be documented in this file.
   calibration were done using run 11186 (wire data suppression at 6000 instead
   of the nominal 1500 to remove some noise). Wire baseline was tested with run
   11185, but no significant changes were observed to grant a new calibration.
+
+### Fixed
 
 - Fix helix pitch initial guess for very large radii. The initial guess for the
   helix pitch is done based on the `z` difference between the first and last
