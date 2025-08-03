@@ -8,6 +8,21 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+- The `TryMainEventFromDataBanksError` is now non-exhaustive.
+
+### Added
+
+- Add masking of noisy pads.
+
+### Calibration
+
+- New masked pads. For all 2024 runs (11084 onwards), masking was done using run
+  11186 (same as some previous wire and pad calibrations). This was checked for
+  all 2024 runs, and no differences were found until the detector was turned
+  off.
+
 ### Fixed
 
 - Ignore bad Alpha16 data banks. There is a relatively common issue with wire
