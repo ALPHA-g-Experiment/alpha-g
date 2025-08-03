@@ -1,6 +1,7 @@
 use crate::calibration::pads::baseline::try_pad_baseline;
 use crate::calibration::pads::delay::try_pad_delay;
 use crate::calibration::pads::gain::try_pad_gain;
+use crate::calibration::pads::mask::try_is_pad_masked;
 use crate::calibration::wires::baseline::try_wire_baseline;
 use crate::calibration::wires::delay::try_wire_delay;
 use crate::calibration::wires::gain::try_wire_gain;
@@ -32,6 +33,7 @@ use uom::typenum::P2;
 pub use crate::calibration::pads::baseline::MapPadBaselineError;
 pub use crate::calibration::pads::delay::MapPadDelayError;
 pub use crate::calibration::pads::gain::MapPadGainError;
+pub use crate::calibration::pads::mask::PadMaskError;
 pub use crate::calibration::wires::baseline::MapWireBaselineError;
 pub use crate::calibration::wires::delay::MapWireDelayError;
 pub use crate::calibration::wires::gain::MapWireGainError;
@@ -148,6 +150,7 @@ impl SpacePoint {
 /// The error type returned when conversion from data banks to a [`MainEvent`]
 /// fails.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum TryMainEventFromDataBanksError {
     /// A given string does not match the pattern of any known bank name.
     #[error("unknown bank name")]
@@ -217,6 +220,9 @@ pub enum TryMainEventFromDataBanksError {
     /// Pad gain calibration failed.
     #[error("pad gain calibration failed")]
     PadGainError(#[from] MapPadGainError),
+    /// Pad mask calibration failed.
+    #[error("pad mask calibration failed")]
+    PadMaskError(#[from] PadMaskError),
 }
 
 /// ALPHA-g main event.
@@ -340,6 +346,10 @@ impl MainEvent {
 
                     let pad_position =
                         TpcPadPosition::try_new(run_number, board_id, after_id, pad_channel_id)?;
+                    if try_is_pad_masked(run_number, pad_position)? {
+                        continue;
+                    }
+
                     let pad_index = (
                         usize::from(pad_position.column),
                         usize::from(pad_position.row),
