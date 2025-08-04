@@ -22,6 +22,8 @@ changes will be documented in this file.
   11186 (same as some previous wire and pad calibrations). This was checked for
   all 2024 runs, and no differences were found until the detector was turned
   off.
+- Updated pad masking for 2025. The new calibration was done with run 12659, and
+  it was exactly compatible with run 12669.
 
 ### Fixed
 
