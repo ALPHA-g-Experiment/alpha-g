@@ -4,3 +4,5 @@ pub(crate) mod baseline;
 pub(crate) mod gain;
 // ADC delay calibration
 pub(crate) mod delay;
+// Mask noisy channels
+pub(crate) mod mask;
