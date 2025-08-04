@@ -17,6 +17,27 @@ fn try_is_pad_masked_error() {
 }
 
 #[test]
+fn try_is_pad_masked_12405() {
+    assert!(try_is_pad_masked(
+        12405,
+        TpcPadPosition {
+            column: TpcPadColumn::try_from(31).unwrap(),
+            row: TpcPadRow::try_from(25).unwrap(),
+        }
+    )
+    .unwrap());
+
+    assert!(try_is_pad_masked(
+        12405,
+        TpcPadPosition {
+            column: TpcPadColumn::try_from(27).unwrap(),
+            row: TpcPadRow::try_from(359).unwrap(),
+        }
+    )
+    .unwrap());
+}
+
+#[test]
 fn try_is_pad_masked_11084() {
     assert!(try_is_pad_masked(
         11084,

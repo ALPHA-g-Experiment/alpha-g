@@ -8,6 +8,7 @@ includes! {
     // Add new files to the list below.
     BYTES_9277 = "9277_complete.ron",
     BYTES_11186 = "11186_complete.ron",
+    BYTES_12659 = "12659_complete.ron",
 }
 
 lazy_static! {
@@ -18,6 +19,7 @@ lazy_static! {
     static ref MASK_SIMULATION: Vec<TpcPadPosition> = Vec::new();
     static ref MASK_9277: Vec<TpcPadPosition> = complete_from_bytes(BYTES_9277);
     static ref MASK_11186: Vec<TpcPadPosition> = complete_from_bytes(BYTES_11186);
+    static ref MASK_12659: Vec<TpcPadPosition> = complete_from_bytes(BYTES_12659);
 }
 
 pub(crate) fn try_is_pad_masked(
@@ -27,6 +29,9 @@ pub(crate) fn try_is_pad_masked(
     let mask = match run_number {
         // u32::MAX corresponds to a simulation run.
         u32::MAX => &*MASK_SIMULATION,
+        // First run of 2025. But first detector run was actually started in
+        // 12659.
+        12405.. => &*MASK_12659,
         // The calibration was done on run 11186. But the detector was in this
         // configuration since run 11084 when it was turned on.
         11084.. => &*MASK_11186,
